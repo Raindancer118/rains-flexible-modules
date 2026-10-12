@@ -762,6 +762,33 @@ public final class GuildService implements IGuildsService {
         return changed;
     }
 
+    /**
+     * Paints the guild's tag ({@code tag}) or its name: a colour, a gradient, bold — from the level the server set.
+     * {@link de.raindancer.core.ui.text.NameStyle#NONE} takes it off, at any level.
+     */
+    public GuildOutcome style(UUID actor, boolean tag, de.raindancer.core.ui.text.NameStyle style) {
+        de.raindancer.core.ui.text.NameStyle wanted = style == null ? de.raindancer.core.ui.text.NameStyle.NONE : style;
+        Optional<Guild> own = own(actor);
+        if (own.isEmpty()) {
+            return GuildOutcome.NO_GUILD;
+        }
+        if (!wanted.isEmpty() && level(own.get()) < settings.get().styleFromLevel()) {
+            return GuildOutcome.STYLE_LOCKED;
+        }
+        GuildOutcome changed = edit(actor, GuildPermission.EDIT_INFO,
+                guild -> tag ? guild.withStyles(wanted, guild.nameStyle()) : guild.withStyles(guild.tagStyle(), wanted),
+                GuildEvent.Kind.LOOK_CHANGED, (tag ? "tag " : "name ") + (wanted.isEmpty() ? "plain" : wanted.encode()));
+        if (changed.isSuccess()) {
+            onChange.run();
+        }
+        return changed;
+    }
+
+    /** From which level a guild may paint its tag and name. */
+    public int styleFromLevel() {
+        return settings.get().styleFromLevel();
+    }
+
     public GuildOutcome motd(UUID actor, String text) {
         String motd = text == null ? "" : text.strip();
         if (motd.length() > 200) {

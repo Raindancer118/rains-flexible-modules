@@ -1,5 +1,6 @@
 package de.raindancer.modules.guilds.model;
 
+import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.core.social.team.TeamColour;
 import de.raindancer.core.social.team.TeamEmblem;
 import de.raindancer.core.social.team.TeamId;
@@ -39,7 +40,9 @@ public record Guild(
         boolean allyFriendlyFire,
         Map<UUID, Member> members,
         List<Rank> ranks,
-        Map<String, Relation> relations) {
+        Map<String, Relation> relations,
+        NameStyle tagStyle,
+        NameStyle nameStyle) {
 
     public Guild {
         Objects.requireNonNull(id, "id");
@@ -54,12 +57,27 @@ public record Guild(
         members = Map.copyOf(members);
         ranks = ranks.stream().sorted(Comparator.comparingInt(Rank::weight).reversed()).toList();
         relations = Map.copyOf(relations);
+        tagStyle = tagStyle == null ? NameStyle.NONE : tagStyle;
+        nameStyle = nameStyle == null ? NameStyle.NONE : nameStyle;
         if (!members.containsKey(leader)) {
             throw new IllegalArgumentException("the leader of " + name + " is not a member");
         }
         if (ranks.stream().noneMatch(Rank::isLeader)) {
             throw new IllegalArgumentException(name + " has no leader rank");
         }
+    }
+
+    /** Without styles — how every guild started, and what older callers still build. */
+    public Guild(TeamId id, String name, String tag, TeamColour colour, TeamEmblem emblem, String motd, long founded,
+                 UUID leader, JoinMode joinMode, long xp, long bank, Optional<HomeSpot> home, boolean friendlyFire,
+                 boolean allyFriendlyFire, Map<UUID, Member> members, List<Rank> ranks, Map<String, Relation> relations) {
+        this(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home, friendlyFire,
+                allyFriendlyFire, members, ranks, relations, NameStyle.NONE, NameStyle.NONE);
+    }
+
+    public Guild withStyles(NameStyle newTagStyle, NameStyle newNameStyle) {
+        return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
+                friendlyFire, allyFriendlyFire, members, ranks, relations, newTagStyle, newNameStyle);
     }
 
     public boolean isMember(UUID player) {
@@ -107,71 +125,71 @@ public record Guild(
 
     public Guild withName(String newName) {
         return new Guild(id, newName, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withTag(String newTag) {
         return new Guild(id, name, newTag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withLook(TeamColour newColour, TeamEmblem newEmblem) {
         return new Guild(id, name, tag, newColour, newEmblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withMotd(String newMotd) {
         return new Guild(id, name, tag, colour, emblem, newMotd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withLeader(UUID newLeader) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, newLeader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withJoinMode(JoinMode mode) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, mode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withXp(long newXp) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, newXp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withBank(long minor) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, minor, home,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withHome(Optional<HomeSpot> newHome) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, newHome,
-                friendlyFire, allyFriendlyFire, members, ranks, relations);
+                friendlyFire, allyFriendlyFire, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withFriendlyFire(boolean own, boolean allies) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                own, allies, members, ranks, relations);
+                own, allies, members, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withMember(Member member) {
         Map<UUID, Member> next = new LinkedHashMap<>(members);
         next.put(member.player(), member);
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, next, ranks, relations);
+                friendlyFire, allyFriendlyFire, next, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withoutMember(UUID player) {
         Map<UUID, Member> next = new LinkedHashMap<>(members);
         next.remove(player);
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, next, ranks, relations);
+                friendlyFire, allyFriendlyFire, next, ranks, relations, tagStyle, nameStyle);
     }
 
     public Guild withRanks(List<Rank> newRanks) {
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, newRanks, relations);
+                friendlyFire, allyFriendlyFire, members, newRanks, relations, tagStyle, nameStyle);
     }
 
     public Guild withRank(Rank changed) {
@@ -188,6 +206,6 @@ public record Guild(
             next.put(other.value(), relation);
         }
         return new Guild(id, name, tag, colour, emblem, motd, founded, leader, joinMode, xp, bank, home,
-                friendlyFire, allyFriendlyFire, members, ranks, next);
+                friendlyFire, allyFriendlyFire, members, ranks, next, tagStyle, nameStyle);
     }
 }

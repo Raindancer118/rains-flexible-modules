@@ -86,7 +86,7 @@ class ServicesTest {
         GuildNotifier notify = new GuildNotifier(server, new Messages(folder.resolve("messages.yml")));
         settings = new GuildsSettings("0", 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
                 1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
-                true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0);
+                true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2);
         guilds = new GuildService(book, notify, Log.of("guilds-test"), clock::get,
                 who -> seen.containsKey(who) ? OptionalLong.of(seen.get(who)) : OptionalLong.empty(), settings);
         bank = new BankService(book, notify, Log.of("guilds-test"), clock::get, BankService.current(), settings);
@@ -146,7 +146,7 @@ class ServicesTest {
         private GuildsSettings withPrice(String price) {
             return new GuildsSettings(price, 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
                     1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
-                    true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0);
+                    true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2);
         }
     }
 
@@ -497,6 +497,63 @@ class ServicesTest {
             assertThat(xp.earn(BOB, 50)).as("no guild, nothing counted").isZero();
             book.flush();
             assertThat(book.events(elves.id(), Set.of(GuildEvent.Kind.LEVEL_UP), 5, 0)).hasSize(1);
+        }
+    }
+
+    @Nested
+    @DisplayName("styled tag and name")
+    class Styles {
+
+        private final de.raindancer.core.ui.text.NameStyle gold = de.raindancer.core.ui.text.TypedStyles
+                .read(List.of("gold", "#ff0000", "bold"), word -> null).style().orElseThrow();
+
+        @Test
+        @DisplayName("locked below the level the server set; open from it")
+        void fromLevelTwo() {
+            found(ALICE, "Elves", "ELF");
+            assertThat(guilds.style(ALICE, true, gold)).isEqualTo(GuildOutcome.STYLE_LOCKED);
+            xp.earn(ALICE, 1000);
+            assertThat(guilds.level(guild(ALICE))).isEqualTo(2);
+            assertThat(guilds.style(ALICE, true, gold)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.style(ALICE, false, gold)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guild(ALICE).tagStyle()).isEqualTo(gold);
+            assertThat(guild(ALICE).nameStyle()).isEqualTo(gold);
+        }
+
+        @Test
+        @DisplayName("only who may edit the guild's info may paint it; reset takes it off")
+        void permissionAndReset() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            xp.earn(ALICE, 1000);
+            assertThat(guilds.style(BOB, true, gold)).isEqualTo(GuildOutcome.NOT_ALLOWED);
+            guilds.style(ALICE, true, gold);
+            assertThat(guilds.style(ALICE, true, de.raindancer.core.ui.text.NameStyle.NONE)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guild(ALICE).tagStyle().isEmpty()).isTrue();
+        }
+
+        @Test
+        @DisplayName("the tag is drawn in its style, still reading [TAG]; without one, in the guild's colour")
+        void drawn() {
+            found(ALICE, "Elves", "ELF");
+            assertThat(de.raindancer.core.ui.text.Text.plain(GuildNotifier.tag(guild(ALICE)))).isEqualTo("[ELF]");
+            xp.earn(ALICE, 1000);
+            guilds.style(ALICE, true, gold);
+            net.kyori.adventure.text.Component tag = GuildNotifier.tag(guild(ALICE));
+            assertThat(de.raindancer.core.ui.text.Text.plain(tag)).isEqualTo("[ELF]");
+            assertThat(tag.children()).as("a gradient is drawn letter by letter").isNotEmpty();
+        }
+
+        @Test
+        @DisplayName("a style survives being read back from guilds.db")
+        void persisted() {
+            found(ALICE, "Elves", "ELF");
+            xp.earn(ALICE, 1000);
+            guilds.style(ALICE, false, gold);
+            assertThat(book.flush()).isTrue();
+            GuildBook again = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
+            again.load();
+            assertThat(again.guildOf(ALICE).orElseThrow().nameStyle()).isEqualTo(gold);
         }
     }
 

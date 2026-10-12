@@ -29,7 +29,8 @@
         <!-- 0.16.0: on a server that follows another over RainsCore's link (the arena), cosmetics come from there:
              the rainscosmetics data is carried over, nothing is taken off on join, and they are chosen there. Needs
              RainsCore 1.120.0. -->
-        <plugin.version>0.16.0</plugin.version>
+        <!-- 0.16.1: typed name styles are read by RainsCore 1.126.0 TypedStyles (same words, shared with guilds). -->
+        <plugin.version>0.16.1</plugin.version>
     </properties>
 
     <dependencies>

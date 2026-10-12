@@ -131,7 +131,9 @@ public final class SqliteGuildStorage implements GuildStorage {
                 JoinMode.named(rows.getString("join_mode")).orElse(JoinMode.INVITE),
                 rows.getLong("xp"), rows.getLong("bank"), home,
                 rows.getInt("friendly_fire") != 0, rows.getInt("ally_friendly_fire") != 0,
-                roster, ladder, relations);
+                roster, ladder, relations,
+                de.raindancer.core.ui.text.NameStyle.parse(rows.getString("tag_style")),
+                de.raindancer.core.ui.text.NameStyle.parse(rows.getString("name_style")));
     }
 
     private static Set<GuildPermission> permissions(String written) {
@@ -230,7 +232,7 @@ public final class SqliteGuildStorage implements GuildStorage {
         String id = guild.id().value();
         try (PreparedStatement row = connection.prepareStatement("INSERT INTO guild (id, name, tag, colour, emblem, motd, "
                 + "founded, leader, join_mode, xp, bank, home_world, home_x, home_y, home_z, home_yaw, home_pitch, "
-                + "friendly_fire, ally_friendly_fire) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+                + "friendly_fire, ally_friendly_fire, tag_style, name_style) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
             row.setString(1, id);
             row.setString(2, guild.name());
             row.setString(3, guild.tag());
@@ -257,6 +259,8 @@ public final class SqliteGuildStorage implements GuildStorage {
             }
             row.setInt(18, guild.friendlyFire() ? 1 : 0);
             row.setInt(19, guild.allyFriendlyFire() ? 1 : 0);
+            row.setString(20, guild.tagStyle().encode());
+            row.setString(21, guild.nameStyle().encode());
             row.executeUpdate();
         }
         try (PreparedStatement row = connection.prepareStatement("INSERT OR REPLACE INTO member (player, guild, rank, joined, "

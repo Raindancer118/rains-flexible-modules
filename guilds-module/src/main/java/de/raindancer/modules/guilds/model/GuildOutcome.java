@@ -53,6 +53,8 @@ public enum GuildOutcome {
     TOO_MANY_RANKS,
     LEADER_RANK,
     PERMISSION_NOT_HELD,
+    /** Painting the tag or the name needs a higher guild level. */
+    STYLE_LOCKED,
     NOT_SAVED;
 
     public boolean isSuccess() {

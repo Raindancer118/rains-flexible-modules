@@ -23,44 +23,15 @@ public final class TypedStyleRule implements ICosmeticsRule {
         if (words.isEmpty()) {
             return Parsed.no("Name at least one colour — a palette colour, a chat colour or a #hex code.");
         }
-        NameStyle style = NameStyle.NONE;
-        for (String word : words) {
-            if (ANIMATED_WORDS.contains(word.trim().toLowerCase(Locale.ROOT))) {
-                style = style.animated(true);
-                continue;
-            }
-            TextDecoration decoration = decorationOf(word);
-            if (decoration != null) {
-                style = style.with(decoration, true);
-                continue;
-            }
-            // The palette first: on a server whose "red" is the dye's red, typing red means that red.
-            Optional<PaletteColour> swatch = catalogue.colourNamed(word);
-            TextColor colour = swatch.map(PaletteColour::colour).orElseGet(() -> NameStyle.colourOf(word));
-            if (colour == null) {
-                return Parsed.no("'" + word + "' is not a colour or a decoration here.");
-            }
-            style = style.withStop(colour);
-        }
-        return Parsed.ok(style.animated(animatedAsked(words)));
+        // The palette first: on a server whose "red" is the dye's red, typing red means that red.
+        de.raindancer.core.ui.text.TypedStyles.Read read = de.raindancer.core.ui.text.TypedStyles.read(words,
+                word -> catalogue.colourNamed(word).map(PaletteColour::colour).orElse(null));
+        return read.style().map(Parsed::ok).orElseGet(() -> Parsed.no(read.problem()));
     }
-
-    /** What people type to make a gradient move. Applied after the colours, so its place does not matter. */
-    private static final java.util.Set<String> ANIMATED_WORDS = java.util.Set.of("animated", "flowing", "moving");
 
     /** {@code bold}, and the two spellings people actually use for the long ones. */
     public static TextDecoration decorationOf(String word) {
-        String cleaned = word.trim().toLowerCase(Locale.ROOT);
-        return switch (cleaned) {
-            case "underline" -> TextDecoration.UNDERLINED;
-            case "strike" -> TextDecoration.STRIKETHROUGH;
-            case "magic" -> TextDecoration.OBFUSCATED;
-            default -> TextDecoration.NAMES.value(cleaned);
-        };
-    }
-
-    private static boolean animatedAsked(List<String> words) {
-        return words.stream().anyMatch(word -> ANIMATED_WORDS.contains(word.trim().toLowerCase(Locale.ROOT)));
+        return de.raindancer.core.ui.text.TypedStyles.decorationOf(word);
     }
 
     @Override

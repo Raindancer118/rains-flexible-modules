@@ -77,7 +77,10 @@ guilds:
     chat: "<gray>/guild c <message> <dark_gray>· oc for officers · ac for allies"
     joining: "<gray>/guild joining <invite|apply|open>"
     which-invitation: "<gray>You have <white><count></white> invitations — say which guild: /guild accept <guild>"
+    style: "<gray>/guild style tag|name <colours…> [bold] [animated] <dark_gray>— e.g. /guild style tag gold #ff5500 bold · /guild style name reset. From guild level <level>."
     admin: "<gray>/guild admin disband <guild> confirm · rename <guild> <name> · xp <guild> <amount> · leader <guild> <player>"
+  style-unreadable: "<red><problem> <gray>Colours are chat colours (gold, aqua…) or #hex codes."
+  style-locked: "<red>Your guild paints its tag and name from level <white><level></white>. Earn it first — fame is not free."
   outcome:
     success: "<green>Done."
     asked: "<green>Asked. <gray>They have been told."
@@ -114,6 +117,7 @@ guilds:
     invalid-amount: "<red>That is not an amount anybody can pay."
     no-home: "<red>The guild has no home yet."
     home-locked: "<red>The guild home unlocks at a higher level."
+    style-locked: "<red>Colours for the tag and the name unlock at a higher guild level."
     too-many-allies: "<red>No ally slot free — on one side or the other. Levels bring more."
     already-allied: "<red>You are allied already."
     not-allied: "<red>You are not allied with them."

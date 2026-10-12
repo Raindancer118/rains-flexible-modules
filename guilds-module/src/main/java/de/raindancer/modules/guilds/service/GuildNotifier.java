@@ -78,11 +78,18 @@ public final class GuildNotifier implements IGuildsService {
 
     /** The guild's tag, in its colour — inserted as a component, never parsed. */
     public static Component tag(Guild guild) {
+        if (!guild.tagStyle().isEmpty()) {
+            return de.raindancer.core.ui.text.Gradients.styled("[" + guild.tag() + "]", guild.tagStyle());
+        }
         return Component.text("[" + guild.tag() + "]", guild.colour().textColour());
     }
 
     /** The guild's name, in its colour, bold. */
     public static Component title(Guild guild) {
+        if (!guild.nameStyle().isEmpty()) {
+            return Component.text(guild.emblem().prefix(), guild.colour().textColour()).append(
+                    de.raindancer.core.ui.text.Gradients.styled(guild.name(), guild.nameStyle()).decorate(TextDecoration.BOLD));
+        }
         return Component.text(guild.emblem().prefix() + guild.name(), guild.colour().textColour())
                 .decorate(TextDecoration.BOLD);
     }

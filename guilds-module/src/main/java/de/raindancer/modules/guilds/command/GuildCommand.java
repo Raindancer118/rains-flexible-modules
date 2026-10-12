@@ -36,8 +36,8 @@ public final class GuildCommand implements IGuildsCommand {
 
     static final List<String> SUBCOMMANDS = List.of("create", "info", "list", "invite", "accept", "decline", "join",
             "leave", "kick", "promote", "demote", "rank", "leader", "chat", "c", "officer", "oc", "ally-chat", "ac",
-            "home", "sethome", "deposit", "withdraw", "ally", "unally", "rival", "unrival", "rename", "tag", "motd",
-            "joining", "disband");
+            "home", "sethome", "deposit", "withdraw", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
+            "motd", "joining", "disband");
     static final List<String> STAFF = List.of("admin");
 
     private final Supplier<GuildsServices> services;
@@ -113,6 +113,7 @@ public final class GuildCommand implements IGuildsCommand {
             case "unrival" -> withGuild(live, player, rest, guild -> say(live, player, live.relations().endRivalry(me, guild.id())));
             case "rename" -> say(live, player, live.guilds().rename(me, rest));
             case "tag" -> say(live, player, live.guilds().retag(me, rest));
+            case "style" -> style(live, player, args);
             case "motd" -> say(live, player, live.guilds().motd(me, rest));
             case "joining" -> {
                 Optional<JoinMode> mode = JoinMode.named(rest);
@@ -134,6 +135,31 @@ public final class GuildCommand implements IGuildsCommand {
             }
             default -> live.messages().send(player, "guilds.usage.all");
         }
+    }
+
+    /** {@code /guild style tag|name <colours… bold…> | reset}. */
+    private static void style(GuildsServices live, Player player, String[] args) {
+        if (args.length < 3 || !(args[1].equalsIgnoreCase("tag") || args[1].equalsIgnoreCase("name"))) {
+            live.messages().send(player, "guilds.usage.style", "level", live.guilds().styleFromLevel());
+            return;
+        }
+        boolean tag = args[1].equalsIgnoreCase("tag");
+        List<String> words = Arrays.asList(Arrays.copyOfRange(args, 2, args.length));
+        if (words.size() == 1 && words.getFirst().equalsIgnoreCase("reset")) {
+            say(live, player, live.guilds().style(player.getUniqueId(), tag, de.raindancer.core.ui.text.NameStyle.NONE));
+            return;
+        }
+        de.raindancer.core.ui.text.TypedStyles.Read read = de.raindancer.core.ui.text.TypedStyles.read(words, word -> null);
+        if (read.style().isEmpty()) {
+            live.messages().send(player, "guilds.style-unreadable", "problem", read.problem());
+            return;
+        }
+        GuildOutcome outcome = live.guilds().style(player.getUniqueId(), tag, read.style().get());
+        if (outcome == GuildOutcome.STYLE_LOCKED) {
+            live.messages().send(player, "guilds.style-locked", "level", live.guilds().styleFromLevel());
+            return;
+        }
+        say(live, player, outcome);
     }
 
     private static void say(GuildsServices live, CommandSender sender, GuildOutcome outcome) {

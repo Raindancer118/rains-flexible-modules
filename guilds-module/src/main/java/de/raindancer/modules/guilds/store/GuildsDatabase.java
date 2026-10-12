@@ -87,6 +87,12 @@ public final class GuildsDatabase {
                             expires INTEGER NOT NULL,
                             PRIMARY KEY (kind, guild, subject, other)
                         )
+            """,
+            """
+            ALTER TABLE guild ADD COLUMN tag_style TEXT NOT NULL DEFAULT ''
+            """,
+            """
+            ALTER TABLE guild ADD COLUMN name_style TEXT NOT NULL DEFAULT ''
             """);
 
     private GuildsDatabase() {

@@ -137,11 +137,16 @@ public record GuildsSettings(
         @Key("home.warmup") int homeWarmup,
 
         @In("guilds/home") @Title("Wait between trips (seconds)") @Range(min = 0, max = 86_400)
-        @Key("home.cooldown") int homeCooldown) {
+        @Key("home.cooldown") int homeCooldown,
+
+        @In("guilds/levels") @Title("Colours for tag and name from level") @Range(min = 1, max = 100)
+        @Describe("From this guild level on, a guild paints its tag and its name: a colour, a gradient, bold. "
+                + "Below it, they wear the guild's plain colour.")
+        @Key("levels.style-from") int styleFromLevel) {
 
     public static final GuildsSettings DEFAULTS = new GuildsSettings(
             "0", 3, 24, 2, 5, List.of(), 8, 48, 7, 30, true, true,
             1000, 1.6, 25, 8, 2, 50, 1, 5, 3, 600, 0.35, 2, 250, 25, 1,
             true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100",
-            5, 60);
+            5, 60, 2);
 }
