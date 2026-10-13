@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +41,9 @@ public final class GateNetwork {
     private final GateConsents consents;
     private final java.util.function.Predicate<UUID> hidden;
     private final Set<UUID> returning = ConcurrentHashMap.newKeySet();
+    private final de.raindancer.modules.arenagate.rules.InviteMissRule missed =
+            new de.raindancer.modules.arenagate.rules.InviteMissRule();
+    private volatile java.util.function.Function<String, Optional<String>> whereElse = name -> Optional.empty();
 
     public GateNetwork(Plugin plugin, Server server, Messages messages, ServerLink link, EscrowService escrow,
                        GearService gear, GateInvites invites, GateService gate, GateConsents consents,
@@ -54,6 +58,11 @@ public final class GateNetwork {
         this.gear = gear;
         this.invites = invites;
         this.gate = gate;
+    }
+
+    /** Which other server of the network a name is on (hub, OneBlock…), for an invite that found them in neither place. */
+    public void whereElse(java.util.function.Function<String, Optional<String>> lookup) {
+        this.whereElse = lookup;
     }
 
     public void listen() {
@@ -299,9 +308,14 @@ public final class GateNetwork {
         // Only the name: the arena knows its own players and finds them by it.
         data.put("toName", targetName);
         link.request(ArenaProtocol.INVITE, data, java.time.Duration.ofSeconds(8))
-                .whenComplete((answer, failure) -> Scheduling.entity(plugin, from, () -> messages.send(from,
-                        failure == null && "true".equals(answer.get("ok")) ? "arenagate.invite.sent-arena"
-                                : "arenagate.invite.unknown", "player", targetName, "id", id)));
+                .whenComplete((answer, failure) -> Scheduling.entity(plugin, from, () -> {
+                    if (failure == null && "true".equals(answer.get("ok"))) {
+                        messages.send(from, "arenagate.invite.sent-arena", "player", targetName, "id", id);
+                        return;
+                    }
+                    Optional<String> elsewhere = whereElse.apply(targetName);
+                    messages.send(from, missed.keyFor(elsewhere), "player", targetName, "server", elsewhere.orElse(""));
+                }));
     }
 
     private Map<String, String> agreed(GateInvites.Pending pending) {

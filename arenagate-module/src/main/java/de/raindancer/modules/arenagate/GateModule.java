@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class GateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.7.2")
             .describedAs("/arena and /pvp: off to the arena server, invites across both servers, stakes held here.")
             .by("Raindancer118");
 
@@ -73,6 +73,7 @@ public final class GateModule implements FlexModule {
             network = new GateNetwork(context.plugin(), context.plugin().getServer(), context.core().messages(), link,
                     escrow, gear, new GateInvites(System::currentTimeMillis), gate, consents,
                     context.core().vanish()::isVanished);
+            network.whereElse(name -> context.core().links().serverOf(name));
             network.listen();
             context.listener(new de.raindancer.modules.arenagate.listener.ReadyListener(context.plugin(), link));
             var sweep = Scheduling.asyncTimer(context.plugin(), 300, 300, task -> escrow.sweep());

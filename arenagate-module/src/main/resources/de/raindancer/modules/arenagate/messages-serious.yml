@@ -1,3 +1,5 @@
 # The serious wording for this module: only lines that differ from messages.yml.
 arenagate:
   sending: "<gray>Connecting to the arena. Your inventory stays on this server."
+  invite:
+    elsewhere: "<red><white><player></white> is on <white><server></white>. Duel invites only reach players here or in the arena."

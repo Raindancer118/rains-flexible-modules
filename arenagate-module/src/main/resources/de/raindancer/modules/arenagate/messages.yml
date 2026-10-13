@@ -20,6 +20,7 @@ arenagate:
     self: "<red>You cannot fight yourself."
     already: "<yellow>You have already asked <white><player></white>."
     unknown: "<red>Nobody called <white><player></white> is online, here or in the arena."
+    elsewhere: "<red><white><player></white> is on <white><server></white> right now. Duels start here or in the arena — talk them into coming over first."
     sent: "<green>Asked <white><player></white>. They have a minute to answer. <click:run_command:'/pvp cancel <id>'><red>[Cancel]</red></click>"
     sent-arena: "<green>Asked <white><player></white> in the arena. If they say yes, you are taken there. <click:run_command:'/pvp cancel <id>'><red>[Cancel]</red></click>"
     received: "<gold><white><player></white> (<where>) asks you to a <white><mode></white> with <white><kit></white>, best of <white><rounds></white>, stake <white><stake></white>. <click:run_command:'/pvp accept <id>'><green>[Accept]</green></click> <click:run_command:'/pvp deny <id>'><red>[Decline]</red></click>"
