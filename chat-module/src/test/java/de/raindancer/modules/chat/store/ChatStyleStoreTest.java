@@ -111,4 +111,41 @@ class ChatStyleStoreTest {
         assertThat(store.of(tom).color()).isNull();
         assertThat(store.of(tom).bold()).isTrue();
     }
+
+    @Test
+    @DisplayName("a style exported on one server is the same style adopted on another")
+    void exportAdoptRoundTrip() throws IOException {
+        UUID who = UUID.randomUUID();
+        store.set(who, new ChatStyle(NamedTextColor.GOLD, true, false, true, false));
+
+        Path otherFolder = dataFolder.resolve("other");
+        Files.createDirectories(otherFolder);
+        ChatStyleStore other = new ChatStyleStore(otherFolder);
+        other.adopt(who, store.export(who));
+
+        assertThat(other.of(who)).isEqualTo(new ChatStyle(NamedTextColor.GOLD, true, false, true, false));
+    }
+
+    @Test
+    @DisplayName("an adopted style lives in memory only: nothing is written to this server's file")
+    void adoptDoesNotWrite() {
+        UUID who = UUID.randomUUID();
+        store.adopt(who, java.util.Map.of("color", "red", "bold", "true"));
+
+        assertThat(store.of(who).color()).isEqualTo(NamedTextColor.RED);
+        assertThat(store.of(who).bold()).isTrue();
+        assertThat(Files.exists(dataFolder.resolve("chatstyles.yml"))).isFalse();
+    }
+
+    @Test
+    @DisplayName("somebody with no style over there has none here either, and garbage is read as none")
+    void adoptingNothingClears() {
+        UUID who = UUID.randomUUID();
+        store.adopt(who, java.util.Map.of("color", "gold"));
+        store.adopt(who, store.export(UUID.randomUUID()));
+        assertThat(store.of(who)).isEqualTo(ChatStyle.DEFAULT);
+
+        store.adopt(who, java.util.Map.of("color", "not-a-colour", "bold", "maybe"));
+        assertThat(store.of(who)).isEqualTo(ChatStyle.DEFAULT);
+    }
 }

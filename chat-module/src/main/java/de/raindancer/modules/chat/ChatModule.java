@@ -39,7 +39,9 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.15.0")
+    private static final String STYLE_PART = "chat:style";
+
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.16.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -85,6 +87,9 @@ public final class ChatModule implements FlexModule {
         styles = new ChatStyleStore(context.dataFolder());
         styles.load();
         ChatStyleService styleService = new ChatStyleService(styles);
+        // One chat colour on every server of the network: the one that keeps it answers, a following one shows it.
+        context.core().shareProfile(STYLE_PART, styles::export, styles::adopt);
+        context.closeWith(() -> context.core().unshareProfile(STYLE_PART));
 
         FormatService format = new FormatService(context.chat(), context.core().identities(),
                 styleService, settings.current());

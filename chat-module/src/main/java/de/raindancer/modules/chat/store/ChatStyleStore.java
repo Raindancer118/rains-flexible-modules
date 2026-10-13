@@ -105,6 +105,32 @@ public final class ChatStyleStore {
         save();
     }
 
+    /** This player's style as the link carries it; a player with none answers all-off, which the other side adopts as none. */
+    public Map<String, String> export(UUID who) {
+        ChatStyle style = of(who);
+        return Map.of(
+                "color", style.color() == null ? "" : NamedTextColor.NAMES.key(style.color()),
+                "bold", String.valueOf(style.bold()),
+                "italic", String.valueOf(style.italic()),
+                "underlined", String.valueOf(style.underlined()),
+                "strikethrough", String.valueOf(style.strikethrough()));
+    }
+
+    /** A style kept on the other server of the link, shown here: remembered in memory, never written to this server's file. */
+    public void adopt(UUID who, Map<String, String> exported) {
+        if (who == null) {
+            return;
+        }
+        ChatStyle style = new ChatStyle(colorOf(exported.get("color")), "true".equals(exported.get("bold")),
+                "true".equals(exported.get("italic")), "true".equals(exported.get("underlined")),
+                "true".equals(exported.get("strikethrough")));
+        if (style.isDefault()) {
+            styles.remove(who);
+        } else {
+            styles.put(who, style);
+        }
+    }
+
     public boolean save() {
         if (!readable) {
             return false;

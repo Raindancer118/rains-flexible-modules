@@ -71,7 +71,8 @@
           1.15.0: network chat — public chat shared with the server this one is linked to through
           RainsCore's link.yml (Chat → Network chat in /settings, a tag per server); private chats and
           channels stay put, a mute on either server hides the muted player there. Needs RainsCore 1.115.0. -->
-        <plugin.version>1.15.0</plugin.version>
+        <!-- 1.16.0: the chat colour and decorations follow a player over the network link (RainsCore 1.135.0 shareProfile), so the hub and arena show what was chosen on the SMP. -->
+        <plugin.version>1.16.0</plugin.version>
     </properties>
 
     <dependencies>
