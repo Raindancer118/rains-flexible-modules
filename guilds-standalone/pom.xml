@@ -34,7 +34,8 @@
         <!-- 0.7.0: reasons to grind — perk points and a perk tree (vault, haste, luck, scholar, prosperous, recruiter, diplomat, pathfinder), prestige past the top level, the weekly crown. -->
         <!-- 0.7.1: the vault is sealed from the empty check to the end of a disband; vault keyed by founding time; taking asks the guild as it is now (security review). -->
         <!-- 0.7.2: a vault whose file cannot be read is never taken for empty — no disband, no deposits (RainsCore 1.132.0 StashStore.isReadable; security review). -->
-        <plugin.version>0.7.2</plugin.version>
+        <!-- 0.8.0: the guild choices menu paints the tag and the name in the colour editor, from the level the server set. -->
+        <plugin.version>0.8.0</plugin.version>
     </properties>
 
     <dependencies>

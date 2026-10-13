@@ -6,6 +6,7 @@ import de.raindancer.modules.ranks.RanksServices;
 import de.raindancer.modules.ranks.model.Holder;
 import de.raindancer.modules.ranks.model.Place;
 import de.raindancer.modules.ranks.model.Rank;
+import de.raindancer.modules.ranks.screen.RankAdminMenu;
 import de.raindancer.modules.ranks.screen.RankMenu;
 import de.raindancer.modules.ranks.service.RankService.Outcome;
 import de.raindancer.modules.ranks.util.PermissionNodes;
@@ -46,6 +47,13 @@ public final class RankCommand implements IRanksCommand {
             case "show" -> asPlayer(live, sender).ifPresent(player -> show(live, player, args));
             case "give", "take" -> staffChange(live, sender, args, first.equals("give"));
             case "list" -> list(live, sender, args);
+            case "manage" -> {
+                if (!sender.hasPermission(PermissionNodes.ADMIN)) {
+                    live.messages().send(sender, "ranks.usage");
+                } else {
+                    asPlayer(live, sender).ifPresent(player -> new RankAdminMenu(live, player, null).open());
+                }
+            }
             case "create", "edit", "delete" -> manage(live, sender, first, args);
             case "reload" -> {
                 if (!sender.hasPermission(PermissionNodes.ADMIN)) {
@@ -312,7 +320,7 @@ public final class RankCommand implements IRanksCommand {
         if (args.length <= 1) {
             options.addAll(List.of("info", "wear", "show"));
             if (admin) {
-                options.addAll(List.of("give", "take", "list", "reload", "create", "edit", "delete"));
+                options.addAll(List.of("give", "take", "list", "reload", "manage", "create", "edit", "delete"));
             }
         } else if (args.length == 2 && first.equals("wear") && sender instanceof Player player) {
             live.ranks().held(player.getUniqueId()).forEach(rank -> options.add(rank.id()));

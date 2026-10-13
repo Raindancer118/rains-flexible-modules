@@ -10,6 +10,7 @@ import de.raindancer.modules.ranks.model.Holder;
 import de.raindancer.modules.ranks.model.Place;
 import de.raindancer.modules.ranks.model.Rank;
 import de.raindancer.modules.ranks.service.RankService.Outcome;
+import de.raindancer.modules.ranks.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -90,6 +91,13 @@ public final class RankMenu extends Menu implements IRanksScreen {
                     "", "<yellow>Click<gray> to switch.");
             toolbar(2, settings.playersChoose(), hide, "The server picks for you",
                     click -> answer(services.ranks().wear(viewer.getUniqueId(), hidden ? "" : Holder.HIDDEN)));
+        }
+
+        if (viewer.hasPermission(PermissionNodes.ADMIN)) {
+            toolbar(4, Icons.of(Material.ANVIL, "<white>Manage ranks",
+                            "<gray>Paint the tags, change what they say,", "<gray>make new ranks or delete one.",
+                            "", "<gray>Only staff with the rank admin permission see this."),
+                    click -> new RankAdminMenu(services, viewer, this).open());
         }
 
         if (viewer.hasPermission(SETTINGS_PERMISSION)) {

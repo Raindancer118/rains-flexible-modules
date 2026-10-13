@@ -3,11 +3,13 @@ package de.raindancer.modules.guilds.screen;
 import de.raindancer.core.social.team.TeamColour;
 import de.raindancer.core.social.team.TeamEmblem;
 import de.raindancer.core.ui.choose.OptionChooser;
+import de.raindancer.core.ui.choose.StyleEditor;
 import de.raindancer.core.ui.menu.Icons;
 import de.raindancer.core.ui.menu.Menu;
 import de.raindancer.core.ui.menu.MenuLayout;
 import de.raindancer.modules.guilds.GuildsServices;
 import de.raindancer.modules.guilds.model.Guild;
+import de.raindancer.modules.guilds.service.GuildNotifier;
 import de.raindancer.modules.guilds.model.GuildPermission;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -77,6 +79,9 @@ public final class GuildSettingsMenu extends Menu implements IGuildsScreen {
                     open();
                 }).open());
 
+        paint(guild, edit, true);
+        paint(guild, edit, false);
+
         band(MenuLayout.RULES, 2, edit, Icons.of(Material.WRITABLE_BOOK, "<white>Message of the day",
                         guild.motd().isBlank() ? "<gray>None." : "<gray>“" + GuildMenu.escaped(guild.motd()) + "”",
                         "", "<gray>Click, then type it.", "<gray>Right click to clear it."), locked,
@@ -114,6 +119,42 @@ public final class GuildSettingsMenu extends Menu implements IGuildsScreen {
         } else {
             band(MenuLayout.LAND, 4, Icons.locked(Icons.of(Material.TNT, "<white>Disband the guild"), "Only the leader can disband it."));
         }
+    }
+
+    /**
+     * The tag's or the name's colours: greyed until the guild reaches the level the server set, with the level said;
+     * the service checks the level and the rank again, so the button is only the way in.
+     */
+    private void paint(Guild guild, boolean edit, boolean tag) {
+        UUID me = viewer.getUniqueId();
+        int from = services.guilds().styleFromLevel();
+        boolean reached = services.guilds().level(guild) >= from;
+        String what = tag ? "tag" : "name";
+        de.raindancer.core.ui.text.NameStyle painted = tag ? guild.tagStyle() : guild.nameStyle();
+        net.kyori.adventure.text.Component preview = tag ? GuildNotifier.tag(guild) : GuildNotifier.title(guild);
+        String locked = !edit ? "Your rank cannot change the guild."
+                : "Your guild paints its " + what + " from level " + from + ".";
+        band(MenuLayout.LAND, tag ? 2 : 6, edit && reached, Icons.of(tag ? Material.PAINTING : Material.GLOW_INK_SAC,
+                        "<white>" + (tag ? "Tag" : "Name") + " colours",
+                        "<gray>Now: " + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(preview),
+                        painted.isEmpty() ? "<gray>Plain, in the guild colour." : "<gray>" + StyleEditor.describe(painted),
+                        "", "<gray>Click to paint it.", "<gray>Right click to take the paint off."), locked,
+                click -> {
+                    if (click.isRightClick()) {
+                        IGuildsScreen.tell(services, viewer, this, services.guilds().style(me, tag,
+                                de.raindancer.core.ui.text.NameStyle.NONE));
+                        return;
+                    }
+                    StyleEditor.of(viewer, services.brand(), this)
+                            .heading((tag ? "Tag" : "Name") + " colours")
+                            .sample(tag ? "[" + guild.tag() + "]" : guild.name())
+                            .current(() -> services.guilds().guildOf(me)
+                                    .map(now -> tag ? now.tagStyle() : now.nameStyle())
+                                    .orElse(de.raindancer.core.ui.text.NameStyle.NONE))
+                            .onChange(style -> services.messages().send(viewer,
+                                    services.guilds().style(me, tag, style).messageKey()))
+                            .open();
+                });
     }
 
     @Override

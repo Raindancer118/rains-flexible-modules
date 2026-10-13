@@ -1,7 +1,12 @@
 # This module's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
 ranks:
+  busy: "<red>Something else is waiting for your answer. Finish that first."
+  ask:
+    new: "<aqua>Type the new rank's id and its tag in chat, e.g. <white>vip VIP</white>. <gray>Or <white>cancel</white>."
+    tag: "<aqua>Type the tag in chat. Plain text gets brackets. <gray>Or <white>cancel</white>."
+    title: "<aqua>Type the rank's title in chat. <gray>Or <white>cancel</white>."
   usage: "<gray>/rank <dark_gray>— your ranks · <gray>/rank info [player] · /rank wear <rank|none|auto> · /rank show <chat|nametag|tablist> [on|off]"
-  usage-staff: "<gray>/rank give <player> <rank> · /rank take <player> <rank> · /rank list [rank] · /rank reload"
+  usage-staff: "<gray>/rank give <player> <rank> · /rank take <player> <rank> · /rank list [rank] · /rank reload · /rank manage"
   usage-wear: "<gray>/rank wear <rank> <dark_gray>— one of yours · <gray>none <dark_gray>— nothing · <gray>auto <dark_gray>— your most senior"
   usage-show: "<gray>/rank show <chat|nametag|tablist> [on|off] <dark_gray>— where your rank goes in front of your name"
   unknown: "<red>There is no rank called <white><name></white>. Making one up does not count. <gray><white>/rank list</white> shows the real ones."

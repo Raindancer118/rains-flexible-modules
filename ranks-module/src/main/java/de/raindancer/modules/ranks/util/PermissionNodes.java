@@ -21,7 +21,7 @@ public final class PermissionNodes {
     public static List<Permission> declared() {
         return List.of(
                 new Permission(USE, "See your ranks and choose where they show, with /rank", PermissionDefault.TRUE),
-                new Permission(ADMIN, "Give and take ranks, and read ranks.yml again", PermissionDefault.OP));
+                new Permission(ADMIN, "Give and take ranks, manage them in game, and read ranks.yml again", PermissionDefault.OP));
     }
 
     /** Registers whatever is not registered yet. @return how many were added */
