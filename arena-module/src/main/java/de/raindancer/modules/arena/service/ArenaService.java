@@ -66,6 +66,17 @@ public final class ArenaService implements IArenaService {
         this.returning = announce;
     }
 
+    private volatile java.util.function.Predicate<Location> pitOpen = where -> false;
+
+    /** Which places are open to a building fight's changes right now — see {@code PitRestorer}. */
+    public void pitOpen(java.util.function.Predicate<Location> open) {
+        this.pitOpen = open;
+    }
+
+    public boolean isPitOpen(Location where) {
+        return pitOpen.test(where);
+    }
+
     /** Who is in a running fight — not sent back in the middle of it. */
     public void fighting(java.util.function.Predicate<java.util.UUID> inFight) {
         this.fighting = inFight;

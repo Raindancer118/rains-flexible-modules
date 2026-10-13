@@ -66,7 +66,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.13.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.13.1")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -136,6 +136,7 @@ public final class ArenaModule implements FlexModule {
         PitRestorer restorer = new PitRestorer(context.plugin(), server);
         matches.restorer(restorer);
         worlds.building(player -> matches.mayBuild(player.getUniqueId()), restorer::isOpen);
+        arena.pitOpen(restorer::isOpen);
         FloodService floods = new FloodService(context.plugin(), server, context.core().effects(),
                 context.core().messages(), new de.raindancer.modules.arena.store.FloodLedger(
                         context.dataFolder().resolve("floods")), log, settings.current());
