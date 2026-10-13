@@ -1,0 +1,38 @@
+# Rain's OneBlock — every line this module says.
+#
+# Offered as a *floor*: anything an owner has already written in their own messages.yml wins. See
+# Messages.defineFrom. The island's own lines (phases, the team accept and its confirmation) are BentoBox's.
+oneblock:
+
+  usage: "<gray>/island  ·  /island invite <player>  ·  /island guest <player>  ·  /island accept [player]  ·  /island deny [player]"
+  only-a-player: "<red>Consoles do not get islands. Not even a small one."
+  not-allowed: "<red>You may not use islands. Somebody decided that, and it was not the block."
+  going: "<gray>Off to your island. Mind the gap — it is all void."
+
+  refuse:
+    self: "<red>Inviting yourself. Bold. Also pointless."
+    no-island: "<red>You have no island to invite anybody to. <click:run_command:'/island'><yellow>[Get one]</yellow></click> first, host later."
+    already-member: "<red><white><player></white> is already on your island. They might notice an invite to where they are standing."
+    banned: "<red>You banned <white><player></white> from your island. Make up your mind — unban them first."
+    rank: "<red>Your rank on this island does not let you invite. Take it up with the owner."
+    full: "<red>Your team is full (<white><most></white>). Somebody has to leave before <white><player></white> can join."
+    nobody: "<red>Nobody called <white><player></white> is online anywhere on the network. Invites need somebody to read them."
+    asleep: "<red>The island server is not answering right now. The block is patient — try again in a moment."
+    several: "<yellow>Several invites are waiting. Say whose: <white>/island accept <player></white>."
+    no-invite: "<gray>No invite waiting for you. Popular, but not that popular."
+
+  invite:
+    sent-team: "<green>Invited <white><player></white> to your team. They have <white><minutes></white> minute(s) to say yes."
+    sent-guest: "<green>Invited <white><player></white> to visit your island. They have <white><minutes></white> minute(s)."
+    received-team: "<white><player></white> wants you on their OneBlock team. <click:run_command:'/island accept <player>'><green>[Join]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s), from any server."
+    received-guest: "<white><player></white> invites you to look round their OneBlock island. <click:run_command:'/island accept <player>'><green>[Visit]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s)."
+    accepted: "<green><white><player></white> said yes and is on the way."
+    declined: "<yellow><white><player></white> turned your invite down. The block still likes you."
+    declined-by-you: "<gray>Declined. <white><player></white> has been told, gently."
+    ran-out: "<gray>Your invite to <white><player></white> ran out. Nobody clicked anything."
+
+  accept:
+    on-the-way: "<green>Off to <white><player></white>'s island. Hold on to something."
+
+  visit:
+    taking-you: "<green>Taking you to <white><player></white>'s island. Wipe your feet."

@@ -1,0 +1,25 @@
+# The serious wording for this module: the same keys as messages.yml, said plainly,
+# for a server whose Message tone (Core's /settings, Appearance) is SERIOUS.
+# Only lines that differ are here; every other key keeps its one wording in both tones.
+oneblock:
+  only-a-player: "<red>Only a player can use islands."
+  not-allowed: "<red>You may not use islands."
+  going: "<gray>Sending you to your island."
+  refuse:
+    self: "<red>You cannot invite yourself."
+    no-island: "<red>You have no island yet. <click:run_command:'/island'><yellow>[Create one]</yellow></click>"
+    already-member: "<red><white><player></white> is already on your island."
+    banned: "<red><white><player></white> is banned from your island. Unban them first."
+    rank: "<red>Your rank on this island does not allow inviting."
+    full: "<red>Your team is full (<white><most></white>). <white><player></white> cannot join."
+    nobody: "<red><white><player></white> is not online on the network."
+    asleep: "<red>The island server is not reachable. Try again shortly."
+    no-invite: "<gray>You have no pending invites."
+  invite:
+    declined: "<yellow><white><player></white> declined your invite."
+    declined-by-you: "<gray>Declined. <white><player></white> has been told."
+    ran-out: "<gray>Your invite to <white><player></white> expired."
+  accept:
+    on-the-way: "<green>Sending you to <white><player></white>'s island."
+  visit:
+    taking-you: "<green>Taking you to <white><player></white>'s island."

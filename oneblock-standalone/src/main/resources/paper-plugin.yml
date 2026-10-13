@@ -1,0 +1,32 @@
+# Generated in shape by StandaloneDescriptor and checked by DescriptorTest — see rtp-standalone's own copy for
+# why every line here matters, and for the two ways of writing this file that fail silently.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'OneBlock islands on their own server, with /island and invites from anywhere on the network.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Everything here goes through Core's Scheduling. BentoBox itself is not Folia-ready, so the island server is
+# plain Paper either way.
+folia-supported: true
+
+dependencies:
+  # Both phases, and bootstrap is not belt-and-braces — see rtp-standalone's own copy of this file.
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    # Only on the island server. Not required: everywhere else this plugin is the /island that sends people there.
+    BentoBox:
+      load: BEFORE
+      required: false
+      join-classpath: true
