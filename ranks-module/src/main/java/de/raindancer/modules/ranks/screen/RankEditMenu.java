@@ -9,6 +9,8 @@ import de.raindancer.modules.ranks.RanksServices;
 import de.raindancer.modules.ranks.model.Rank;
 import de.raindancer.modules.ranks.rules.TagStyleRule;
 import de.raindancer.modules.ranks.service.RankService.Outcome;
+import de.raindancer.modules.ranks.util.PermissionNodes;
+import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -44,6 +46,10 @@ public final class RankEditMenu extends Menu implements IRanksScreen {
 
     @Override
     protected void render() {
+        if (!viewer.hasPermission(PermissionNodes.ADMIN)) {
+            band(MenuLayout.WHO, 4, Icons.of(Material.BARRIER, "<red>Only rank admins change ranks"), click -> { });
+            return;
+        }
         Optional<Rank> found = services.ranks().rank(id);
         if (found.isEmpty()) {
             band(MenuLayout.WHO, 4, Icons.of(Material.BARRIER, "<red>This rank is gone"));
@@ -61,35 +67,36 @@ public final class RankEditMenu extends Menu implements IRanksScreen {
                         .sample(() -> services.ranks().rank(id).map(now -> STYLES.lettersOf(now.tag())).orElse("[TAG]"))
                         .current(() -> services.ranks().rank(id).map(now -> STYLES.styleOf(now.tag()))
                                 .orElse(de.raindancer.core.ui.text.NameStyle.NONE))
-                        .onChange(style -> said(services.ranks().restyle(id, style)))
+                        .onChange(style -> change(() -> services.ranks().restyle(id, style)))
                         .open());
         band(MenuLayout.RULES, 3, Icons.of(Material.OAK_SIGN, "<white>Tag text",
                 "<gray>" + MINI.escapeTags(STYLES.lettersOf(rank.tag())), "", "<gray>Click, then type it.",
                 "<dark_gray>Plain text gets brackets; typing markup", "<dark_gray>keeps it as written."),
                 click -> IRanksScreen.ask(services, viewer, this, "ranks.ask.tag",
-                        typed -> said(services.ranks().retag(id, typed))));
+                        typed -> change(() -> services.ranks().retag(id, typed))));
         band(MenuLayout.RULES, 5, Icons.of(Material.WRITABLE_BOOK, "<white>Title",
                 "<gray>" + MINI.escapeTags(rank.title()), "", "<gray>Click, then type it."),
                 click -> IRanksScreen.ask(services, viewer, this, "ranks.ask.title",
-                        typed -> said(services.ranks().rename(id, typed))));
+                        typed -> change(() -> services.ranks().rename(id, typed))));
         band(MenuLayout.RULES, 7, Icons.of(rank.team() ? Material.LIME_DYE : Material.GRAY_DYE,
                 "<white>On the team: " + (rank.team() ? "<green>yes" : "<gray>no"),
                 "<gray>Holders are listed on their own in the tablist.", "", "<yellow>Click<gray> to switch."),
-                click -> said(services.ranks().team(id, !rank.team())));
+                click -> change(() -> services.ranks().team(id, !rank.team())));
 
         band(MenuLayout.LAND, 2, Icons.of(Material.ARROW, "<white>Weight: " + rank.weight(),
                 "<gray>Higher is more senior, 1 to 99.", "", "<gray>Click for 1 more, right click for 1 less.",
                 "<gray>Shift click for 10."),
                 click -> {
                     int step = click.isShiftClick() ? 10 : 1;
-                    said(services.ranks().reweigh(id, Math.clamp(rank.weight() + (click.isRightClick() ? -step : step), 1, 99)));
+                    int weight = Math.clamp(rank.weight() + (click.isRightClick() ? -step : step), 1, 99);
+                    change(() -> services.ranks().reweigh(id, weight));
                 });
         danger(Icons.of(Material.TNT, "<red>Delete this rank",
                 "<gray>Whoever holds it shows nothing for it.", "", "<gray>You will be asked first."),
                 click -> new ConfirmMenu(viewer, services.brand(), this, "<red>Delete " + MINI.escapeTags(rank.title()) + "?",
                         List.of("<gray>Everywhere on the network;", "<gray>holders simply show nothing for it."),
                         () -> {
-                            said(services.ranks().delete(id));
+                            change(() -> services.ranks().delete(id));
                             if (parent() != null) {
                                 parent().open();
                             } else {
@@ -98,7 +105,13 @@ public final class RankEditMenu extends Menu implements IRanksScreen {
                         }).open());
     }
 
-    private void said(Outcome outcome) {
+    /** Every change asks again: the menu may have been open since before the permission was taken away. */
+    private void change(Supplier<Outcome> how) {
+        if (!viewer.hasPermission(PermissionNodes.ADMIN)) {
+            viewer.closeInventory();
+            return;
+        }
+        Outcome outcome = how.get();
         switch (outcome) {
             case DONE -> { }
             case NOT_SAVED -> services.messages().send(viewer, "ranks.not-saved");

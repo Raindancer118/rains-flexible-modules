@@ -6,6 +6,7 @@ import de.raindancer.core.ui.menu.PaginatedMenu;
 import de.raindancer.modules.ranks.RanksServices;
 import de.raindancer.modules.ranks.model.Rank;
 import de.raindancer.modules.ranks.service.RankService.Outcome;
+import de.raindancer.modules.ranks.util.PermissionNodes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
@@ -62,15 +63,26 @@ public final class RankAdminMenu extends PaginatedMenu<Rank> implements IRanksSc
 
     @Override
     protected void onClick(Rank rank, InventoryClickEvent event) {
+        if (!viewer.hasPermission(PermissionNodes.ADMIN)) {
+            viewer.closeInventory();
+            return;
+        }
         new RankEditMenu(services, viewer, this, rank.id()).open();
     }
 
     @Override
     protected void render() {
+        if (!viewer.hasPermission(PermissionNodes.ADMIN)) {
+            viewer.closeInventory();
+            return;
+        }
         super.render();
         toolbar(4, Icons.of(Material.ANVIL, "<white>New rank",
                 "<gray>Starts at weight 50 with the tag you type.", "", "<gray>Click, then type its id and its tag,", "<gray>e.g. <white>vip VIP</white>."),
                 click -> IRanksScreen.ask(services, viewer, this, "ranks.ask.new", typed -> {
+                    if (!viewer.hasPermission(PermissionNodes.ADMIN)) {
+                        return;
+                    }
                     String[] words = typed.split("\\s+", 2);
                     if (words.length < 2) {
                         services.messages().send(viewer, "ranks.usage-manage");
