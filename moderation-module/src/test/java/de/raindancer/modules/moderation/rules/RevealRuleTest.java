@@ -40,6 +40,9 @@ class RevealRuleTest {
         }
     }
 
+    /** A player standing in the cell at the origin. */
+    private static final double[] EYE = {0.5, 1.62, 0.5};
+
     private static boolean diamond(Material type) {
         return type == Material.DIAMOND_ORE || type == Material.DEEPSLATE_DIAMOND_ORE;
     }
@@ -62,7 +65,7 @@ class RevealRuleTest {
         // The player first breaks the stone at (1,1,0), above the visible diamond: (2,1,0) is uncovered.
         RevealRule.Revealed shown = revealedAt(grid, 1, 1, 0, 2, 1, 0);
 
-        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond)).isFalse();
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isFalse();
     }
 
     @Test
@@ -74,7 +77,7 @@ class RevealRuleTest {
                 .set(3, 0, 0, Material.DIAMOND_ORE);
         RevealRule.Revealed shown = revealedAt(grid, 1, 0, 0, 2, 0, 0);
 
-        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond)).isTrue();
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isTrue();
     }
 
     @Test
@@ -85,7 +88,7 @@ class RevealRuleTest {
         seen.add(2, 1, 1);
         RevealRule.Revealed shown = revealedAt(grid, 1, 0, 0, 2, 0, 0);
 
-        assertThat(rule.newVein(grid, shown, seen, RevealRuleTest::diamond)).isFalse();
+        assertThat(rule.newVein(grid, shown, seen, RevealRuleTest::diamond, EYE)).isFalse();
     }
 
     @Test
@@ -97,7 +100,36 @@ class RevealRuleTest {
                 .set(2, 1, 0, Material.DIAMOND_ORE);
         RevealRule.Revealed shown = revealedAt(grid, 1, 1, 0, 2, 1, 0);
 
-        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond)).isTrue();
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isTrue();
+    }
+
+    @Test
+    @DisplayName("a vein that touches only a sealed pocket nobody can see into is a new find")
+    void sealedPocketIsNoExcuse() {
+        // Tunnel at the origin; (2,0,0) is uncovered, its vein carries on to (3,0,0), which touches a sealed
+        // air pocket at (4,0,0) — open space, but only an x-ray shows it from the tunnel.
+        Grid grid = new Grid()
+                .set(0, 0, 0, Material.AIR).set(0, 1, 0, Material.AIR)
+                .set(2, 0, 0, Material.DIAMOND_ORE)
+                .set(3, 0, 0, Material.DIAMOND_ORE)
+                .set(4, 0, 0, Material.AIR);
+        RevealRule.Revealed shown = revealedAt(grid, 1, 0, 0, 2, 0, 0);
+
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isTrue();
+    }
+
+    @Test
+    @DisplayName("a vein seen across a big cave still counts as seen")
+    void seenAcrossTheCave() {
+        Grid grid = new Grid();
+        for (int x = 0; x < 30; x++) {
+            grid.set(x, 0, 0, Material.AIR).set(x, 1, 0, Material.AIR);
+        }
+        grid.set(30, 0, 0, Material.DIAMOND_ORE).set(31, 1, 0, Material.DIAMOND_ORE);
+        // Seen from the far end, they break the stone above the visible diamond first.
+        RevealRule.Revealed shown = revealedAt(grid, 30, 1, 0, 31, 1, 0);
+
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isFalse();
     }
 
     @Test
@@ -110,6 +142,6 @@ class RevealRuleTest {
         grid.set(200, 1, 0, Material.AIR);
         RevealRule.Revealed shown = revealedAt(grid, 0, 0, 0, 1, 0, 0);
 
-        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond)).isTrue();
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isTrue();
     }
 }

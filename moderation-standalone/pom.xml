@@ -141,8 +141,9 @@
              2.39.0: reports: 27 reasons in five groups for players, a severity colour, a hub (queue, archive, find),
                     a report card with the chat around it and where both stood; /mod is a hub with three rooms.
              2.40.3: the staff ore tool is /orevein, so /vein is Vein Toggle's again.
-             2.40.4: x-ray: the hidden half of a vein that shows in a cave is no new find. -->
-        <plugin.version>2.40.4</plugin.version>
+             2.40.4: x-ray: the hidden half of a vein that shows in a cave is no new find.
+             2.40.5: ...only if the player can see a face of it; a vein touching a sealed pocket still counts. -->
+        <plugin.version>2.40.5</plugin.version>
     </properties>
 
     <dependencies>

@@ -101,6 +101,8 @@ public final class XrayEvidenceService implements IModerationService {
         }
 
         WorldGrid grid = new WorldGrid(world);
+        org.bukkit.Location eyeAt = player.getEyeLocation();
+        double[] eye = {eyeAt.getX(), eyeAt.getY(), eyeAt.getZ()};
         boolean changed = false;
         List<RevealRule.Revealed> shown = reveals.revealedBy(grid, block.getX(), block.getY(), block.getZ());
         for (RevealRule.Revealed revealed : shown) {
@@ -108,7 +110,7 @@ public final class XrayEvidenceService implements IModerationService {
             ledger.revealed(band, 1);
             OreKind kind = OreKind.of(revealed.type()).orElse(null);
             if (kind != null) {
-                if (reveals.newVein(grid, revealed, theirs, other -> OreKind.of(other).orElse(null) == kind)) {
+                if (reveals.newVein(grid, revealed, theirs, other -> OreKind.of(other).orElse(null) == kind, eye)) {
                     ledger.vein(band, kind);
                     changed |= watched.contains(kind);
                     ledger.dug(world.getName(), revealed.x(), revealed.y(), revealed.z(), kind.ordinal(), nowMillis);
