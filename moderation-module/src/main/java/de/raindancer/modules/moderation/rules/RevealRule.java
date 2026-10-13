@@ -46,7 +46,11 @@ public final class RevealRule implements IModerationRule {
     static final int MAX_VEIN = 64;
     /** Farther than this, nobody picks a diamond out of a cave wall. */
     static final double MAX_SIGHT = 64;
-    private static final double SIGHT_STEP = 0.05;
+    /**
+     * Sight lines tried per revealed ore. Players can place ore, so a blob of it wrapped in hidden pockets
+     * must not cost a sight line per face on every dig; past the budget the vein counts as hidden.
+     */
+    static final int MAX_SIGHT_CHECKS = 48;
 
     /**
      * Whether a revealed ore is a find chance alone decides: not touching ore the player already saw,
@@ -65,6 +69,7 @@ public final class RevealRule implements IModerationRule {
 
     private static boolean visibleFrom(BlockGrid grid, int x, int y, int z, Predicate<Material> sameKind, double[] eye) {
         Set<List<Integer>> visited = new HashSet<>();
+        Set<List<Integer>> looked = new HashSet<>();
         Deque<int[]> queue = new ArrayDeque<>();
         visited.add(List.of(x, y, z));
         queue.add(new int[]{x, y, z});
@@ -74,8 +79,14 @@ public final class RevealRule implements IModerationRule {
                 int ox = at[0] + side[0];
                 int oy = at[1] + side[1];
                 int oz = at[2] + side[2];
-                if (grid.open(ox, oy, oz) && inSight(grid, eye, ox, oy, oz)) {
+                if (!grid.open(ox, oy, oz) || !looked.add(List.of(ox, oy, oz))) {
+                    continue;
+                }
+                if (inSight(grid, eye, ox, oy, oz)) {
                     return true;
+                }
+                if (looked.size() >= MAX_SIGHT_CHECKS) {
+                    return false;
                 }
             }
             for (int dx = -1; dx <= 1; dx++) {
@@ -96,25 +107,40 @@ public final class RevealRule implements IModerationRule {
         return false;
     }
 
-    /** Whether nothing solid stands between the eye and the middle of the open cell {@code (cx, cy, cz)}. */
+    /**
+     * Whether nothing solid stands between the eye and the middle of the open cell {@code (cx, cy, cz)}:
+     * every cell the line crosses, each once (Amanatides–Woo), apart from the eye's own and the target.
+     */
     static boolean inSight(BlockGrid grid, double[] eye, int cx, int cy, int cz) {
-        double tx = cx + 0.5 - eye[0];
-        double ty = cy + 0.5 - eye[1];
-        double tz = cz + 0.5 - eye[2];
-        double length = Math.sqrt(tx * tx + ty * ty + tz * tz);
-        if (length > MAX_SIGHT) {
+        double[] d = {cx + 0.5 - eye[0], cy + 0.5 - eye[1], cz + 0.5 - eye[2]};
+        if (Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) > MAX_SIGHT) {
             return false;
         }
-        int ex = (int) Math.floor(eye[0]);
-        int ey = (int) Math.floor(eye[1]);
-        int ez = (int) Math.floor(eye[2]);
-        int steps = (int) Math.ceil(length / SIGHT_STEP);
-        for (int i = 1; i < steps; i++) {
-            double f = (double) i / steps;
-            int bx = (int) Math.floor(eye[0] + tx * f);
-            int by = (int) Math.floor(eye[1] + ty * f);
-            int bz = (int) Math.floor(eye[2] + tz * f);
-            if (!(bx == cx && by == cy && bz == cz) && !(bx == ex && by == ey && bz == ez) && !grid.open(bx, by, bz)) {
+        int[] cell = {(int) Math.floor(eye[0]), (int) Math.floor(eye[1]), (int) Math.floor(eye[2])};
+        int[] target = {cx, cy, cz};
+        int[] step = new int[3];
+        double[] next = new double[3];
+        double[] delta = new double[3];
+        for (int i = 0; i < 3; i++) {
+            step[i] = Integer.signum(target[i] - cell[i]);
+            if (step[i] == 0) {
+                next[i] = Double.POSITIVE_INFINITY;
+                delta[i] = Double.POSITIVE_INFINITY;
+                continue;
+            }
+            double boundary = step[i] > 0 ? cell[i] + 1 : cell[i];
+            next[i] = (boundary - eye[i]) / d[i];
+            delta[i] = Math.abs(1 / d[i]);
+        }
+        int limit = Math.abs(target[0] - cell[0]) + Math.abs(target[1] - cell[1]) + Math.abs(target[2] - cell[2]);
+        for (int moved = 0; moved < limit; moved++) {
+            int axis = next[0] <= next[1] && next[0] <= next[2] ? 0 : next[1] <= next[2] ? 1 : 2;
+            cell[axis] += step[axis];
+            next[axis] += delta[axis];
+            if (cell[0] == cx && cell[1] == cy && cell[2] == cz) {
+                return true;
+            }
+            if (!grid.open(cell[0], cell[1], cell[2])) {
                 return false;
             }
         }

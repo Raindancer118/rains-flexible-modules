@@ -103,6 +103,7 @@ public final class XrayEvidenceService implements IModerationService {
         WorldGrid grid = new WorldGrid(world);
         org.bukkit.Location eyeAt = player.getEyeLocation();
         double[] eye = {eyeAt.getX(), eyeAt.getY(), eyeAt.getZ()};
+        BlockGrid sightGrid = reachable(world, grid);
         boolean changed = false;
         List<RevealRule.Revealed> shown = reveals.revealedBy(grid, block.getX(), block.getY(), block.getZ());
         for (RevealRule.Revealed revealed : shown) {
@@ -110,7 +111,7 @@ public final class XrayEvidenceService implements IModerationService {
             ledger.revealed(band, 1);
             OreKind kind = OreKind.of(revealed.type()).orElse(null);
             if (kind != null) {
-                if (reveals.newVein(grid, revealed, theirs, other -> OreKind.of(other).orElse(null) == kind, eye)) {
+                if (reveals.newVein(sightGrid, revealed, theirs, other -> OreKind.of(other).orElse(null) == kind, eye)) {
                     ledger.vein(band, kind);
                     changed |= watched.contains(kind);
                     ledger.dug(world.getName(), revealed.x(), revealed.y(), revealed.z(), kind.ordinal(), nowMillis);
@@ -170,6 +171,28 @@ public final class XrayEvidenceService implements IModerationService {
         }
         ledger.turn(pair == SteeringRule.Pair.ORE_ONLY);
         return true;
+    }
+
+    /**
+     * The world as far as a sight line may read it: a chunk that is not loaded, or (Folia) belongs to
+     * another region, is closed rock — never loaded or touched from this thread for a guess.
+     */
+    private static BlockGrid reachable(World world, WorldGrid grid) {
+        return new BlockGrid() {
+            @Override
+            public Material at(int x, int y, int z) {
+                return readable(x, z) ? grid.at(x, y, z) : Material.BEDROCK;
+            }
+
+            @Override
+            public boolean open(int x, int y, int z) {
+                return readable(x, z) && grid.open(x, y, z);
+            }
+
+            private boolean readable(int x, int z) {
+                return world.isChunkLoaded(x >> 4, z >> 4) && Bukkit.isOwnedByCurrentRegion(world, x >> 4, z >> 4);
+            }
+        };
     }
 
     /** Folia: the census reads around the bend, and every chunk it reads must be this thread's. */

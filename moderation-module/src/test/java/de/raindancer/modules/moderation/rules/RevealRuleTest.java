@@ -144,4 +144,39 @@ class RevealRuleTest {
 
         assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, EYE)).isTrue();
     }
+
+    @Test
+    @DisplayName("a placed blob behind a wall at the end of a big cave costs bounded work per dig")
+    void boundedWork() {
+        // Cave for x < 50, a two-thick wall, then a 4x4x4 blob of diamond ore wrapped in air pockets: every
+        // face is open, none can be seen, and each sight line crosses 50 blocks of air before it is blocked.
+        int[] reads = {0};
+        BlockGrid grid = new BlockGrid() {
+            @Override
+            public Material at(int x, int y, int z) {
+                reads[0]++;
+                if (x < 50) {
+                    return Material.AIR;
+                }
+                if (x <= 51) {
+                    return Material.STONE;
+                }
+                boolean blob = x <= 55 && y >= 0 && y <= 3 && z >= 0 && z <= 3;
+                if (blob) {
+                    return Material.DIAMOND_ORE;
+                }
+                boolean shell = x <= 56 && y >= -1 && y <= 4 && z >= -1 && z <= 4;
+                return shell ? Material.AIR : Material.STONE;
+            }
+
+            @Override
+            public boolean open(int x, int y, int z) {
+                return at(x, y, z) == Material.AIR;
+            }
+        };
+        RevealRule.Revealed shown = new RevealRule.Revealed(53, 1, 1, Material.DIAMOND_ORE);
+
+        assertThat(rule.newVein(grid, shown, new SeenOres(), RevealRuleTest::diamond, new double[]{0.5, 2.5, 2.5})).isTrue();
+        assertThat(reads[0]).isLessThan(15_000);
+    }
 }
