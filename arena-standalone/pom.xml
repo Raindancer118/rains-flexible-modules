@@ -69,7 +69,8 @@
         <!-- 0.10.1: every arena menu places its buttons in real bands and columns: Duel, Sumo, Teams of three, Horseback, Fight players, rounds and more were hidden under others (MenuPlacementTest). -->
         <!-- 0.10.2: sumo works: fighters start inside the ring (either side of its middle, facing each other) instead of on the pit spawns far outside it, and the ring edge is drawn in red dust. -->
         <!-- 0.11.0: the explosives kit dwftyw (netherite, trident, TNT, crystals). -->
-        <plugin.version>0.11.0</plugin.version>
+        <!-- 0.12.0: leaving the arena sends people back where they came from — survival when it announced them, otherwise the hub. -->
+        <plugin.version>0.12.0</plugin.version>
     </properties>
 
     <dependencies>

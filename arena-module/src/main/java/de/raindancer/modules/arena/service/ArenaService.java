@@ -42,6 +42,7 @@ public final class ArenaService implements IArenaService {
     private volatile java.util.function.Consumer<java.util.UUID> returning = player -> {
     };
     private final HoldBook held = new HoldBook();
+    private final Origins origins = new Origins();
     private volatile java.util.function.Predicate<java.util.UUID> fighting = player -> false;
 
     public ArenaService(Plugin plugin, Server server, Messages messages, Effects effects, ArenaWorldService worlds,
@@ -139,8 +140,9 @@ public final class ArenaService implements IArenaService {
         return layout.current().hub().flatMap(place -> Places.location(server, place));
     }
 
-    /** Somebody has come over from the survival server. On their own thread. */
-    public void arrived(Player player) {
+    /** Somebody has come over — from the survival server when it announced them, else from the hub. On their own thread. */
+    public void arrived(Player player, boolean announcedBySurvival) {
+        origins.arrived(player.getUniqueId(), announcedBySurvival);
         HubState.apply(player, settings);
         hub().ifPresentOrElse(hub -> player.teleportAsync(hub).thenAccept(moved -> {
             effects.play(player.getUniqueId(), Cues.ENTER);
@@ -148,12 +150,19 @@ public final class ArenaService implements IArenaService {
         }), () -> messages.send(player, "arena.not-set-up"));
     }
 
-    /** Back to the survival server, through the proxy. */
+    /** Back where they came from — survival or the hub — through the proxy. */
     public void leave(Player player) {
-        messages.send(player, "arena.leaving", "server", settings.lobbyOrDefault());
+        String target = origins.backTo(player.getUniqueId(), settings.lobbyOrDefault());
+        messages.send(player, "arena.leaving", "server", target);
         effects.play(player.getUniqueId(), Cues.LEAVE);
-        returning.accept(player.getUniqueId());
-        ProxyTransfer.send(plugin, player, settings.lobbyOrDefault());
+        if (origins.cameFromSurvival(player.getUniqueId())) {
+            returning.accept(player.getUniqueId());
+        }
+        ProxyTransfer.send(plugin, player, target);
+    }
+
+    public void forgetOrigin(java.util.UUID player) {
+        origins.forget(player);
     }
 
     /** Back to the hub — somebody beaten, fallen off a map, or tired of the fight. */

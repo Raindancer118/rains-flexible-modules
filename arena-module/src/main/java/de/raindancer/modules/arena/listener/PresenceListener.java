@@ -33,8 +33,9 @@ public final class PresenceListener implements IArenaListener {
             if (!player.isOnline()) {
                 return;
             }
-            services.arena().arrived(player);
-            services.intents().take(player.getUniqueId()).ifPresent(intent -> act(player, intent));
+            var announced = services.intents().take(player.getUniqueId());
+            services.arena().arrived(player, announced.isPresent());
+            announced.ifPresent(intent -> act(player, intent));
         });
         // Later, so it is not lost among the arrival lines: the fights waiting for more people.
         Scheduling.entityLater(services.plugin(), player, 40L, () -> {
@@ -63,6 +64,7 @@ public final class PresenceListener implements IArenaListener {
         services.invites().forget(id);
         services.rematches().forget(id);
         services.arena().release(id);
+        services.arena().forgetOrigin(id);
     }
 
     @Override
