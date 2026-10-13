@@ -108,7 +108,7 @@ public final class XrayEvidenceService implements IModerationService {
             ledger.revealed(band, 1);
             OreKind kind = OreKind.of(revealed.type()).orElse(null);
             if (kind != null) {
-                if (!theirs.touches(revealed.x(), revealed.y(), revealed.z())) {
+                if (reveals.newVein(grid, revealed, theirs, other -> OreKind.of(other).orElse(null) == kind)) {
                     ledger.vein(band, kind);
                     changed |= watched.contains(kind);
                     ledger.dug(world.getName(), revealed.x(), revealed.y(), revealed.z(), kind.ordinal(), nowMillis);

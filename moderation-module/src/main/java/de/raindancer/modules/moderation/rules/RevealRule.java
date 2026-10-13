@@ -1,11 +1,17 @@
 package de.raindancer.modules.moderation.rules;
 
+import de.raindancer.modules.moderation.model.SeenOres;
 import de.raindancer.modules.moderation.util.BlockGrid;
 
 import org.bukkit.Material;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Which blocks a single break shows the player for the first time: neighbours of the broken block
@@ -34,6 +40,49 @@ public final class RevealRule implements IModerationRule {
             }
         }
         return found;
+    }
+
+    /** No natural vein is bigger; past this the walk gives up and the ore counts as hidden. */
+    static final int MAX_VEIN = 64;
+
+    /**
+     * Whether a revealed ore is a find chance alone decides: not touching ore the player already saw,
+     * and not part of a vein that shows anywhere in open space — a cave wall, a ravine, a lava lake.
+     * A vein seen from a cave was found by looking; digging out its hidden half proves nothing.
+     */
+    public boolean newVein(BlockGrid grid, Revealed revealed, SeenOres seen, Predicate<Material> sameKind) {
+        if (seen.touches(revealed.x(), revealed.y(), revealed.z())) {
+            return false;
+        }
+        return !showsInOpen(grid, revealed.x(), revealed.y(), revealed.z(), sameKind);
+    }
+
+    private static boolean showsInOpen(BlockGrid grid, int x, int y, int z, Predicate<Material> sameKind) {
+        Set<List<Integer>> visited = new HashSet<>();
+        Deque<int[]> queue = new ArrayDeque<>();
+        visited.add(List.of(x, y, z));
+        queue.add(new int[]{x, y, z});
+        while (!queue.isEmpty()) {
+            int[] at = queue.poll();
+            if (!enclosedApartFrom(grid, at[0], at[1], at[2], Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE)) {
+                return true;
+            }
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        int nx = at[0] + dx;
+                        int ny = at[1] + dy;
+                        int nz = at[2] + dz;
+                        if (visited.size() >= MAX_VEIN || !sameKind.test(grid.at(nx, ny, nz))
+                                || !visited.add(List.of(nx, ny, nz))) {
+                            continue;
+                        }
+                        queue.add(new int[]{nx, ny, nz});
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** Whether every face of a block is closed, not counting the one towards {@code (ex, ey, ez)}. */

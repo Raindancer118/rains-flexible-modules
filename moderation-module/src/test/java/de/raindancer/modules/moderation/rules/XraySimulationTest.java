@@ -124,7 +124,7 @@ class XraySimulationTest {
             ledger.revealed(BAND, shown.size());
             for (RevealRule.Revealed block : shown) {
                 if (block.type() == Material.DIAMOND_ORE) {
-                    if (!seen.touches(block.x(), block.y(), block.z())) {
+                    if (reveals.newVein(world, block, seen, type -> type == Material.DIAMOND_ORE)) {
                         ledger.vein(BAND, OreKind.DIAMOND);
                     }
                     seen.add(block.x(), block.y(), block.z());
