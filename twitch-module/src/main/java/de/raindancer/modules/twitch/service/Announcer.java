@@ -8,6 +8,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.twitch.TwitchSettings;
 import de.raindancer.modules.twitch.model.StreamEvent;
 import de.raindancer.modules.twitch.model.StreamInfo;
+import de.raindancer.modules.twitch.rules.AnnouncementRule;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Server;
@@ -33,6 +34,7 @@ public final class Announcer {
     private final Messages messages;
     private final RainsCore core;
     private final Supplier<TwitchSettings> settings;
+    private final AnnouncementRule rule = new AnnouncementRule();
 
     public Announcer(Plugin plugin, Server server, LogChannel log, Messages messages, RainsCore core,
                      Supplier<TwitchSettings> settings) {
@@ -72,7 +74,6 @@ public final class Announcer {
         data.put("name", stream.channel());
         data.put("title", stream.title());
         data.put("game", stream.game());
-        data.put("url", settings.get().url());
         data.put("channel", settings.get().channelClean());
         if (event instanceof StreamEvent.Ended ended) {
             data.put("lasted", StreamParser.spoken(ended.lasted()));
@@ -96,11 +97,13 @@ public final class Announcer {
             return;
         }
         boolean going = "live".equals(data.get("kind"));
-        String name = data.getOrDefault("name", live.channelClean());
-        String title = data.getOrDefault("title", "");
-        String game = data.getOrDefault("game", "");
-        String url = data.getOrDefault("url", live.url());
-        String channel = data.getOrDefault("channel", live.channelClean());
+        // What came over the link is not trusted: the channel must be a Twitch login, the link is built here from it, and
+        // the free text is cleaned and cut.
+        String channel = rule.channelOf(data.get("channel"), live.channelClean());
+        String url = rule.urlOf(channel);
+        String name = rule.clean(data.getOrDefault("name", channel), 40);
+        String title = rule.clean(data.get("title"), 140);
+        String game = rule.clean(data.get("game"), 60);
         log.info("Twitch announcement: {} {}.", name, going ? "is live" : "is over");
         for (Player player : audience) {
             Scheduling.entity(plugin, player, () -> {
@@ -122,7 +125,7 @@ public final class Announcer {
                     messages.sendPlain(player, "twitch.ended.rule");
                     messages.sendPlain(player, "twitch.ended.head");
                     messages.sendPlain(player, "twitch.ended.who", "name", name,
-                            "lasted", data.getOrDefault("lasted", ""));
+                            "lasted", rule.clean(data.get("lasted"), 20));
                     player.sendMessage(opening(messages.get("twitch.ended.thanks", "channel", channel), url));
                     messages.sendPlain(player, "twitch.ended.rule");
                 }
