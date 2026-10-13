@@ -29,7 +29,8 @@
              (Twitch app login in credentials.yml on the server that watches; the others listen on the link). -->
         <!-- 0.1.1: /twitch test shows the banner to the sender only; "test live all" tells the whole network. -->
         <!-- 0.1.2: an announcement from another server is not trusted: the channel must be a Twitch login, the link is built here, text is cleaned. -->
-        <plugin.version>0.1.2</plugin.version>
+        <!-- 0.1.3: the announcer takes its links as a supplier, so the delivery across a link is tested (AnnouncerLinkTest). -->
+        <plugin.version>0.1.3</plugin.version>
     </properties>
 
     <dependencies>

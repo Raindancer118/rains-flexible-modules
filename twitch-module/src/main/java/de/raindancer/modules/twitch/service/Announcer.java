@@ -16,8 +16,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -32,37 +34,46 @@ public final class Announcer {
     private final Server server;
     private final LogChannel log;
     private final Messages messages;
-    private final RainsCore core;
+    private final Supplier<Collection<ServerLink>> links;
+    private final Consumer<Map<String, String>> display;
     private final Supplier<TwitchSettings> settings;
     private final AnnouncementRule rule = new AnnouncementRule();
 
     public Announcer(Plugin plugin, Server server, LogChannel log, Messages messages, RainsCore core,
                      Supplier<TwitchSettings> settings) {
+        this(plugin, server, log, messages, () -> core.links().all().values(), settings, null);
+    }
+
+    /** @param shown what to do with an announcement that reaches this server; null shows it in chat — a seam for tests */
+    Announcer(Plugin plugin, Server server, LogChannel log, Messages messages,
+              Supplier<Collection<ServerLink>> links, Supplier<TwitchSettings> settings,
+              Consumer<Map<String, String>> shown) {
         this.plugin = plugin;
         this.server = server;
         this.log = log;
         this.messages = messages;
-        this.core = core;
+        this.links = links;
         this.settings = settings;
+        this.display = shown == null ? this::show : shown;
     }
 
     /** Listens for what the watching server sends, on every link. */
     public void listen() {
-        core.links().all().values().forEach(link -> link.on(TOPIC, data -> {
-            show(data);
+        links.get().forEach(link -> link.on(TOPIC, data -> {
+            display.accept(data);
             return null;
         }));
     }
 
     public void stop() {
-        core.links().all().values().forEach(link -> link.off(TOPIC));
+        links.get().forEach(link -> link.off(TOPIC));
     }
 
     /** Tells this server and every linked one. */
     public void announce(StreamEvent event) {
         Map<String, String> data = encode(event);
-        show(data);
-        for (ServerLink link : core.links().all().values()) {
+        display.accept(data);
+        for (ServerLink link : links.get()) {
             link.send(TOPIC, data);
         }
     }
