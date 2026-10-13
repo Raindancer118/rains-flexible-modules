@@ -63,7 +63,7 @@
         <invsnap-module.version>1.7.0</invsnap-module.version>
         <xpbottle-module.version>1.3.0</xpbottle-module.version>
         <sends-module.version>0.1.0</sends-module.version>
-        <oneblock-module.version>0.2.0</oneblock-module.version>
+        <oneblock-module.version>0.2.1</oneblock-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.5.0</arena-api.version>
         <arena-module.version>0.10.2</arena-module.version>

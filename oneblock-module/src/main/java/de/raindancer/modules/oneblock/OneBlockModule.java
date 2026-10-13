@@ -39,7 +39,7 @@ import java.util.concurrent.Executor;
  */
 public final class OneBlockModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("oneblock", "OneBlock", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("oneblock", "OneBlock", "0.2.1")
             .describedAs("OneBlock islands on their own server, with /island and invites from anywhere on the network.")
             .by("Raindancer118");
 
@@ -74,7 +74,8 @@ public final class OneBlockModule implements FlexModule {
         Executor onServer = task -> Scheduling.global(context.plugin(), task);
         NetworkDelivery delivery = new NetworkDelivery(context.plugin(), server, context.core().messages(),
                 context.core()::links, player -> context.core().vanish().isVanished(player.getUniqueId()));
-        Optional<IslandHost> host = IslandHosts.on(server, log, () -> settings.current().gameMode());
+        Optional<IslandHost> host = IslandHosts.on(server, log, () -> settings.current().gameMode(),
+                context.core().vanish()::isVanished);
 
         IslandsGateway gateway;
         Optional<InviteService> invites = Optional.empty();

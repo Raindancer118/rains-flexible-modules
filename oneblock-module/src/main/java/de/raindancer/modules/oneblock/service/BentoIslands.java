@@ -32,10 +32,13 @@ final class BentoIslands implements IslandHost {
     private final Server server;
     private final LogChannel log;
     private final Supplier<String> gameMode;
+    /** Vanished staff: never counted as online, so a sidebar cannot give them away. */
+    private final java.util.function.Predicate<UUID> hidden;
     /** Who last handed BentoBox an invite for each player — asking BentoBox reads its database and logs when it is gone. */
     private final java.util.Map<UUID, UUID> offeredBy = new java.util.concurrent.ConcurrentHashMap<>();
 
-    BentoIslands(Server server, LogChannel log, Supplier<String> gameMode) {
+    BentoIslands(Server server, LogChannel log, Supplier<String> gameMode, java.util.function.Predicate<UUID> hidden) {
+        this.hidden = hidden;
         this.server = server;
         this.log = log;
         this.gameMode = gameMode;
@@ -151,7 +154,7 @@ final class BentoIslands implements IslandHost {
         }
         UUID owner = island.getOwner();
         Set<UUID> members = island.getMemberSet();
-        int online = (int) members.stream().filter(member -> server.getPlayer(member) != null).count();
+        int online = (int) members.stream().filter(member -> server.getPlayer(member) != null && !hidden.test(member)).count();
         return Optional.of(new IslandView(here.isPresent(), members.contains(playerId),
                 owner == null ? null : BentoBox.getInstance().getPlayers().getName(owner), island.getRank(playerId),
                 members.size(), islands.getMaxMembers(island, RanksManager.MEMBER_RANK), online,

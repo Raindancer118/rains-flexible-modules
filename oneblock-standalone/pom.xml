@@ -25,11 +25,12 @@
         <!-- The name the server sees, and the name of its data folder. -->
         <plugin.name>RainsOneBlock</plugin.name>
 
-        <!-- 0.2.0: a sidebar on the island server — the island you are on and your rank there, its phase with a
+        <!-- 0.2.1: vanished staff are not counted as online on the sidebar.
+             0.2.0: a sidebar on the island server — the island you are on and your rank there, its phase with a
              progress bar and the next phase, blocks broken, team; /island sidebar hides it.
              0.1.0: /island from every server (to the island server through the proxy), team and guest
              invites to and from players anywhere on the network, joined through BentoBox's own accept. -->
-        <plugin.version>0.2.0</plugin.version>
+        <plugin.version>0.2.1</plugin.version>
     </properties>
 
     <dependencies>

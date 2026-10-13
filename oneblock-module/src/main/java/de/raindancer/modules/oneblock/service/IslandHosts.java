@@ -19,7 +19,9 @@ public final class IslandHosts {
         return server.getPluginManager().getPlugin("BentoBox") != null;
     }
 
-    public static Optional<IslandHost> on(Server server, LogChannel log, Supplier<String> gameMode) {
-        return present(server) ? Optional.of(new BentoIslands(server, log, gameMode)) : Optional.empty();
+    /** @param hidden vanished players, never counted as online */
+    public static Optional<IslandHost> on(Server server, LogChannel log, Supplier<String> gameMode,
+                                         java.util.function.Predicate<java.util.UUID> hidden) {
+        return present(server) ? Optional.of(new BentoIslands(server, log, gameMode, hidden)) : Optional.empty();
     }
 }
