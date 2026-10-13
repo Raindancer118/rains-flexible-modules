@@ -77,6 +77,11 @@ class InviteServiceTest {
         }
 
         @Override
+        public Optional<de.raindancer.modules.oneblock.model.IslandView> view(UUID player) {
+            return Optional.empty();
+        }
+
+        @Override
         public void home(UUID player) {
             did.add("home " + player);
         }

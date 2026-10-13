@@ -5,6 +5,7 @@ import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.oneblock.service.InviteService;
 import de.raindancer.modules.oneblock.service.IslandsGateway;
+import de.raindancer.modules.oneblock.service.SidebarService;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -15,6 +16,7 @@ import java.util.function.Supplier;
  * Everything this module has built, in one place.
  *
  * @param invites present on the island server only
+ * @param sidebar present on the island server only
  */
 public record OneBlockServices(
         Plugin plugin,
@@ -24,7 +26,8 @@ public record OneBlockServices(
         RainsCore core,
         Supplier<OneBlockSettings> settings,
         IslandsGateway gateway,
-        Optional<InviteService> invites) {
+        Optional<InviteService> invites,
+        Optional<SidebarService> sidebar) {
 
     public OneBlockSettings config() {
         return settings.get();

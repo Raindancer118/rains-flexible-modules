@@ -2,6 +2,7 @@ package de.raindancer.modules.oneblock.service;
 
 import de.raindancer.modules.oneblock.model.Invite;
 import de.raindancer.modules.oneblock.model.IslandFacts;
+import de.raindancer.modules.oneblock.model.IslandView;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +33,9 @@ public interface IslandHost {
 
     /** Whether the player, online here, is in one of the game mode's worlds. */
     boolean inGameWorld(UUID player);
+
+    /** The island the player, online here, stands on — or their own while they are elsewhere; empty with neither. */
+    Optional<IslandView> view(UUID player);
 
     /** The game mode's own command: their island, or a new one. */
     void home(UUID player);

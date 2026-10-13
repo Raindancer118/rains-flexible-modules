@@ -23,3 +23,7 @@ oneblock:
     on-the-way: "<green>Sending you to <white><player></white>'s island."
   visit:
     taking-you: "<green>Taking you to <white><player></white>'s island."
+  sidebar:
+    last-phase: " <dark_gray>This is the last phase."
+    shown: "<green>Sidebar shown."
+

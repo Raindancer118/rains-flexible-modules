@@ -4,7 +4,7 @@
 # Messages.defineFrom. The island's own lines (phases, the team accept and its confirmation) are BentoBox's.
 oneblock:
 
-  usage: "<gray>/island  ·  /island invite <player>  ·  /island guest <player>  ·  /island accept [player]  ·  /island deny [player]"
+  usage: "<gray>/island  ·  /island invite <player>  ·  /island guest <player>  ·  /island accept [player]  ·  /island deny [player]  ·  /island sidebar"
   only-a-player: "<red>Consoles do not get islands. Not even a small one."
   not-allowed: "<red>You may not use islands. Somebody decided that, and it was not the block."
   going: "<gray>Off to your island. Mind the gap — it is all void."
@@ -36,3 +36,34 @@ oneblock:
 
   visit:
     taking-you: "<green>Taking you to <white><player></white>'s island. Wipe your feet."
+
+  sidebar:
+    title: "<green><bold>OneBlock</bold></green>"
+    island: "<gray>Island"
+    yours: " <white>Your island"
+    yours-away: " <white>Your island <dark_gray>(not here)"
+    theirs: " <white><player>'s island"
+    unowned: " <white>Unclaimed island"
+    no-island: " <white>No island yet"
+    no-island-hint: " <dark_gray>/island to start one"
+    you: " <dark_gray>You: <white><rank>"
+    phase: "<gray>Phase"
+    phase-name: " <yellow><phase>"
+    progress: " <bar> <white><percent>%"
+    next: " <dark_gray>Next: <white><phase> <dark_gray>in <white><blocks>"
+    last-phase: " <dark_gray>The last phase. It only gets better."
+    blocks: " <white><blocks> <dark_gray>blocks broken"
+    team: " <gray>Team <white><members>/<most> <dark_gray>· <green><online> online"
+    team-unlimited: " <gray>Team <white><members> <dark_gray>· <green><online> online"
+    rank:
+      owner: "Owner"
+      sub-owner: "Sub-owner"
+      member: "Member"
+      trusted: "Trusted"
+      coop: "Coop"
+      visitor: "Visitor"
+      banned: "Banned"
+    shown: "<green>Sidebar on. Numbers go up, morale goes up."
+    elsewhere: "<gray>The OneBlock sidebar lives on the island server. <click:run_command:'/island'><yellow>[Go there]</yellow></click>"
+    hidden: "<gray>Sidebar off. <click:run_command:'/island sidebar'><yellow>[Bring it back]</yellow></click>"
+

@@ -101,6 +101,32 @@ class OneBlockNetworkScenarioTest {
             }
             Await.until("Ada stands on it", WAIT, () -> ada.world().contains("oneblock"));
 
+            // ── the sidebar: her island, her rank, the phase with its bar ─────────────────────────────────────
+            ada.expectSidebar("Your island");
+            ada.expectSidebar("You: Owner");
+            ada.expectSidebar("Plains");
+            ada.expectSidebar("blocks broken");
+            assertThat(ada.sidebar()).anyMatch(line -> line.contains("%"));
+            ada.expectSidebar("Next: ");
+
+            // ── the block breaks, the count goes up ──────────────────────────────────────────────────────────
+            island.console("gamemode creative Ada");
+            island.console("execute in minecraft:oneblock_world run tp Ada 1.5 81 0.5 90 45");
+            Await.ticks(20);
+            try {
+                // Digs until the count shows on the sidebar; it redraws every two seconds, so it is past 1 by then.
+            Await.until("a block broken shows on the sidebar", WAIT, () -> {
+                    ada.dig(0, 80, 0);
+                    Await.ticks(10);
+                return ada.sidebar().stream().anyMatch(line -> line.matches(".*\\b[1-9][0-9,]* blocks broken.*"));
+                });
+            } catch (AssertionError none) {
+                throw new AssertionError(none.getMessage() + " — Ada at " + island.console("data get entity Ada Pos")
+                        + " in " + ada.world() + "; block 0 80 0: " + island.console("execute in minecraft:oneblock_world if block 0 80 0 minecraft:air")
+                        + "; sidebar " + ada.sidebar(), none);
+            }
+            island.console("gamemode survival Ada");
+
             // ── a team invite typed on the island server, read on the survival server ─────────────────────────
             Bot bo = smp.bot("Bo").through(proxy.port()).join();
             Await.until("the island server knows Bo is on the survival server", WAIT, () -> {
@@ -127,6 +153,8 @@ class OneBlockNetworkScenarioTest {
                         + island.console("obadmin info Bo") + "; obadmin info Ada: " + island.console("obadmin info Ada"), none);
             }
 
+            Await.until("Bo's sidebar has him as a member", WAIT, () -> bo.sidebar().stream().anyMatch(line -> line.contains("You: Member")));
+
             // ── refusals are said, and say why ────────────────────────────────────────────────────────────
             ada.run("island invite Bo");
             ada.expectChat("already on your island");
@@ -144,12 +172,19 @@ class OneBlockNetworkScenarioTest {
             Await.until("Cy is at Ada's island", WAIT, () -> island.console(
                     "execute at Ada if entity @a[name=Cy,distance=..40]").contains("passed"));
             assertThat(onTeamOf(island, "Cy", "Ada")).isFalse();
+            Await.until("Cy's sidebar: Ada's island, as a visitor", WAIT, () -> cy.sidebar().stream().anyMatch(line -> line.contains("Ada's island"))
+                    && cy.sidebar().stream().anyMatch(line -> line.contains("You: Visitor")));
 
             // ── declining, on the island server itself ────────────────────────────────────────────────────────
             ada.run("island invite Cy");
             cy.expectChat("wants you on their OneBlock team");
             cy.run("island deny");
             ada.expectChat("Cy turned your invite down");
+
+            // ── and whoever does not want it hides it ──────────────────────────────────────────────────────────
+            ada.run("island sidebar");
+            ada.expectChat("Sidebar off");
+            Await.until("Ada's sidebar is gone", WAIT, () -> ada.sidebar().isEmpty());
 
             assertThat(errors(island)).isEmpty();
             assertThat(errors(smp)).isEmpty();

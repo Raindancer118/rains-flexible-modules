@@ -20,7 +20,7 @@ public final class OneBlockCommands {
         return List.of(ModuleCommand.of("island", "Your OneBlock island, and invites from anywhere on the network",
                         new IslandCommand(OneBlockCommands::require))
                 .aliased("is")
-                .taking("invite <player>", "guest <player>", "accept [player]", "deny [player]"));
+                .taking("invite <player>", "guest <player>", "accept [player]", "deny [player]", "sidebar"));
     }
 
     static void ready(OneBlockServices live) {

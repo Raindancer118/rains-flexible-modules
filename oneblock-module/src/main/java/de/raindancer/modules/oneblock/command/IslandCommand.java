@@ -26,7 +26,7 @@ import java.util.function.Supplier;
  */
 public final class IslandCommand implements IOneBlockCommand {
 
-    private static final List<String> SUBCOMMANDS = List.of("invite", "guest", "accept", "deny");
+    private static final List<String> SUBCOMMANDS = List.of("invite", "guest", "accept", "deny", "sidebar");
 
     private final Supplier<OneBlockServices> services;
 
@@ -45,6 +45,10 @@ public final class IslandCommand implements IOneBlockCommand {
             live.messages().send(player, "oneblock.not-allowed");
             return;
         }
+        if (args.length > 0 && args[0].equalsIgnoreCase("sidebar")) {
+            toggleSidebar(live, player);
+            return;
+        }
         Requester me = new Requester(player.getUniqueId(), player.getName());
         String other = args.length > 1 ? args[1] : null;
         CompletableFuture<Reply> asked = switch (args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT)) {
@@ -56,6 +60,18 @@ public final class IslandCommand implements IOneBlockCommand {
             default -> CompletableFuture.completedFuture(Reply.refused("oneblock.usage"));
         };
         asked.thenAccept(reply -> Scheduling.entity(live.plugin(), player, () -> said(live, player, reply)));
+    }
+
+    private static void toggleSidebar(OneBlockServices live, Player player) {
+        if (live.sidebar().isEmpty()) {
+            live.messages().send(player, "oneblock.sidebar.elsewhere");
+            return;
+        }
+        boolean on = de.raindancer.modules.oneblock.service.SidebarService.SHOWN.toggle(player);
+        if (!on) {
+            live.sidebar().get().clear(player.getUniqueId());
+        }
+        live.messages().send(player, on ? "oneblock.sidebar.shown" : "oneblock.sidebar.hidden");
     }
 
     private static void said(OneBlockServices live, Player player, Reply reply) {
