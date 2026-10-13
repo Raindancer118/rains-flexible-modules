@@ -27,7 +27,8 @@
 
         <!-- 0.1.0: a banner in chat on every server of the network when the channel goes live, and one when the stream ends
              (Twitch app login in credentials.yml on the server that watches; the others listen on the link). -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.1: /twitch test shows the banner to the sender only; "test live all" tells the whole network. -->
+        <plugin.version>0.1.1</plugin.version>
     </properties>
 
     <dependencies>

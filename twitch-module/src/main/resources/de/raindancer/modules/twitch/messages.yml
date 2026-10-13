@@ -1,6 +1,6 @@
 # Rain's Twitch — every line this module says. Offered as a floor: anything in an owner's own messages.yml wins.
 twitch:
-  usage: "<gray>/twitch status · /twitch test live|ended · /twitch reload"
+  usage: "<gray>/twitch status · /twitch test live|ended <dark_gray>(shows it to you only)</dark_gray> · /twitch test live|ended all <dark_gray>(tells the whole network)</dark_gray> · /twitch reload"
   not-allowed: "<red>That is for staff."
   reloaded: "<green>The Twitch login was read again."
   status:

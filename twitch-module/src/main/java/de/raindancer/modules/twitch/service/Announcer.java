@@ -82,6 +82,15 @@ public final class Announcer {
 
     /** Words one announcement for everybody here. Safe to call from any thread. */
     void show(Map<String, String> data) {
+        show(data, server.getOnlinePlayers());
+    }
+
+    /** The same for just these players — what a test shows its sender. */
+    public void preview(StreamEvent event, Player to) {
+        show(encode(event), java.util.List.of(to));
+    }
+
+    private void show(Map<String, String> data, java.util.Collection<? extends Player> audience) {
         TwitchSettings live = settings.get();
         if (!live.enabled()) {
             return;
@@ -93,7 +102,7 @@ public final class Announcer {
         String url = data.getOrDefault("url", live.url());
         String channel = data.getOrDefault("channel", live.channelClean());
         log.info("Twitch announcement: {} {}.", name, going ? "is live" : "is over");
-        for (Player player : server.getOnlinePlayers()) {
+        for (Player player : audience) {
             Scheduling.entity(plugin, player, () -> {
                 player.sendMessage(Component.empty());
                 if (going) {

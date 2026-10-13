@@ -16,7 +16,7 @@ public final class TwitchCommands {
     public static List<ModuleCommand> declared() {
         return List.of(ModuleCommand.of("twitch", "The Twitch live announcements: status and tests",
                         new TwitchCommand(TwitchCommands::require))
-                .taking("status | test live|ended | reload"));
+                .taking("status | test live|ended [all] | reload"));
     }
 
     static void ready(TwitchServices live) {
