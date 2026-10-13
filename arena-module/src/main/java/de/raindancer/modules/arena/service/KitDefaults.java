@@ -27,7 +27,7 @@ public final class KitDefaults {
     }
 
     public List<Kit> all() {
-        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), sumo(), naval(), lancer(), rider());
+        return List.of(gladiator(), knight(), netherite(), archer(), axe(), mace(), potion(), uhc(), dwftyw(), sumo(), naval(), lancer(), rider());
     }
 
     private Kit gladiator() {
@@ -125,6 +125,28 @@ public final class KitDefaults {
         slots.storage(0, item(Material.ARROW, 32));
         slots.offHand(item(Material.SHIELD, 1));
         return kit("uhc", "UHC", Material.GOLDEN_APPLE, slots, false);
+    }
+
+    private Kit dwftyw() {
+        Slots slots = new Slots().armour(Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE,
+                Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS, 3);
+        slots.hotbar(0, enchanted(Material.NETHERITE_SWORD, Enchantment.SHARPNESS, 4));
+        ItemStack trident = enchanted(Material.TRIDENT, Enchantment.LOYALTY, 3);
+        trident.addUnsafeEnchantment(Enchantment.IMPALING, 3);
+        slots.hotbar(1, trident);
+        slots.hotbar(2, item(Material.TNT, 64));
+        slots.hotbar(3, item(Material.FLINT_AND_STEEL, 1));
+        slots.hotbar(4, item(Material.END_CRYSTAL, 8));
+        slots.hotbar(5, item(Material.OBSIDIAN, 16));
+        slots.hotbar(6, item(Material.GOLDEN_APPLE, 6));
+        slots.hotbar(7, item(Material.COOKED_BEEF, 16));
+        slots.hotbar(8, item(Material.TOTEM_OF_UNDYING, 1));
+        slots.storage(0, item(Material.TNT, 64));
+        slots.storage(1, item(Material.TNT_MINECART, 8));
+        slots.storage(2, item(Material.FIRE_CHARGE, 16));
+        slots.storage(3, item(Material.REDSTONE_BLOCK, 8));
+        slots.offHand(item(Material.SHIELD, 1));
+        return kit("dwftyw", "DWFTYW", Material.TNT, slots, false);
     }
 
     private Kit sumo() {

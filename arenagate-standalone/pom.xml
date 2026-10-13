@@ -45,7 +45,8 @@
         <!-- 0.6.0: mounted combat can be asked for from survival; arena-api 0.4.0. -->
         <!-- 0.7.0: horseback combat can be asked for from survival; arena-api 0.5.0. -->
         <!-- 0.7.2: /pvp invite to somebody on the hub or OneBlock says where they are instead of "nobody is online". -->
-        <plugin.version>0.7.2</plugin.version>
+        <!-- 0.7.3: a fight in one's own gear no longer fails for somebody who is mid-transfer: when their scheduler is already gone the gear copy is read from the file saved as they leave. -->
+        <plugin.version>0.7.3</plugin.version>
     </properties>
 
     <dependencies>

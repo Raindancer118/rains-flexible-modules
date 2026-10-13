@@ -86,7 +86,7 @@ public final class PvpGateCommand implements IGateCommand {
                     .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).sorted().toList();
         }
         return Stream.of("duel", "sumo", "waves", "2v2", "3v3", "ffa", "own", "bo3", "gladiator", "knight", "netherite",
-                "archer", "axe", "mace", "potion", "uhc").filter(option -> option.startsWith(last)).toList();
+                "archer", "axe", "mace", "potion", "uhc", "dwftyw").filter(option -> option.startsWith(last)).toList();
     }
 
     @Override

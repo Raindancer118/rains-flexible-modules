@@ -61,6 +61,8 @@ public final class GearService {
         CompletableFuture<Optional<List<String>>> answer = new CompletableFuture<>();
         Player online = server.getPlayer(player);
         if (online != null) {
+            // A player on their way to the arena is being removed right now: their scheduler then drops the task and
+            // the answer would never come, so the saved file — written as they leave — stands in.
             Scheduling.entity(plugin, online, () -> {
                 List<String> slots = new ArrayList<>();
                 for (ItemStack item : online.getInventory().getContents()) {
@@ -68,12 +70,29 @@ public final class GearService {
                     slots.add(line == null ? "" : line);
                 }
                 answer.complete(Optional.of(slots));
-            });
+            }, () -> CompletableFuture.runAsync(() -> answer.complete(savedAfterLeaving(player)),
+                    CompletableFuture.delayedExecutor(300, TimeUnit.MILLISECONDS)));
             return answer;
         }
         Optional<Carried<ItemStack>> carried = inventories.read(player);
         answer.complete(carried.map(this::slots));
         return answer;
+    }
+
+    private Optional<List<String>> savedAfterLeaving(UUID player) {
+        for (int attempt = 0; attempt < 8; attempt++) {
+            Optional<List<String>> found = inventories.read(player).map(this::slots);
+            if (found.isPresent()) {
+                return found;
+            }
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return Optional.empty();
     }
 
     /** Core's sections back into inventory slot order: hotbar, backpack, boots to helmet, off hand. */
