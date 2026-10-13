@@ -36,6 +36,7 @@ import de.raindancer.modules.arena.service.MatchService;
 import de.raindancer.modules.arena.service.NetworkService;
 import de.raindancer.modules.arena.service.NpcService;
 import de.raindancer.modules.arena.service.FloodService;
+import de.raindancer.modules.arena.service.PitRestorer;
 import de.raindancer.modules.arena.service.PitSweeper;
 import de.raindancer.modules.arena.service.QueueService;
 import de.raindancer.modules.arena.service.StakeService;
@@ -65,7 +66,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.10.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.13.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -132,6 +133,9 @@ public final class ArenaModule implements FlexModule {
         matches.waves(waves);
         PitSweeper sweeper = new PitSweeper(context.plugin(), server, entity -> npcs.role(entity).isPresent());
         matches.sweeper(sweeper);
+        PitRestorer restorer = new PitRestorer(context.plugin(), server);
+        matches.restorer(restorer);
+        worlds.building(player -> matches.mayBuild(player.getUniqueId()), restorer::isOpen);
         FloodService floods = new FloodService(context.plugin(), server, context.core().effects(),
                 context.core().messages(), new de.raindancer.modules.arena.store.FloodLedger(
                         context.dataFolder().resolve("floods")), log, settings.current());

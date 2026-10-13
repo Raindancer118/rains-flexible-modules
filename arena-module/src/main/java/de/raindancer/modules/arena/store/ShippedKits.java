@@ -20,7 +20,7 @@ public final class ShippedKits {
 
     public static String fingerprint(Kit kit) {
         return Integer.toHexString((String.join("\n", kit.items()) + "|" + String.join("\n", kit.effects())
-                + "|" + kit.harmless()).hashCode());
+                + "|" + kit.harmless() + (kit.building() ? "|building" : "")).hashCode());
     }
 
     public Optional<String> seeded(String id) {

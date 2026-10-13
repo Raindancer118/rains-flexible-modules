@@ -146,7 +146,7 @@ public final class KitDefaults {
         slots.storage(2, item(Material.FIRE_CHARGE, 16));
         slots.storage(3, item(Material.REDSTONE_BLOCK, 8));
         slots.offHand(item(Material.SHIELD, 1));
-        return kit("dwftyw", "DWFTYW", Material.TNT, slots, false);
+        return kit("dwftyw", "DWFTYW", Material.TNT, slots, false, true);
     }
 
     private Kit sumo() {
@@ -205,12 +205,16 @@ public final class KitDefaults {
     // ── making items ───────────────────────────────────────────────────────────────────────────────
 
     private Kit kit(String id, String name, Material icon, Slots slots, boolean harmless) {
+        return kit(id, name, icon, slots, harmless, false);
+    }
+
+    private Kit kit(String id, String name, Material icon, Slots slots, boolean harmless, boolean building) {
         List<String> encoded = new ArrayList<>(Kit.SLOTS);
         for (ItemStack item : slots.items) {
             String line = item == null ? null : codec.write(item);
             encoded.add(line == null ? "" : line);
         }
-        return new Kit(id, name, icon.name(), encoded, List.of(), harmless);
+        return new Kit(id, name, icon.name(), encoded, List.of(), harmless, building);
     }
 
     private static ItemStack item(Material material, int amount) {

@@ -82,6 +82,7 @@ public final class MatchService implements IArenaService {
     private final Map<UUID, Integer> deaths = new ConcurrentHashMap<>();
     private volatile WaveService waves;
     private volatile PitSweeper sweeper;
+    private volatile PitRestorer restorer;
     private volatile Runnable afterFight = () -> {
     };
     private volatile java.util.function.Consumer<Fight> finished = fight -> {
@@ -123,6 +124,10 @@ public final class MatchService implements IArenaService {
     }
 
     /** Wired after construction: clears a pit before each round and after each fight. */
+    public void restorer(PitRestorer restorer) {
+        this.restorer = restorer;
+    }
+
     public void sweeper(PitSweeper sweeper) {
         this.sweeper = sweeper;
     }
@@ -290,6 +295,10 @@ public final class MatchService implements IArenaService {
             if (sweeper != null) {
                 // Whatever the last round left — or the last fight in this pit — is gone before anybody arrives.
                 sweeper.sweep(fight.pit());
+            }
+            if (restorer != null) {
+                // A building kit's pit is copied now and put back before every round after.
+                restorer.prepare(fight.pit(), buildsKit(fight));
             }
             if (fight.spec().mode() == Mode.NAVAL && floods != null) {
                 floods.plan(fight.pit()).thenAccept(basin -> Scheduling.global(plugin, () -> launch(fight, basin)));
@@ -506,7 +515,7 @@ public final class MatchService implements IArenaService {
 
     private void equip(Fight fight, Player player, Location spawn, Ride ride) {
         HubState.apply(player, settings);
-        player.setGameMode(GameMode.ADVENTURE);
+        player.setGameMode(buildsKit(fight) ? GameMode.SURVIVAL : GameMode.ADVENTURE);
         player.teleportAsync(spawn).thenAccept(moved -> Scheduling.entity(plugin, player, () -> {
             MatchSpec spec = fight.spec();
             if (spec.isOwnGear()) {
@@ -764,8 +773,13 @@ public final class MatchService implements IArenaService {
         Set<UUID> home = new HashSet<>(fight.players());
         home.addAll(spectators.getOrDefault(fight.id(), Set.of()));
         Scheduling.globalLater(plugin, HOME_AFTER_TICKS, () -> {
-            if (sweeper != null && !busyPits().contains(fight.pit().id())) {
-                sweeper.sweep(fight.pit());
+            if (!busyPits().contains(fight.pit().id())) {
+                if (sweeper != null) {
+                    sweeper.sweep(fight.pit());
+                }
+                if (restorer != null) {
+                    restorer.finish(fight.pit());
+                }
             }
             for (UUID member : home) {
                 Player player = server.getPlayer(member);
@@ -784,6 +798,18 @@ public final class MatchService implements IArenaService {
         } catch (RuntimeException failed) {
             log.error(failed, "Offering the rematch failed; the fight itself ended normally.");
         }
+    }
+
+    /** A kit that builds and blows things up — explosives and the like. Fights in one's own gear never do. */
+    private boolean buildsKit(Fight fight) {
+        MatchSpec spec = fight.spec();
+        return !spec.isOwnGear() && spec.mode() != Mode.NAVAL && kits.get(spec.kit()).map(Kit::building).orElse(false);
+    }
+
+    /** Whether this player may place and break blocks right now: fighting, standing, in a fight whose kit builds. */
+    public boolean mayBuild(UUID player) {
+        Fight fight = byPlayer.get(player);
+        return fight != null && isFighting(player) && buildsKit(fight);
     }
 
     /** The fight is gone: its players are free, its pit is free, and the queue may start the next. */

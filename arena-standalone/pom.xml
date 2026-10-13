@@ -70,7 +70,8 @@
         <!-- 0.10.2: sumo works: fighters start inside the ring (either side of its middle, facing each other) instead of on the pit spawns far outside it, and the ring edge is drawn in red dust. -->
         <!-- 0.11.0: the explosives kit dwftyw (netherite, trident, TNT, crystals). -->
         <!-- 0.12.0: leaving the arena sends people back where they came from — survival when it announced them, otherwise the hub. -->
-        <plugin.version>0.12.0</plugin.version>
+        <!-- 0.13.0: a kit can build (dwftyw does): its fighters place blocks and blow up their pit, which is copied before the first round and put back before every next one and when the fight is over. -->
+        <plugin.version>0.13.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -91,11 +91,24 @@ public final class ArenaWorldService implements IArenaService {
         }
     }
 
+    private volatile java.util.function.Predicate<org.bukkit.entity.Player> fighterBuilds = player -> false;
+    private volatile java.util.function.Predicate<org.bukkit.Location> pitOpen = where -> false;
+
+    /** Who may build in the locked arena worlds beyond admins, and which places are open to explosions — set once the fights exist. */
+    public void building(java.util.function.Predicate<org.bukkit.entity.Player> fighter,
+                         java.util.function.Predicate<org.bukkit.Location> open) {
+        this.fighterBuilds = fighter;
+        this.pitOpen = open;
+    }
+
     /** Rules, time, weather and border — re-applied at every start, so a hand-changed rule does not stick. */
     public void prepare(World world, ArenaWorld arena) {
         // Every block and entity of the map stays as built: RainsCore enforces it; an admin in creative builds.
+        // A fighter whose kit builds may also change blocks, and the pit they fight in is open to explosions and fire while
+        // it is copied — the arena puts it back (PitRestorer).
         de.raindancer.core.world.protection.LockedWorlds.lock(plugin, world.getName(),
-                de.raindancer.modules.arena.util.Builders::isBuilding);
+                player -> de.raindancer.modules.arena.util.Builders.isBuilding(player) || fighterBuilds.test(player),
+                where -> pitOpen.test(where));
         locked.add(world.getName());
         world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);

@@ -69,6 +69,7 @@ public final class KitBook {
                 yaml.set(at + ".name", kit.name());
                 yaml.set(at + ".icon", kit.icon());
                 yaml.set(at + ".harmless", kit.harmless());
+                yaml.set(at + ".building", kit.building());
                 yaml.set(at + ".effects", kit.effects());
                 yaml.set(at + ".items", kit.items());
             }
@@ -90,7 +91,7 @@ public final class KitBook {
                 ConfigurationSection kit = section.getConfigurationSection(key);
                 kits.put(YamlStore.fromPathPart(key), new Kit(YamlStore.fromPathPart(key), kit.getString("name"),
                         kit.getString("icon"), kit.getStringList("items"), kit.getStringList("effects"),
-                        kit.getBoolean("harmless")));
+                        kit.getBoolean("harmless"), kit.getBoolean("building")));
             } catch (RuntimeException broken) {
                 log.error("Kit '{}' in kits.yml is skipped: {}", key, broken.getMessage());
             }

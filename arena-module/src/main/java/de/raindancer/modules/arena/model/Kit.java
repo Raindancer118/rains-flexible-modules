@@ -10,10 +10,16 @@ import java.util.Locale;
  *
  * @param items   41 slots in {@code PlayerInventory#getContents()} order, empty slots as {@code ""}
  * @param harmless sumo's: hits push and never hurt
+ * @param building explosives and the like: fighters place blocks and blow up their pit, which is put back after each round
  */
-public record Kit(String id, String name, String icon, List<String> items, List<String> effects, boolean harmless) {
+public record Kit(String id, String name, String icon, List<String> items, List<String> effects, boolean harmless,
+                  boolean building) {
 
     public static final int SLOTS = 41;
+
+    public Kit(String id, String name, String icon, List<String> items, List<String> effects, boolean harmless) {
+        this(id, name, icon, items, effects, harmless, false);
+    }
 
     public Kit {
         if (id == null || id.isBlank() || id.equals(MatchSpec.OWN_GEAR)) {

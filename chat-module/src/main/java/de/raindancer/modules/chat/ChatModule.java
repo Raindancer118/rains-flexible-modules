@@ -41,7 +41,7 @@ public final class ChatModule implements FlexModule {
 
     private static final String STYLE_PART = "chat:style";
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.16.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.17.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -159,6 +159,11 @@ public final class ChatModule implements FlexModule {
                         de.raindancer.core.ui.chat.Chat.formatted("line", line)),
                 networkSettings.current());
         networkSettings.onChange(network::settings);
+        // The whole chat config — format, filters, mentions, network chat — is the SMP's on every server of the network.
+        context.core().syncFile("RainsChat/config.yml", () -> {
+            settings.load();
+            networkSettings.load();
+        });
         network.listen();
         context.closeWith(network::stop);
 
