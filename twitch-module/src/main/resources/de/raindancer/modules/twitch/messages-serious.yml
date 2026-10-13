@@ -1,0 +1,6 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+twitch:
+  live:
+    who: "   <white><bold><name></bold></white> <gray>is live."
+  ended:
+    thanks: "   <gray>Thank you for watching. <white>twitch.tv/<channel></white>"

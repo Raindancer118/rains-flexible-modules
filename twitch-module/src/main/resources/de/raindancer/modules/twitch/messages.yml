@@ -1,0 +1,21 @@
+# Rain's Twitch — every line this module says. Offered as a floor: anything in an owner's own messages.yml wins.
+twitch:
+  usage: "<gray>/twitch status · /twitch test live|ended · /twitch reload"
+  not-allowed: "<red>That is for staff."
+  reloaded: "<green>The Twitch login was read again."
+  status:
+    watching: "<gray>Watching <white><channel></white>: <white><seen></white>."
+    listening: "<gray>This server does not ask Twitch for <white><channel></white> — it shows what the watching server tells it."
+  live:
+    rule: "<gradient:#9146FF:#E0A8FF>━━━━━━━━━━━━━━ ✦ ━━━━━━━━━━━━━━</gradient>"
+    head: "   <red><bold>●</bold></red> <gradient:#9146FF:#E0A8FF><bold>LIVE ON TWITCH</bold></gradient>"
+    who: "   <white><bold><name></bold></white> <gray>just went live!"
+    what: "   <gray>“<white><title></white>” <dark_gray>·</dark_gray> <light_purple><game>"
+    what-title: "   <gray>“<white><title></white>”"
+    what-game: "   <gray>Playing <light_purple><game>"
+    watch: "   <gradient:#9146FF:#E0A8FF><underlined>▶ Watch now</underlined></gradient> <dark_gray>—</dark_gray> <gray>come say hi!"
+  ended:
+    rule: "<gradient:#5b5b6e:#9146FF>━━━━━━━━━━━━━━ ✦ ━━━━━━━━━━━━━━</gradient>"
+    head: "   <dark_gray><bold>●</bold></dark_gray> <gradient:#9146FF:#E0A8FF><bold>STREAM ENDED</bold></gradient>"
+    who: "   <white><bold><name></bold></white> <gray>was live for <white><lasted></white>."
+    thanks: "   <gray>Thanks for watching! <light_purple>♥</light_purple> <dark_gray>—</dark_gray> <white>twitch.tv/<channel></white>"
