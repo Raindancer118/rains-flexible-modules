@@ -391,6 +391,8 @@ public final class Claim {
         members.remove(newOwner);
         bans.remove(newOwner);
         ignoringOwnRules.clear();
+        // The guild agreed to pay for this owner's claim, not for whoever has it next.
+        groupPaysUpkeep = false;
         markDirty();
     }
 

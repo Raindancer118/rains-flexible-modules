@@ -610,6 +610,14 @@ class UpkeepServiceTest {
     }
 
     @Test
+    @DisplayName("handing the claim to somebody else ends the guild paying for it")
+    void transferEndsIt() {
+        Claim claim = guildPaid(0, 1);
+        claim.transferTo(UUID.randomUUID());
+        assertThat(claim.groupPaysUpkeep()).isFalse();
+    }
+
+    @Test
     @DisplayName("the switch is saved with the claim and read back")
     void switchIsSaved() {
         Claim claim = guildPaid(0, 1);

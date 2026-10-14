@@ -277,7 +277,8 @@ public final class ClaimCommand implements IClaimCommand {
      * {@code /claim guild [tag]} gives the claim underfoot to a guild the owner manages — its leader owns it too, its
      * officers manage it, its members are trusted, all for as long as they are in it; {@code /claim guild off} takes
      * it back. The owners keep the claim either way. {@code /claim guild pays [off]}: the guild pays the claim's
-     * upkeep from its bank — said by one of its leaders or officers, since it is the guild's money.
+     * upkeep from its bank — only its leader starts it (an officer's rank may not take from the bank, and this is
+     * taking from it); an officer or the claim's owner may end it.
      */
     private void group(ClaimServices claims, Player player, String[] args) {
         if (args.length > 1 && args[1].equalsIgnoreCase("pays")) {
@@ -320,7 +321,7 @@ public final class ClaimCommand implements IClaimCommand {
         claims.messages().send(player, "claim.group.given", "claim", claim.name(), "group", group.name(), "tag", group.tag());
     }
 
-    /** The guild's officers decide, owner or not; the claim's owner may only end it. */
+    /** The guild's leader starts it; its officers and the claim's owner may end it. */
     private void guildPays(ClaimServices claims, Player player, boolean pays) {
         Optional<Claim> standing = claims.claimAround(player);
         if (standing.isEmpty()) {
@@ -334,8 +335,10 @@ public final class ClaimCommand implements IClaimCommand {
             claims.messages().send(player, "claim.group.none-set");
             return;
         }
-        boolean mayEnd = !pays && claims.rights().isOwnerOrServerAdmin(claim, player);
-        if (!group.get().isManager(player.getUniqueId()) && !mayEnd) {
+        UUID who = player.getUniqueId();
+        boolean allowed = pays ? who.equals(group.get().leader())
+                : group.get().isManager(who) || claims.rights().isOwnerOrServerAdmin(claim, player);
+        if (!allowed) {
             claims.messages().send(player, "claim.group.pays-not-yours", "group", group.get().name());
             return;
         }
