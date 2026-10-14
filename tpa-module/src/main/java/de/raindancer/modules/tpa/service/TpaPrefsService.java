@@ -67,8 +67,11 @@ public final class TpaPrefsService implements ITpaService {
 
     /** Sets it outright — what {@code /tptoggle on} means. */
     public boolean set(Player who, boolean accepting) {
-        prefs.change(who.getUniqueId(), who.getName(),
-                theirs -> accepting ? theirs.acceptingEverybody() : theirs.refusingEverybody());
+        if (!prefs.change(who.getUniqueId(), who.getName(),
+                theirs -> accepting ? theirs.acceptingEverybody() : theirs.refusingEverybody())) {
+            messages.send(who, "tpa.not-saved");
+            return prefs.of(who.getUniqueId()).accepting();
+        }
         messages.send(who, accepting ? "tpa.now-accepting" : "tpa.now-refusing");
         return accepting;
     }
@@ -82,7 +85,10 @@ public final class TpaPrefsService implements ITpaService {
 
     /** Sets it outright — what {@code /tpauto on} means. */
     public boolean setAutoAccept(Player who, boolean on) {
-        prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.autoAccepting(on));
+        if (!prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.autoAccepting(on))) {
+            messages.send(who, "tpa.not-saved");
+            return prefs.of(who.getUniqueId()).autoAccept();
+        }
         messages.send(who, on ? "tpa.now-auto-accepting" : "tpa.now-asking-first");
         return on;
     }
@@ -102,7 +108,10 @@ public final class TpaPrefsService implements ITpaService {
             return false;
         }
         prefs.seen(them.getUniqueId(), them.getName());
-        prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.blocking(them.getUniqueId()));
+        if (!prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.blocking(them.getUniqueId()))) {
+            messages.send(who, "tpa.not-saved");
+            return false;
+        }
 
         // The request they made a moment ago would otherwise still be sitting there, waiting to be
         // accepted, and the block would look like it had done nothing.
@@ -119,7 +128,10 @@ public final class TpaPrefsService implements ITpaService {
             messages.send(who, "tpa.not-blocked", "player", nameOf(them));
             return false;
         }
-        prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.unblocking(them.getUniqueId()));
+        if (!prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.unblocking(them.getUniqueId()))) {
+            messages.send(who, "tpa.not-saved");
+            return false;
+        }
         messages.send(who, "tpa.unblocked", "player", nameOf(them));
         return true;
     }

@@ -8,3 +8,4 @@ tpa:
   nothing-to-answer: "<gray>Nobody is waiting on you."
   yours-ran-out: "<gray>Your request to <white><player></white> ran out."
   now-refusing: "<yellow>Teleport requests are off — nobody can ask you."
+  not-saved: "<red>That could not be saved, so nothing changed. Try again in a moment."
