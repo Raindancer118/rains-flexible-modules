@@ -52,7 +52,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.8.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.9.0")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -142,6 +142,10 @@ public final class TpaModule implements FlexModule {
                     .map(travelling -> travelling.travel(player, target, java.util.Optional.of(where)))
                     .orElseGet(() -> java.util.concurrent.CompletableFuture.completedFuture(false)));
         }
+        // /back to where somebody was on another server of the network.
+        context.core().networkTravel().ifPresent(travelling -> back.acrossServers(
+                (player, target, where) -> travelling.travel(player, target, java.util.Optional.of(where)),
+                context.plugin()));
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of these
         // is a subsystem that keeps yesterday's numbers until the next restart, which is the sort of

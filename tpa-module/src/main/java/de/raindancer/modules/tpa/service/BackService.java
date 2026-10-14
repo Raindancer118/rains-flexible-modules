@@ -9,6 +9,7 @@ import net.kyori.adventure.text.Component;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Companions;
+import de.raindancer.core.platform.network.Arrivals;
 import de.raindancer.core.world.teleport.Returns;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelReason;
@@ -53,6 +54,12 @@ public final class BackService implements ITpaService {
 
     private volatile TpaSettings settings;
 
+    /** How a place on another server is reached; none on a server of its own. */
+    private volatile TpaRequestService.Hop hop;
+    private volatile org.bukkit.plugin.Plugin plugin;
+    /** Who is on the way back to another server: their fee and wait are decided by how the hop ends. */
+    private final java.util.Set<UUID> hopping = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     public BackService(Travel travel, Messages messages, TpaSettings settings) {
         this(travel, messages, settings, (LongSupplier) null);
     }
@@ -84,6 +91,16 @@ public final class BackService implements ITpaService {
         settings(settings);
     }
 
+    /**
+     * Lets {@code /back} reach places on other servers of the network.
+     *
+     * @param plugin whose scheduler the hop's outcome is handled on; null runs it in place (tests)
+     */
+    public void acrossServers(TpaRequestService.Hop hop, org.bukkit.plugin.Plugin plugin) {
+        this.hop = hop;
+        this.plugin = plugin;
+    }
+
     @Override
     public void settings(TpaSettings fresh) {
         this.settings = fresh;
@@ -98,7 +115,7 @@ public final class BackService implements ITpaService {
 
     /** Where they would go, without using it up — what a menu asks to grey a button. */
     public Optional<Waypoint> waiting(Player who) {
-        return who == null ? Optional.empty() : returns.of(who.getUniqueId());
+        return who == null ? Optional.empty() : returns.anywhere(who.getUniqueId()).map(Returns.Elsewhere::where);
     }
 
     /**
@@ -147,11 +164,19 @@ public final class BackService implements ITpaService {
             messages.send(who, "tpa.back-switched-off");
             return false;
         }
-        Waypoint where = returns.of(who.getUniqueId()).orElse(null);
-        if (where == null) {
+        Returns.Elsewhere place = returns.anywhere(who.getUniqueId()).orElse(null);
+        if (place == null) {
             messages.send(who, "tpa.nowhere-to-go-back-to");
             return false;
         }
+        if (hopping.contains(who.getUniqueId())) {
+            messages.send(who, "tpa.already-travelling");
+            return false;
+        }
+        if (returns.of(who.getUniqueId()).isEmpty()) {
+            return goElsewhere(who, place, paySkip);
+        }
+        Waypoint where = place.where();
         Location destination = where.location().orElse(null);
         if (destination == null) {
             // Not a fault: a multiverse server unloads worlds for maintenance, and it works again when
@@ -163,6 +188,24 @@ public final class BackService implements ITpaService {
             messages.send(who, "tpa.back-cross-world-off");
             return false;
         }
+        if (!charged(who, paySkip)) {
+            return false;
+        }
+
+        // Taken only once everything has passed, so a refusal does not cost somebody the way back.
+        returns.take(who.getUniqueId());
+
+        int warmup = bypasses(who, PermissionNodes.BYPASS_WARMUP) ? 0 : settings.warmup();
+        travel.go(who, destination,
+                Trip.to(where.cause().describe())
+                        .after(warmup)
+                        .bringing(Companions.WHAT_YOU_LEAD),
+                new Arriving(where));
+        return true;
+    }
+
+    /** The wait, the price and the skip, as for any {@code /back}. @return whether they may go; a refusal is said */
+    private boolean charged(Player who, boolean paySkip) {
         Money skipPrice = who.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO : fees.skip();
         boolean ready = isReady(who);
         if (!ready && !(paySkip && skipPrice.isPositive())) {
@@ -187,16 +230,24 @@ public final class BackService implements ITpaService {
             return false;
         }
 
-        // Taken only once everything has passed, so a refusal does not cost somebody the way back.
-        returns.take(who.getUniqueId());
         fees.hold(who.getUniqueId(), charge.taken());
+        return true;
+    }
 
+    /** {@code /back} to a place on another server: the same price and wait, then a hop that lands them on it. */
+    private boolean goElsewhere(Player who, Returns.Elsewhere place, boolean paySkip) {
+        if (hop == null) {
+            messages.send(who, "tpa.back-other-server-unavailable", "server", place.server());
+            return false;
+        }
+        if (!charged(who, paySkip)) {
+            return false;
+        }
+        returns.takeAnywhere(who.getUniqueId());
         int warmup = bypasses(who, PermissionNodes.BYPASS_WARMUP) ? 0 : settings.warmup();
-        travel.go(who, destination,
-                Trip.to(where.cause().describe())
-                        .after(warmup)
-                        .bringing(Companions.WHAT_YOU_LEAD),
-                new Arriving(where));
+        // Waited out on the spot: nothing here is a place to land, and nobody on a lead crosses servers.
+        travel.goElsewhere(who, Trip.to(place.where().cause().describe()).after(warmup).exactly(),
+                new ArrivingElsewhere(place), player -> { });
         return true;
     }
 
@@ -252,7 +303,9 @@ public final class BackService implements ITpaService {
         waits.sweep();
         // Standing through a wait when they quit: no trip, so no charge. The place they were going
         // back to is not restored either — they left, and Core drops their waypoints with them.
-        fees.refundHeld(who);
+        if (!hopping.contains(who)) {
+            fees.refundHeld(who);
+        }
     }
 
     /** Gives back everything paid for trips that never ended — for the module stopping. */
@@ -319,6 +372,73 @@ public final class BackService implements ITpaService {
         }
 
         private void giveBack(Player traveller) {
+            TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
+            if (spent != null && spent.total().isPositive()) {
+                fees.refund(traveller.getUniqueId(), spent);
+                messages.send(traveller, "tpa.refunded", "price", Fees.format(spent.total()));
+            }
+        }
+    }
+
+    /** The way back to another server: the wait here, then the hop, whose outcome settles the fee and the wait. */
+    private final class ArrivingElsewhere implements TravelWatcher {
+
+        private final Returns.Elsewhere place;
+
+        private ArrivingElsewhere(Returns.Elsewhere place) {
+            this.place = place;
+        }
+
+        @Override
+        public void counting(Player traveller, int secondsLeft, Trip trip) {
+            messages.send(traveller, "tpa.back-warming-up",
+                    "what", place.where().cause().describe(), "seconds", secondsLeft);
+        }
+
+        @Override
+        public void arrived(Player traveller, Location where, Trip trip) {
+            UUID who = traveller.getUniqueId();
+            hopping.add(who);
+            Waypoint to = place.where();
+            hop.sendSafely(traveller, place.server(), new Arrivals.Destination(to.world(), to.x(), to.y(), to.z(),
+                            to.yaw(), to.pitch()))
+                    .exceptionally(failure -> false)
+                    .thenAccept(moved -> {
+                        hopping.remove(who);
+                        Runnable outcome = moved ? () -> {
+                            waits.start(who);
+                            fees.settle(who);
+                        } : () -> {
+                            returns.restore(who, place);
+                            TpaFees.Taken spent = fees.settle(who);
+                            if (spent != null && spent.total().isPositive()) {
+                                fees.refund(who, spent);
+                                if (traveller.isOnline()) {
+                                    messages.send(traveller, "tpa.refunded", "price", Fees.format(spent.total()));
+                                }
+                            }
+                        };
+                        if (plugin == null) {
+                            outcome.run();
+                        } else {
+                            de.raindancer.core.platform.util.Scheduling.entity(plugin, traveller, outcome, outcome);
+                        }
+                    });
+        }
+
+        @Override
+        public void cancelled(Player traveller, TravelReason why, Trip trip) {
+            notGone(traveller, why);
+        }
+
+        @Override
+        public void refused(Player traveller, TravelReason why, Trip trip) {
+            notGone(traveller, why);
+        }
+
+        private void notGone(Player traveller, TravelReason why) {
+            returns.restore(traveller.getUniqueId(), place);
+            messages.send(traveller, keyFor(why), "what", place.where().cause().describe());
             TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
             if (spent != null && spent.total().isPositive()) {
                 fees.refund(traveller.getUniqueId(), spent);

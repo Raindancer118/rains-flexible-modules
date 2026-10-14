@@ -99,6 +99,7 @@ tpa:
   back-warming-up: "<gray>Back to <white><what></white> in <white><seconds></white>s… stand still."
   back-arrived: "<green>Back to <white><what></white>."
   nowhere-to-go-back-to: "<gray>There is nowhere to go back to yet."
+  back-other-server-unavailable: "<yellow>Where you were is on <white><server></white>, and this server cannot send you there."
   back-switched-off: "<red>Going back is switched off on this server."
   back-world-gone: "<yellow>That place is in a world that is not loaded right now."
   back-cross-world-off: "<red>That place is in another world, and going back across one is switched off here."
