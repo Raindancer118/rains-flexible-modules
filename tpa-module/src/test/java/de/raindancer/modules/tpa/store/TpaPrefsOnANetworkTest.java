@@ -74,4 +74,21 @@ class TpaPrefsOnANetworkTest {
         assertThat(smp.of(STEVE).autoAccept()).isTrue();
         assertThat(arena.of(ALEX).accepting()).isFalse();
     }
+
+    @Test
+    @DisplayName("one player's block list changed on two servers at once keeps both blocks: no block is lost")
+    void samePlayerTwoServers() {
+        TpaPrefsFile smp = server("smp");
+        TpaPrefsFile arena = server("arena");
+        UUID bob = UUID.fromString("00000000-0000-0000-0000-0000000000c3");
+
+        smp.change(ALEX, "Alex", theirs -> theirs.blocking(STEVE));
+        // The arena has not heard of that yet.
+        arena.change(ALEX, "Alex", theirs -> theirs.blocking(bob));
+        hub.drain();
+
+        assertThat(smp.of(ALEX).hasBlocked(STEVE)).isTrue();
+        assertThat(smp.of(ALEX).hasBlocked(bob)).isTrue();
+        assertThat(arena.of(ALEX).hasBlocked(STEVE)).as("arena took the stored list, not its stale one").isTrue();
+    }
 }

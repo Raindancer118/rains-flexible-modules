@@ -273,4 +273,31 @@ class TpaAcrossServersTest {
         assertThat(arena.requests.count()).isZero();
         assertThat(smp.sentTo).isEmpty();
     }
+
+    @Test
+    @DisplayName("a block list holds against somebody on another server, whatever their server says about bypassing it")
+    void bypassDoesNotCrossServers() throws Exception {
+        when(arena.prefs.of(alex.getUniqueId())).thenReturn(TpaPrefs.untouched().refusingEverybody());
+        NetworkCalls smpCalls = calls.get(0);
+        Optional<Map<String, String>> answer = smpCalls.ask("arena", TpaNetwork.ASK, Map.of(
+                "from", steve.getUniqueId().toString(), "to", alex.getUniqueId().toString(), "kind", "TO",
+                "fromName", "Steve", "bypass", "true"), Duration.ofSeconds(5)).get();
+
+        assertThat(answer).get().satisfies(reply -> assertThat(reply.get("result")).isEqualTo("not-accepting"));
+        assertThat(arena.requests.has(steve.getUniqueId(), alex.getUniqueId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("only the server a player was on may say they left: a request is not ended by anybody else")
+    void leftOnlyFromTheirServer() throws Exception {
+        smp.service.askElsewhere(steve, smp.service.findElsewhere("Alex").orElseThrow(), TpaKind.TO);
+        eventually(() -> arena.requests.has(steve.getUniqueId(), alex.getUniqueId()));
+
+        NetworkCalls forger = new NetworkCalls(hub.bus("elsewhere"));
+        calls.add(forger);
+        forger.ask("arena", TpaNetwork.END, Map.of("asker", steve.getUniqueId().toString(),
+                "asked", alex.getUniqueId().toString(), "how", "left", "name", "Steve"), Duration.ofSeconds(5)).get();
+
+        assertThat(arena.requests.has(steve.getUniqueId(), alex.getUniqueId())).isTrue();
+    }
 }

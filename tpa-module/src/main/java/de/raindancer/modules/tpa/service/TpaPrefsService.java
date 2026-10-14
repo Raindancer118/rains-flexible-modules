@@ -67,9 +67,8 @@ public final class TpaPrefsService implements ITpaService {
 
     /** Sets it outright — what {@code /tptoggle on} means. */
     public boolean set(Player who, boolean accepting) {
-        TpaPrefs now = prefs.of(who.getUniqueId());
-        TpaPrefs next = accepting ? now.acceptingEverybody() : now.refusingEverybody();
-        prefs.set(who.getUniqueId(), who.getName(), next);
+        prefs.change(who.getUniqueId(), who.getName(),
+                theirs -> accepting ? theirs.acceptingEverybody() : theirs.refusingEverybody());
         messages.send(who, accepting ? "tpa.now-accepting" : "tpa.now-refusing");
         return accepting;
     }
@@ -83,7 +82,7 @@ public final class TpaPrefsService implements ITpaService {
 
     /** Sets it outright — what {@code /tpauto on} means. */
     public boolean setAutoAccept(Player who, boolean on) {
-        prefs.set(who.getUniqueId(), who.getName(), prefs.of(who.getUniqueId()).autoAccepting(on));
+        prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.autoAccepting(on));
         messages.send(who, on ? "tpa.now-auto-accepting" : "tpa.now-asking-first");
         return on;
     }
@@ -103,7 +102,7 @@ public final class TpaPrefsService implements ITpaService {
             return false;
         }
         prefs.seen(them.getUniqueId(), them.getName());
-        prefs.set(who.getUniqueId(), who.getName(), now.blocking(them.getUniqueId()));
+        prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.blocking(them.getUniqueId()));
 
         // The request they made a moment ago would otherwise still be sitting there, waiting to be
         // accepted, and the block would look like it had done nothing.
@@ -120,7 +119,7 @@ public final class TpaPrefsService implements ITpaService {
             messages.send(who, "tpa.not-blocked", "player", nameOf(them));
             return false;
         }
-        prefs.set(who.getUniqueId(), who.getName(), now.unblocking(them.getUniqueId()));
+        prefs.change(who.getUniqueId(), who.getName(), theirs -> theirs.unblocking(them.getUniqueId()));
         messages.send(who, "tpa.unblocked", "player", nameOf(them));
         return true;
     }

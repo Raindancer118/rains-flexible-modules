@@ -241,7 +241,6 @@ public final class TpaRequestService implements ITpaService {
         question.put("fromName", from.getName());
         question.put("to", there.player().toString());
         question.put("kind", kind.name());
-        question.put("bypass", String.valueOf(from.hasPermission(PermissionNodes.BYPASS_TOGGLE)));
         net.ask(there.server(), TpaNetwork.ASK, question).thenAccept(answer -> {
             String how = answer.map(reply -> reply.getOrDefault("result", "")).orElse("unreachable");
             if (how.equals("asked")) {
@@ -277,8 +276,9 @@ public final class TpaRequestService implements ITpaService {
                 return result("offline");
             }
             prefs.seen(from, fromName);
-            boolean bypass = Boolean.parseBoolean(question.get("bypass"));
-            if (!bypass && !prefs.of(to).mayBeAskedBy(from)) {
+            // No bypass from another server: what may be bypassed is decided by permissions this server cannot see,
+            // and a block list that another server can switch off protects nobody.
+            if (!prefs.of(to).mayBeAskedBy(from)) {
                 return result("not-accepting");
             }
             TpaRequests.Outcome outcome = requests.ask(from, to, kind);
@@ -364,6 +364,11 @@ public final class TpaRequestService implements ITpaService {
                     }
                 }
                 case "left" -> {
+                    // Said by the server the one who left was on — or nobody's any more, once they are gone.
+                    UUID gone = onlineOf(asker).isPresent() ? asked : asker;
+                    if (!net.serverOf(gone).map(server::equals).orElse(true)) {
+                        return result("gone");
+                    }
                     if (requests.withdraw(asker, asked).isPresent()) {
                         tell(onlineOf(asker).isPresent() ? asker : asked, "tpa.other-left", "player", name);
                     }

@@ -114,31 +114,38 @@ public final class TpaPrefsFile {
             if (!name.isBlank()) {
                 names.put(who, name);
             }
-            Set<UUID> blocked = new LinkedHashSet<>();
-            for (String rawBlocked : theirs.getStringList("blocked")) {
-                try {
-                    blocked.add(UUID.fromString(rawBlocked));
-                } catch (IllegalArgumentException notAnId) {
-                    // Same again, one entry at a time.
-                }
-            }
-            ConfigurationSection blockedNames = theirs.getConfigurationSection("blocked-names");
-            if (blockedNames != null) {
-                for (String rawId2 : blockedNames.getKeys(false)) {
-                    try {
-                        names.putIfAbsent(UUID.fromString(rawId2),
-                                blockedNames.getString(rawId2, ""));
-                    } catch (IllegalArgumentException notAnId) {
-                        // Same again.
-                    }
-                }
-            }
-            TpaPrefs read = new TpaPrefs(theirs.getBoolean("accepting", true), blocked,
-                    theirs.getBoolean("auto-accept", false));
+            TpaPrefs read = read(theirs, names);
             if (read.isWorthKeeping()) {
                 prefs.put(who, read);
             }
         }
+    }
+
+    /** One player's entry as stored; their blocked players' names noted on the way. */
+    private static TpaPrefs read(ConfigurationSection theirs, Map<UUID, String> names) {
+        if (theirs == null) {
+            return TpaPrefs.untouched();
+        }
+        Set<UUID> blocked = new LinkedHashSet<>();
+        for (String rawBlocked : theirs.getStringList("blocked")) {
+            try {
+                blocked.add(UUID.fromString(rawBlocked));
+            } catch (IllegalArgumentException notAnId) {
+                // Same again, one entry at a time.
+            }
+        }
+        ConfigurationSection blockedNames = theirs.getConfigurationSection("blocked-names");
+        if (blockedNames != null) {
+            for (String rawId2 : blockedNames.getKeys(false)) {
+                try {
+                    names.putIfAbsent(UUID.fromString(rawId2), blockedNames.getString(rawId2, ""));
+                } catch (IllegalArgumentException notAnId) {
+                    // Same again.
+                }
+            }
+        }
+        return new TpaPrefs(theirs.getBoolean("accepting", true), blocked,
+                theirs.getBoolean("auto-accept", false));
     }
 
     /** What this player has decided, or the default if they never have. */
@@ -167,18 +174,40 @@ public final class TpaPrefsFile {
      * bothered again.
      */
     public void set(UUID who, String theirName, TpaPrefs decided) {
-        if (who == null || decided == null) {
-            return;
+        change(who, theirName, ignored -> decided);
+    }
+
+    /**
+     * Changes what somebody has decided, starting from what the database holds for them — not from this server's
+     * copy, which another server may have changed a moment ago — and writes only their entry. A block made on one
+     * server is never undone by a stale copy written on another.
+     *
+     * @return whether it was written
+     */
+    public boolean change(UUID who, String theirName, java.util.function.UnaryOperator<TpaPrefs> change) {
+        if (who == null || change == null || !readable) {
+            return false;
         }
         if (theirName != null && !theirName.isBlank()) {
             names.put(who, theirName);
         }
-        if (decided.isWorthKeeping()) {
-            prefs.put(who, decided);
-        } else {
-            prefs.remove(who);
+        TpaPrefs[] decided = {of(who)};
+        boolean written = store.update(yaml -> {
+            String base = "players." + who;
+            decided[0] = change.apply(read(yaml.getConfigurationSection(base), names));
+            yaml.set(base, null);
+            if (decided[0].isWorthKeeping()) {
+                write(yaml, who, decided[0]);
+            }
+        });
+        if (written) {
+            if (decided[0].isWorthKeeping()) {
+                prefs.put(who, decided[0]);
+            } else {
+                prefs.remove(who);
+            }
         }
-        save();
+        return written;
     }
 
     /** Notes the name somebody currently has, so a block list can be read by a person. */
@@ -201,22 +230,23 @@ public final class TpaPrefsFile {
         if (!readable) {
             return false;
         }
-        return store.write(yaml -> prefs.forEach((who, theirs) -> {
-            String base = "players." + who;
-            nameOf(who).ifPresent(name -> yaml.set(base + ".name", name));
-            yaml.set(base + ".accepting", theirs.accepting());
-            if (theirs.autoAccept()) {
-                yaml.set(base + ".auto-accept", true);
-            }
-            if (theirs.blocked().isEmpty()) {
-                return;
-            }
-            yaml.set(base + ".blocked", theirs.blocked().stream().map(UUID::toString).toList());
-            // Written for whoever opens this file by hand; never read for a decision.
-            theirs.blocked().forEach(blocked ->
-                    nameOf(blocked).ifPresent(name ->
-                            yaml.set(base + ".blocked-names." + blocked, name)));
-        }));
+        return store.write(yaml -> prefs.forEach((who, theirs) -> write(yaml, who, theirs)));
+    }
+
+    private void write(YamlConfiguration yaml, UUID who, TpaPrefs theirs) {
+        String base = "players." + who;
+        nameOf(who).ifPresent(name -> yaml.set(base + ".name", name));
+        yaml.set(base + ".accepting", theirs.accepting());
+        if (theirs.autoAccept()) {
+            yaml.set(base + ".auto-accept", true);
+        }
+        if (theirs.blocked().isEmpty()) {
+            return;
+        }
+        yaml.set(base + ".blocked", theirs.blocked().stream().map(UUID::toString).toList());
+        // Written for whoever opens this by hand; never read for a decision.
+        theirs.blocked().forEach(blocked ->
+                nameOf(blocked).ifPresent(name -> yaml.set(base + ".blocked-names." + blocked, name)));
     }
 
     /**
