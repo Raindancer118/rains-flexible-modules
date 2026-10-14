@@ -7,6 +7,11 @@ name: Build
 # independently: the reactor is 1.0.0 while RainsExtendedClaims is 2.0.0, RainsModeration is 2.1.0,
 # RainsColouredNames is 2.0.0, RainsWarps is 1.0.0 and RainsHomes and RainsTPA are both 2.0.0, so a
 # bare `v2.0.0` could not say which of them it meant.
+# One run per ref at a time: two pushes in a row both rewrote the rolling "latest" release at once.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     tags:
@@ -263,31 +268,38 @@ jobs:
         run: |
           set -euo pipefail
           gh release delete latest --yes --cleanup-tag --repo "${{ github.repository }}" || true
-          gh release create latest \
-            "${{ steps.jars.outputs.claims_jar }}" \
-            "${{ steps.jars.outputs.claims_jar }}.sha256" \
-            "${{ steps.jars.outputs.moderation_jar }}" \
-            "${{ steps.jars.outputs.moderation_jar }}.sha256" \
-            "${{ steps.jars.outputs.names_jar }}" \
-            "${{ steps.jars.outputs.names_jar }}.sha256" \
-            "${{ steps.jars.outputs.warp_jar }}" \
-            "${{ steps.jars.outputs.warp_jar }}.sha256" \
-            "${{ steps.jars.outputs.homes_jar }}" \
-            "${{ steps.jars.outputs.homes_jar }}.sha256" \
-            "${{ steps.jars.outputs.tpa_jar }}" \
-            "${{ steps.jars.outputs.tpa_jar }}.sha256" \
-            "${{ steps.jars.outputs.yeuk_jar }}" \
-            "${{ steps.jars.outputs.yeuk_jar }}.sha256" \
-            "${{ steps.jars.outputs.worldutils_jar }}" \
-            "${{ steps.jars.outputs.worldutils_jar }}.sha256" \
-            "${{ steps.jars.outputs.speedrunserver_jar }}" \
-            "${{ steps.jars.outputs.speedrunserver_jar }}.sha256" \
-            "${{ steps.jars.outputs.proxy_jar }}" \
-            "${{ steps.jars.outputs.proxy_jar }}.sha256" \
-            --repo "${{ github.repository }}" \
-            --title "Latest build" \
-            --notes-file notes.md \
-            --prerelease
+          # The deleted tag can linger for a few seconds ("tag_name already exists"); try again.
+          for attempt in 1 2 3 4 5 6; do
+            if gh release create latest \
+              "${{ steps.jars.outputs.claims_jar }}" \
+              "${{ steps.jars.outputs.claims_jar }}.sha256" \
+              "${{ steps.jars.outputs.moderation_jar }}" \
+              "${{ steps.jars.outputs.moderation_jar }}.sha256" \
+              "${{ steps.jars.outputs.names_jar }}" \
+              "${{ steps.jars.outputs.names_jar }}.sha256" \
+              "${{ steps.jars.outputs.warp_jar }}" \
+              "${{ steps.jars.outputs.warp_jar }}.sha256" \
+              "${{ steps.jars.outputs.homes_jar }}" \
+              "${{ steps.jars.outputs.homes_jar }}.sha256" \
+              "${{ steps.jars.outputs.tpa_jar }}" \
+              "${{ steps.jars.outputs.tpa_jar }}.sha256" \
+              "${{ steps.jars.outputs.yeuk_jar }}" \
+              "${{ steps.jars.outputs.yeuk_jar }}.sha256" \
+              "${{ steps.jars.outputs.worldutils_jar }}" \
+              "${{ steps.jars.outputs.worldutils_jar }}.sha256" \
+              "${{ steps.jars.outputs.speedrunserver_jar }}" \
+              "${{ steps.jars.outputs.speedrunserver_jar }}.sha256" \
+              "${{ steps.jars.outputs.proxy_jar }}" \
+              "${{ steps.jars.outputs.proxy_jar }}.sha256" \
+              --repo "${{ github.repository }}" \
+              --title "Latest build" \
+              --notes-file notes.md \
+              --prerelease; then
+              break
+            fi
+            [ "$attempt" = 6 ] && exit 1
+            sleep 10
+          done
 
       # And an immutable one per push, so a jar from three pushes ago is still fetchable — which
       # "latest" by its nature cannot promise. The run number rather than a date: it never repeats and
