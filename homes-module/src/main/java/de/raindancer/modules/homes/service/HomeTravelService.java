@@ -73,6 +73,11 @@ public final class HomeTravelService implements IHomeService {
      * logout. Removed under the lock, so however many of those arrive the money goes back once.
      */
     private final Map<UUID, Money> paid = new HashMap<>();
+    /**
+     * Who is on the way to another server: their fee is decided by how the hop ends — not by them leaving this
+     * server, which is what a hop looks like from here — and they cannot start another trip until it has.
+     */
+    private final java.util.Set<UUID> hopping = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private volatile HomeSettings settings;
 
@@ -167,6 +172,10 @@ public final class HomeTravelService implements IHomeService {
             return;
         }
 
+        if (hopping.contains(traveller.getUniqueId())) {
+            messages.send(traveller, "homes.already-travelling");
+            return;
+        }
         if (!charge(traveller, home, now)) {
             return;
         }
@@ -197,7 +206,7 @@ public final class HomeTravelService implements IHomeService {
             return true;
         }
         UUID who = traveller.getUniqueId();
-        if (travel.isTravelling(who)) {
+        if (travel.isTravelling(who) || hopping.contains(who)) {
             // Asked before charging: Core refuses a second trip, and that refusal must not be what
             // hands back the money of the first.
             messages.send(traveller, "homes.already-travelling");
@@ -307,12 +316,14 @@ public final class HomeTravelService implements IHomeService {
         /** The fee and the wait are settled by how the hop ends: kept and started when they left, else refunded. */
         private void hopAway(Player traveller) {
             UUID who = traveller.getUniqueId();
+            hopping.add(who);
             messages.send(traveller, "homes.travelling-away", "name", home.name(), "server", home.server());
             Poi poi = home.poi();
             hop.send(traveller, poi.server(), new Arrivals.Destination(poi.world(), poi.x(), poi.y(), poi.z(),
                             poi.yaw(), poi.pitch()))
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {
+                        hopping.remove(who);
                         if (left) {
                             Scheduling.entity(plugin, traveller, () -> landed(who), () -> landed(who));
                         } else {
@@ -380,7 +391,9 @@ public final class HomeTravelService implements IHomeService {
      *            the map, and one player leaving is only when it is worth doing
      */
     public void leaves(UUID who) {
-        refund(who);
+        if (!hopping.contains(who)) {
+            refund(who);
+        }
         waits.sweep();
     }
 

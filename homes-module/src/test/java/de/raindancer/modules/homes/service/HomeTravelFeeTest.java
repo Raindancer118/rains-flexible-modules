@@ -280,4 +280,34 @@ class HomeTravelFeeTest {
 
         assertThat(bank.balance(id)).isEqualTo(Fees.amount("10"));
     }
+
+    @Test
+    @DisplayName("leaving this server for the hop does not hand the fee back: the hop decides")
+    void quittingForTheHopKeepsTheFee() {
+        FakeEconomy bank = FakeEconomy.install().give(id, "10");
+        CompletableFuture<Boolean> hopped = new CompletableFuture<>();
+        HomeTravelService service = acrossServers(hopped);
+        service.go(player, homeElsewhere());
+        awayWatcher().arrived(player, new Location(world, 1, 2, 3), Trip.to("base"));
+
+        service.leaves(id);
+        hopped.complete(true);
+
+        assertThat(bank.balance(id)).isEqualTo(Fees.amount("7"));
+    }
+
+    @Test
+    @DisplayName("while a hop is under way no second trip is started or charged")
+    void noSecondTripDuringTheHop() {
+        FakeEconomy bank = FakeEconomy.install().give(id, "10");
+        CompletableFuture<Boolean> hopped = new CompletableFuture<>();
+        HomeTravelService service = acrossServers(hopped);
+        service.go(player, homeElsewhere());
+        awayWatcher().arrived(player, new Location(world, 1, 2, 3), Trip.to("base"));
+
+        service.go(player, homeElsewhere());
+
+        assertThat(bank.balance(id)).isEqualTo(Fees.amount("7"));
+        verify(messages).send(eq(player), eq("homes.already-travelling"), any(Object[].class));
+    }
 }
