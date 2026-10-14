@@ -12,8 +12,6 @@ public final class ShardRules {
     private static final int COMMON = 10;
     private static final int UNCOMMON = 5;
     private static final int RARE = 2;
-    /** A strong monster (a lot of health) makes the rare shards this much likelier. */
-    private static final int STRONG_RARE_FACTOR = 3;
 
     private static final Map<String, Integer> WEIGHTS = new LinkedHashMap<>();
 
@@ -39,14 +37,15 @@ public final class ShardRules {
         return WEIGHTS.getOrDefault(enchantment, 0);
     }
 
-    public static String pick(RandomGenerator random, boolean strong) {
+    /** @param rareFactor how much likelier the rare shards are — the monster's {@link ShardTier#rareFactor()} */
+    public static String pick(RandomGenerator random, int rareFactor) {
         int total = 0;
         for (int weight : WEIGHTS.values()) {
-            total += adjusted(weight, strong);
+            total += adjusted(weight, rareFactor);
         }
         int roll = random.nextInt(total);
         for (Map.Entry<String, Integer> each : WEIGHTS.entrySet()) {
-            roll -= adjusted(each.getValue(), strong);
+            roll -= adjusted(each.getValue(), rareFactor);
             if (roll < 0) {
                 return each.getKey();
             }
@@ -54,7 +53,7 @@ public final class ShardRules {
         throw new IllegalStateException("The weights do not add up.");
     }
 
-    private static int adjusted(int weight, boolean strong) {
-        return strong && weight == RARE ? weight * STRONG_RARE_FACTOR : weight;
+    private static int adjusted(int weight, int rareFactor) {
+        return weight == RARE ? weight * Math.max(1, rareFactor) : weight;
     }
 }

@@ -15,6 +15,7 @@ import de.raindancer.modules.enchants.listener.ElytraListener;
 import de.raindancer.modules.enchants.listener.ShardListener;
 import de.raindancer.modules.enchants.listener.TabListener;
 import de.raindancer.modules.enchants.service.ShardDropService;
+import de.raindancer.modules.enchants.service.ShardMobService;
 import de.raindancer.modules.enchants.service.ShardPortalService;
 import de.raindancer.modules.enchants.service.ShardWorldService;
 import de.raindancer.modules.enchants.listener.ToolListener;
@@ -47,7 +48,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.5.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -99,7 +100,8 @@ public final class EnchantsModule implements FlexModule {
         ShardPortalService portals = new ShardPortalService(context.plugin(), context.core().land(), shardWorlds, settings::current,
                 advancements, context.core().messages(), context.core().effects());
         context.listener(new ShardListener(shardWorlds, portals,
-                new ShardDropService(shardWorlds, settings::current, advancements, context.core().messages())));
+                new ShardDropService(shardWorlds, settings::current, advancements, context.core().messages()),
+                new ShardMobService(shardWorlds)));
         EnchantsCommands.ready(new EnchantsServices(context.plugin().getServer(), context.core().messages()));
 
         int[] beat = {0};

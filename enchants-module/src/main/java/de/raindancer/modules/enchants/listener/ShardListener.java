@@ -1,12 +1,14 @@
 package de.raindancer.modules.enchants.listener;
 
 import de.raindancer.modules.enchants.service.ShardDropService;
+import de.raindancer.modules.enchants.service.ShardMobService;
 import de.raindancer.modules.enchants.service.ShardPortalService;
 import de.raindancer.modules.enchants.service.ShardWorldService;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -25,11 +27,20 @@ public final class ShardListener implements IEnchantsListener {
     private final ShardWorldService worlds;
     private final ShardPortalService portals;
     private final ShardDropService drops;
+    private final ShardMobService mobs;
 
-    public ShardListener(ShardWorldService worlds, ShardPortalService portals, ShardDropService drops) {
+    public ShardListener(ShardWorldService worlds, ShardPortalService portals, ShardDropService drops,
+                         ShardMobService mobs) {
         this.worlds = worlds;
         this.portals = portals;
         this.drops = drops;
+        this.mobs = mobs;
+    }
+
+    /** After everybody else had their say about the spawn: only monsters that really come get a kind. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSpawn(CreatureSpawnEvent event) {
+        mobs.spawned(event.getEntity(), event.getSpawnReason());
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

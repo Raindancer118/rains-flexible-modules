@@ -7,24 +7,26 @@ import de.raindancer.modules.enchants.EnchantAdvancements;
 import de.raindancer.modules.enchants.EnchantsSettings;
 import de.raindancer.modules.enchants.rules.ShardCap;
 import de.raindancer.modules.enchants.rules.ShardRules;
+import de.raindancer.modules.enchants.rules.ShardTier;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.entity.Enemy;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
-/** Shards from monsters of the shard world: only ones that spawned by themselves, only to a player's kill, capped. */
+/**
+ * Shards from the creatures of the shard world: only ones that came by themselves (and so have a kind), only to a
+ * player's kill, as many as
+ * their kind drops ({@link ShardTier}), within the hourly cap.
+ */
 public final class ShardDropService {
-
-    /** A monster with at least this much health counts as strong: the rare shards come likelier. */
-    private static final double STRONG_HEALTH = 40;
 
     private final ShardWorldService worlds;
     private final Supplier<EnchantsSettings> settings;
@@ -41,23 +43,34 @@ public final class ShardDropService {
     }
 
     public void died(LivingEntity mob, Player killer, List<ItemStack> drops) {
-        if (!(mob instanceof Enemy) || !worlds.isShardWorld(mob.getWorld())
-                || mob.getEntitySpawnReason() != CreatureSpawnEvent.SpawnReason.NATURAL) {
+        java.util.Optional<ShardTier> kind = ShardMobService.tierOf(mob);
+        if (kind.isEmpty() || !worlds.isShardWorld(mob.getWorld())) {
             return;
         }
         EnchantsSettings config = settings.get();
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        if (random.nextInt(100) >= config.shardDropPercent() || !cap.take(killer.getUniqueId(), config.shardsPerHour())) {
+        if (random.nextInt(100) >= config.shardDropPercent()) {
             return;
         }
-        var health = mob.getAttribute(Attribute.MAX_HEALTH);
-        String enchantment = ShardRules.pick(random, health != null && health.getValue() >= STRONG_HEALTH);
-        if (CustomEnchantments.find(enchantment).isEmpty()) {
+        ShardTier tier = kind.get();
+        Map<String, Integer> found = new LinkedHashMap<>();
+        int count = tier.shards(random);
+        for (int i = 0; i < count && cap.take(killer.getUniqueId(), config.shardsPerHour()); i++) {
+            String enchantment = ShardRules.pick(random, tier.rareFactor());
+            if (CustomEnchantments.find(enchantment).isPresent()) {
+                found.merge(enchantment, 1, Integer::sum);
+            }
+        }
+        if (found.isEmpty()) {
             return;
         }
-        drops.add(EnchantShards.of(enchantment, 1));
-        String name = PlainTextComponentSerializer.plainText().serialize(CustomEnchantments.find(enchantment).get().description());
-        killer.sendActionBar(messages.get("enchants.shard-dropped", "name", name));
+        List<String> names = new ArrayList<>();
+        found.forEach((enchantment, amount) -> {
+            drops.add(EnchantShards.of(enchantment, amount));
+            names.add(PlainTextComponentSerializer.plainText().serialize(CustomEnchantments.find(enchantment).get().description()));
+        });
+        int total = found.values().stream().mapToInt(Integer::intValue).sum();
+        killer.sendActionBar(messages.get("enchants.shards-dropped", "amount", total, "names", String.join(", ", names)));
         advancements.foundShard(killer.getUniqueId());
     }
 

@@ -89,6 +89,19 @@ class ShardsScenarioTest {
                     "execute if entity @a[name=Ada,advancements={rainsenchants:shardlands=true}]").contains("passed"));
             // --- a monster that spawned by itself, killed by Ada, drops a shard -------------------------------
             String[] kinds = {"zombie", "creeper", "spider", "skeleton", "enderman", "witch"};
+            // Every creature that came by itself is one of the kinds, named after it.
+            String named = Await.value(() -> "a named creature near Ada", Duration.ofSeconds(60), () -> {
+                for (String kind : kinds) {
+                    String name = server.console("execute at Ada as @e[type=minecraft:" + kind
+                            + ",distance=..96,limit=1,sort=nearest] run data get entity @s CustomName");
+                    if (name.contains("Shadowed") || name.contains("Shardborn") || name.contains("Crystal")
+                            || name.contains("Shard Tyrant")) {
+                        return name;
+                    }
+                }
+                return null;
+            });
+            assertThat(named).contains("entity.minecraft.");
             Await.until("a monster dies to Ada and drops a shard", Duration.ofSeconds(60), () -> {
                 for (String kind : kinds) {
                     server.console("execute at Ada as @e[type=minecraft:" + kind + ",distance=..96,limit=1,sort=nearest]"
@@ -98,7 +111,7 @@ class ShardsScenarioTest {
                         .contains("passed");
             });
             assertThat(server.console("execute at Ada if entity @e[type=item,distance=..128,nbt={Item:{id:\"minecraft:echo_shard\"}}]"))
-                    .as("the shard lies where the monster fell").contains("passed");
+                    .as("its shards lie where the monster fell").contains("passed");
 
             server.console("execute in minecraft:shardlands run forceload add 100 100");
             frame(server, "minecraft:shardlands", 100, 200, 100);

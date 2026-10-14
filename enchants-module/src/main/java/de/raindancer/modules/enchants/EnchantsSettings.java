@@ -96,16 +96,17 @@ public record EnchantsSettings(
         Material portalKey,
 
         @In("enchants/shards") @Title("Shard chance, percent") @Range(min = 1, max = 100)
-        @Describe("How likely a monster that spawned by itself in the shard world drops a shard when a player "
-                + "kills it. Spawner, egg and command monsters never do.")
+        @Describe("How likely a creature of the shard world — any kind, monster or animal — drops its shards when a "
+                + "player kills it, as many as its tier: a Shadowed one 1, Shardborn 2, Crystal 3-4, a Shard Tyrant "
+                + "6-8. Only creatures that came by themselves: bred, spawner, egg and command ones never do.")
         @Key("shard-drop-percent")
         int shardDropPercent,
 
         @In("enchants/shards") @Title("Shards per player per hour") @Range(min = 1, max = 10000)
-        @Describe("The most shards one player can find in any hour, so a farm cannot print them.")
+        @Describe("The most shards one player can find in any hour, so a farm in the eternal night cannot print them.")
         @Key("shards-per-hour")
         int shardsPerHour) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 10, 40);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150);
 }
