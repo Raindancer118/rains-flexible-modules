@@ -29,7 +29,8 @@
         <!-- 0.6.2: a shard portal is recognised wherever the player's hitbox touches it, as the game does; stepping in from the side led to the nether. -->
         <!-- 0.7.0: thunderstorms in the shard world, 70 % of the time by default (shard-world-thunder-percent, rolled every five minutes); Boost may be set up to 1000 % of a rocket. -->
         <!-- 0.8.0: a dark red haze drifts around players in the shard world (shard-world-haze specks every half second). -->
-        <plugin.version>0.8.0</plugin.version>
+        <!-- 0.9.0: the shard world is purple — sky, fog, clouds and light — from purple copies of the game's biomes in a datapack written at bootstrap; each chunk is switched to them once. -->
+        <plugin.version>0.9.0</plugin.version>
     </properties>
 
     <dependencies>

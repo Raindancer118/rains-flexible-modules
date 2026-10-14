@@ -88,7 +88,12 @@ final class Server implements AutoCloseable {
         return paper.bot(name).join();
     }
 
-    String console(String command) {
+    /** Everything the server logged so far. */
+    String log() {
+        return paper.log();
+    }
+
+        String console(String command) {
         return paper.console(command);
     }
 

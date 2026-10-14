@@ -40,8 +40,8 @@
         <!-- One property per library module, each its own version — independent of the reactor's
              <version> and of each other. Bumping one of these is what a <module>-vX.Y.Z release tag
              is checked against; nothing else in this file ties a module's version to another's. -->
-        <modules-api.version>1.3.0</modules-api.version>
-        <modules-wrapper.version>1.7.0</modules-wrapper.version>
+        <modules-api.version>1.4.0</modules-api.version>
+        <modules-wrapper.version>1.8.0</modules-wrapper.version>
         <grimapi.version>1.6.0.12</grimapi.version>
         <network-proxy.version>1.0.0</network-proxy.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated

@@ -147,6 +147,17 @@ public final class ModuleRegistry {
         return commands;
     }
 
+    /** Each runnable module's own bootstrap step, in plan order; one that fails is reported and the rest go on. */
+    public void bootstrap(io.papermc.paper.plugin.bootstrap.BootstrapContext context) {
+        for (FlexModule module : plan().order()) {
+            try {
+                module.bootstrap(context);
+            } catch (Throwable caught) {
+                enchantmentProblems.add("module '" + module.info().id() + "' failed in its bootstrap: " + describe(caught));
+            }
+        }
+    }
+
     /** Every enchantment the runnable modules bring, in plan order — asked at bootstrap like commands. */
     public List<EnchantDef> enchantments() {
         List<EnchantDef> collected = new ArrayList<>();

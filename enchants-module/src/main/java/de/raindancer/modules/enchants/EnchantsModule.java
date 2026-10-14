@@ -50,7 +50,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.9.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -66,6 +66,17 @@ public final class EnchantsModule implements FlexModule {
     @Override
     public List<EnchantDef> enchantments() {
         return EnchantsDefinitions.all();
+    }
+
+    /** The shard world's purple biomes: a datapack, which has to be found before the server loads its worlds. */
+    @Override
+    public void bootstrap(io.papermc.paper.plugin.bootstrap.BootstrapContext context) {
+        try {
+            de.raindancer.modules.enchants.service.ShardBiomePack.register(context);
+        } catch (java.io.IOException failed) {
+            context.getLogger().error("The shard world's purple biomes could not be written; it keeps the game's colours.",
+                    failed);
+        }
     }
 
     @Override
@@ -102,6 +113,15 @@ public final class EnchantsModule implements FlexModule {
         ShardPortalService portals = new ShardPortalService(context.plugin(), context.core().land(), shardWorlds, settings::current,
                 advancements, context.core().messages(), context.core().effects());
         ShardMobService shardMobs = new ShardMobService(context.plugin(), shardWorlds);
+        de.raindancer.modules.enchants.listener.ShardBiomeListener purple =
+                new de.raindancer.modules.enchants.listener.ShardBiomeListener(shardWorlds);
+        context.listener(purple);
+        // The chunks loaded before this listener was: the spawn's, a forced one.
+        shardWorlds.world().ifPresent(world -> {
+            for (org.bukkit.Chunk chunk : world.getLoadedChunks()) {
+                purple.convert(chunk);
+            }
+        });
         context.listener(new ShardListener(shardWorlds, portals,
                 new ShardDropService(shardWorlds, settings::current, advancements, context.core().messages()),
                 shardMobs));

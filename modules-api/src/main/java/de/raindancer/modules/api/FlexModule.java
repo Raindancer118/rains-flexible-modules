@@ -71,4 +71,12 @@ public interface FlexModule {
     default List<EnchantDef> enchantments() {
         return List.of();
     }
+
+    /**
+     * Anything else that has to happen before the server starts — a datapack to discover, say. Called from the
+     * plugin's bootstrapper, before {@link #enable}; same rules as {@link #enchantments()}. A failure here is
+     * logged and the module still starts.
+     */
+    default void bootstrap(io.papermc.paper.plugin.bootstrap.BootstrapContext context) {
+    }
 }

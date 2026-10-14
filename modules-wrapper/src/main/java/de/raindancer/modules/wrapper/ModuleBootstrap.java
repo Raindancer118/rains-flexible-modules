@@ -33,6 +33,7 @@ public final class ModuleBootstrap implements PluginBootstrap {
 
         // Paper freezes the enchantment registry before onEnable, so this is the only moment for it too.
         de.raindancer.core.content.enchant.CustomEnchantments.register(context, Modules.registry().enchantments());
+        Modules.registry().bootstrap(context);
 
         LifecycleEventManager<BootstrapContext> lifecycle = context.getLifecycleManager();
         lifecycle.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
