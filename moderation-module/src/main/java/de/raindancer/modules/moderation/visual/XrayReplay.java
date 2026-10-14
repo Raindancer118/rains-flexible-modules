@@ -69,9 +69,15 @@ public final class XrayReplay {
      * Their tunnels, wherever the viewer is: drawn at once when they stand within range of the digging, else after
      * taking them to the last block dug — open tunnel, so nothing to suffocate in. What a report's one button does.
      *
+     * @param mayTeleport whether the viewer may be taken there; without it the trail is only drawn where they stand
      * @param told how many dug blocks were drawn, once that is known (0: nothing of theirs in that world)
      */
-    public static void goAndShow(Plugin plugin, Player viewer, MiningLedger ledger, java.util.function.IntConsumer told) {
+    public static void goAndShow(Plugin plugin, Player viewer, MiningLedger ledger, boolean mayTeleport,
+                                 java.util.function.IntConsumer told) {
+        if (!mayTeleport) {
+            told.accept(show(plugin, viewer, ledger));
+            return;
+        }
         Location at = viewer.getLocation();
         java.util.Optional<int[]> spot = whereToStand(ledger.trail(), ledger.trailWorld(), viewer.getWorld().getName(),
                 at.getX(), at.getY(), at.getZ());

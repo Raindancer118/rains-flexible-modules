@@ -214,14 +214,16 @@ public final class ReportMenu extends ModerationScreen {
             // The tunnels themselves, one click from the report: taken there if need be, drawn around you.
             var ledger = services().xrayDetection().ledgerOf(report.subject());
             band(MenuLayout.RULES, 4, allowed && ledger != null, glowing(Icons.of(Material.ENDER_EYE, "<yellow>Show their tunnels",
-                            "<gray>Takes you to their digging and draws it for 30 seconds,",
+                            viewer.hasPermission(PlayerScreen.TELEPORT)
+                                    ? "<gray>Takes you to their digging and draws it for 30 seconds,"
+                                    : "<gray>Draws their digging around you for 30 seconds,",
                             "<gray>only you can see it: <white>grey</white> rock, <aqua>aqua</aqua> ore veins,",
                             "<red>red</red> bait ores only an x-ray shows.")),
                     ledger == null ? "Nothing of their digging is recorded on this server" : "For whoever may read reports",
                     click -> {
                         viewer.closeInventory();
                         de.raindancer.modules.moderation.visual.XrayReplay.goAndShow(services().plugin(), viewer, ledger,
-                                drawn -> tell(drawn > 0 ? "moderation.xray.replay-shown" : "moderation.xray.replay-empty",
+                                viewer.hasPermission(PlayerScreen.TELEPORT), drawn -> tell(drawn > 0 ? "moderation.xray.replay-shown" : "moderation.xray.replay-empty",
                                         "player", report.subjectName(), "count", drawn));
                     });
             band(MenuLayout.RULES, 6, allowed, Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
