@@ -73,9 +73,18 @@ public final class ShardMobService {
                 settings.get().crystalWardenPerMille(), entity.getType(), roomUnderSky(at))) {
             return false;
         }
-        Scheduling.regionLater(plugin, at, 1L,
-                () -> at.getWorld().spawnEntity(at, org.bukkit.entity.EntityType.WARDEN, CreatureSpawnEvent.SpawnReason.NATURAL));
+        // Marked before its spawn is announced: only these are worth five times — a shrieker's warden is not.
+        Scheduling.regionLater(plugin, at, 1L, () -> at.getWorld().spawn(at, org.bukkit.entity.Warden.class,
+                CreatureSpawnEvent.SpawnReason.NATURAL, true,
+                made -> made.getPersistentDataContainer().set(CRYSTAL_WARDEN, PersistentDataType.BYTE, (byte) 1)));
         return true;
+    }
+
+    private static final NamespacedKey CRYSTAL_WARDEN = new NamespacedKey("rainsenchants", "crystal_warden");
+
+    /** Whether this is a warden that came under the open sky in a monster's stead. */
+    public static boolean isCrystalWarden(org.bukkit.entity.Entity entity) {
+        return entity instanceof org.bukkit.entity.Warden && entity.getPersistentDataContainer().has(CRYSTAL_WARDEN);
     }
 
     /** Nothing above but sky, and room for a warden's three blocks of height. */

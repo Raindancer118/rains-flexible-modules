@@ -43,7 +43,7 @@ class CrystalWardenScenarioTest {
             assertThat(server.console(HERE + "execute if entity @e[type=warden,distance=..4]")).as("a warden came instead")
                     .contains("passed");
             assertThat(server.console(HERE + "data get entity @e[type=warden,distance=..4,limit=1] BukkitValues"))
-                    .contains("rainsenchants:shard_tier");
+                    .contains("rainsenchants:shard_tier").contains("rainsenchants:crystal_warden");
 
             server.console("clear Hunter");
             server.console(HERE + "damage @e[type=warden,distance=..4,limit=1] 100000 minecraft:player_attack by Hunter");
@@ -51,6 +51,13 @@ class CrystalWardenScenarioTest {
             Matcher found = Pattern.compile("Found (\\d+)").matcher(server.console("clear Hunter minecraft:echo_shard 0"));
             assertThat(found.find() ? Integer.parseInt(found.group(1)) : 0).as("five times even a Shadowed one's shard")
                     .isGreaterThanOrEqualTo(6);
+
+            // A warden that came any other way — a shrieker, staff — is not one of these, and not worth five times.
+            assertThat(server.console("settings set crystal-warden-per-mille 0")).contains("is now");
+            server.console("enchants shardmob minecraft:warden Hunter");
+            Await.ticks(10);
+            assertThat(server.console(HERE + "data get entity @e[type=warden,distance=..4,limit=1] BukkitValues"))
+                    .contains("rainsenchants:shard_tier").doesNotContain("rainsenchants:crystal_warden");
         }
     }
 }
