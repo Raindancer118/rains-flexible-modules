@@ -1,6 +1,6 @@
 # Anti-cheat usability review (RainsAntiCheat 0.9.x)
 
-> **Superseded (moderation 2.44.0).** The detection checks reviewed here are gone; detection is GrimAC's and
+> **Superseded (moderation 3.0.0).** The detection checks reviewed here are gone; detection is GrimAC's and
 > the rest of the anti-cheat lives in the moderation module. Kept for the history of the decisions.
 
 

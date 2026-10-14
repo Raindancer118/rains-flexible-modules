@@ -158,7 +158,9 @@
              replays and the RainsAntiCheat plugin are gone — x-ray and anti-ESP stay. Old RainsAntiCheat settings
              are taken over once. Report cards open the suspect's checks directly; an x-ray report shows the
              tunnels in one click. -->
-        <plugin.version>2.44.0</plugin.version>
+        <!-- 3.0.0: 2.44.0 as a major version — the RainsAntiCheat plugin is gone (anti-cheat inside moderation, detection by
+             GrimAC); servers must remove the RainsAntiCheat jar. -->
+        <plugin.version>3.0.0</plugin.version>
     </properties>
 
     <dependencies>
