@@ -26,7 +26,7 @@ public final class ShardRules {
             WEIGHTS.put(key, UNCOMMON);
         }
         for (String key : new String[]{RainsEnchants.FLIGHT, RainsEnchants.LAUNCH, RainsEnchants.SOULBOUND,
-                RainsEnchants.HEAT_SEEKING}) {
+                RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR}) {
             WEIGHTS.put(key, RARE);
         }
     }

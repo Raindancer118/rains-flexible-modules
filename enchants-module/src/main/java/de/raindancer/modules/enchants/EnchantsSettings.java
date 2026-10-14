@@ -103,8 +103,8 @@ public record EnchantsSettings(
         @Key("shard-drop-percent")
         int shardDropPercent,
 
-        @In("enchants/shards") @Title("Shards per player per hour") @Range(min = 1, max = 10000)
-        @Describe("The most shards one player can find in any hour, so a farm in the eternal night cannot print them.")
+        @In("enchants/shards") @Title("Shards per player per hour") @Range(min = 0, max = 10000)
+        @Describe("The most shards one player can find in any hour, so a farm in the eternal night cannot print them. 0 for no limit.")
         @Key("shards-per-hour")
         int shardsPerHour,
 

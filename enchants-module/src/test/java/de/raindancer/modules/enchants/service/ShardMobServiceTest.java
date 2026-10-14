@@ -29,4 +29,18 @@ class ShardMobServiceTest {
                 .extracting(org.bukkit.permissions.Permission::getName)
                 .contains(de.raindancer.modules.enchants.util.PermissionNodes.SUMMON);
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("a target gone to another world is no longer chased — and asking does not throw")
+    void otherWorld() {
+        org.bukkit.World here = org.mockito.Mockito.mock(org.bukkit.World.class);
+        org.bukkit.World there = org.mockito.Mockito.mock(org.bukkit.World.class);
+
+        org.assertj.core.api.Assertions.assertThat(ShardMobService.stillChasing(
+                new org.bukkit.Location(here, 0, 64, 0), new org.bukkit.Location(there, 1, 64, 1), 32)).isFalse();
+        org.assertj.core.api.Assertions.assertThat(ShardMobService.stillChasing(
+                new org.bukkit.Location(here, 0, 64, 0), new org.bukkit.Location(here, 10, 64, 0), 32)).isTrue();
+        org.assertj.core.api.Assertions.assertThat(ShardMobService.stillChasing(
+                new org.bukkit.Location(here, 0, 64, 0), new org.bukkit.Location(here, 100, 64, 0), 32)).isFalse();
+    }
 }

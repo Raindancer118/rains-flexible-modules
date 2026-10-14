@@ -51,6 +51,16 @@ class ShardRulesTest {
     }
 
     @Test
+    @DisplayName("0 per hour is no limit at all")
+    void noLimit() {
+        ShardCap cap = new ShardCap(() -> 0L);
+        java.util.UUID ada = java.util.UUID.randomUUID();
+        for (int i = 0; i < 1_000; i++) {
+            assertThat(cap.take(ada, 0)).isTrue();
+        }
+    }
+
+    @Test
     @DisplayName("leaving and coming back does not reset the hour")
     void relogKeepsTheCap() {
         long[] now = {0};

@@ -21,6 +21,10 @@ public final class ShardCap {
 
     /** Counts one more shard if the hour has room for it. */
     public boolean take(UUID player, int perHour) {
+        if (perHour <= 0) {
+            // No limit set: nothing to count either.
+            return true;
+        }
         long now = clock.getAsLong();
         Deque<Long> times = found.computeIfAbsent(player, id -> new ArrayDeque<>());
         synchronized (times) {

@@ -854,7 +854,8 @@ public final class Bot {
 
     /** Right-clicks into the air with whatever is held. */
     public Bot useHeld() {
-        session.send(new ServerboundUseItemPacket(Hand.MAIN_HAND, sequence.incrementAndGet(), 0f, 0f));
+        // The server takes where it was used from the packet: a bow or a throw goes the way the bot looks.
+        session.send(new ServerboundUseItemPacket(Hand.MAIN_HAND, sequence.incrementAndGet(), yaw, pitch));
         return this;
     }
 

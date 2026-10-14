@@ -22,7 +22,8 @@ class EnchantsDefinitionsTest {
                 RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.LAUNCH, RainsEnchants.SWIFTNESS,
                 RainsEnchants.HASTE, RainsEnchants.SOULBOUND, RainsEnchants.WISDOM, RainsEnchants.EXCAVATOR,
                 RainsEnchants.HARVESTER, RainsEnchants.SMELTING, RainsEnchants.TELEKINESIS, RainsEnchants.CHEST_LINK,
-                RainsEnchants.HEAT_SEEKING);
+                RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR);
+        assertThat(def(RainsEnchants.THOR).gear()).isEqualTo(Gear.THUNDER);
         assertThat(def(RainsEnchants.HEAT_SEEKING).gear()).isEqualTo(Gear.RANGED);
         assertThat(def(RainsEnchants.HEAT_SEEKING).maxLevel()).isEqualTo(3);
     }

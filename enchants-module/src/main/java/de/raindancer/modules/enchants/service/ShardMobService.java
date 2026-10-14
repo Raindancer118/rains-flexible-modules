@@ -86,10 +86,16 @@ public final class ShardMobService {
         return made instanceof LivingEntity living && made.isValid() ? java.util.Optional.of(living) : java.util.Optional.empty();
     }
 
+    /** Whether a target is still worth chasing: in the same world (gone through a portal, it is not) and near enough. */
+    static boolean stillChasing(org.bukkit.Location target, org.bukkit.Location mob, double within) {
+        return target.getWorld() != null && target.getWorld().equals(mob.getWorld())
+                && target.distanceSquared(mob) <= within * within;
+    }
+
     /** Keeps an always-angry creature on the nearest player who can be hurt, angry the way its kind gets angry. */
     private static void hunt(Mob mob) {
         if (mob.getTarget() instanceof Player held && huntable(held)
-                && held.getLocation().distanceSquared(mob.getLocation()) <= HUNT_BLOCKS * HUNT_BLOCKS * 4) {
+                && stillChasing(held.getLocation(), mob.getLocation(), HUNT_BLOCKS * 2)) {
             return;
         }
         Player nearest = null;

@@ -47,6 +47,8 @@ public final class EnchantsDefinitions {
                 EnchantDef.builder(RainsEnchants.CHEST_LINK).name("<dark_purple>Chest Link").maxLevel(1)
                         .gear(Gear.DIGGING_TOOLS).anvilCost(6).build(),
                 EnchantDef.builder(RainsEnchants.HEAT_SEEKING).name("<red>Heat-seeking").maxLevel(3)
-                        .gear(Gear.RANGED).anvilCost(8).build());
+                        .gear(Gear.RANGED).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.THOR).name("<yellow>Thor").maxLevel(3)
+                        .gear(Gear.THUNDER).anvilCost(8).build());
     }
 }
