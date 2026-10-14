@@ -74,10 +74,14 @@ public final class ShardMobService {
      */
     public java.util.Optional<LivingEntity> summon(Player near, org.bukkit.entity.EntityType type) {
         // Not checked against the rule here: the spawn goes through the same refusal as one in the dark.
-        if (!worlds.isShardWorld(near.getWorld()) || !type.isAlive() || !type.isSpawnable()) {
+        Class<?> kind = type.getEntityClass();
+        // Bosses never come by themselves, so they are not anybody's to call either.
+        if (!worlds.isShardWorld(near.getWorld()) || !type.isAlive() || !type.isSpawnable()
+                || kind == null || org.bukkit.entity.Boss.class.isAssignableFrom(kind)) {
             return java.util.Optional.empty();
         }
-        org.bukkit.Location at = near.getLocation().add(near.getLocation().getDirection().setY(0).normalize().multiply(3));
+        // At the player's feet: a spot ahead may be rock on amplified ground, and a creature in rock suffocates.
+        org.bukkit.Location at = near.getLocation();
         org.bukkit.entity.Entity made = near.getWorld().spawnEntity(at, type, CreatureSpawnEvent.SpawnReason.NATURAL);
         return made instanceof LivingEntity living && made.isValid() ? java.util.Optional.of(living) : java.util.Optional.empty();
     }

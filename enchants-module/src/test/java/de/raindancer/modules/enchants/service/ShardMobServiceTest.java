@@ -19,4 +19,14 @@ class ShardMobServiceTest {
             assertThat(ShardMobService.bySelf(made)).as(made.name()).isFalse();
         }
     }
+
+    @Test
+    @DisplayName("calling a creature is its own permission, not the one for handing out books")
+    void ownPermission() {
+        assertThat(de.raindancer.modules.enchants.util.PermissionNodes.SUMMON)
+                .isNotEqualTo(de.raindancer.modules.enchants.util.PermissionNodes.GIVE);
+        assertThat(de.raindancer.modules.enchants.util.PermissionNodes.declared())
+                .extracting(org.bukkit.permissions.Permission::getName)
+                .contains(de.raindancer.modules.enchants.util.PermissionNodes.SUMMON);
+    }
 }

@@ -88,7 +88,7 @@ public final class EnchantsCommand implements BasicCommand {
 
     /** {@code /enchants shardmob <mob> <player>} — a creature next to them, as if it had come by itself. */
     private static void shardMob(EnchantsServices live, CommandSender sender, String[] args) {
-        if (args.length < 3 || !sender.hasPermission(PermissionNodes.GIVE)) {
+        if (args.length < 3 || !sender.hasPermission(PermissionNodes.SUMMON)) {
             live.messages().send(sender, "enchants.shardmob-usage");
             return;
         }

@@ -11,12 +11,16 @@ public final class PermissionNodes {
 
     /** Handing out enchanted books with /enchants give. */
     public static final String GIVE = "rainsenchants.give";
+    /** Calling a creature of the shard world to somebody with /enchants shardmob — more than handing out items. */
+    public static final String SUMMON = "rainsenchants.shardmob";
 
     private PermissionNodes() {
     }
 
     public static List<Permission> declared() {
-        return List.of(new Permission(GIVE, "Give enchanted books with /enchants give", PermissionDefault.OP));
+        return List.of(new Permission(GIVE, "Give enchanted books with /enchants give", PermissionDefault.OP),
+                new Permission(SUMMON, "Call a creature of the shard world to a player with /enchants shardmob",
+                        PermissionDefault.OP));
     }
 
     public static int register(Server server) {

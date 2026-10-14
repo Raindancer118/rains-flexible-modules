@@ -117,6 +117,7 @@ class ShardsScenarioTest {
 
             // --- nothing harmless lives there; a wolf comes for Ada at once ---------------------------------
             assertThat(server.console("enchants shardmob minecraft:cow Ada")).contains("No cow lives");
+            assertThat(server.console("enchants shardmob minecraft:wither Ada")).as("no bosses on call").contains("No wither lives");
             assertThat(server.console("enchants shardmob minecraft:wolf Ada")).contains("came for Ada");
             String wolf = "@e[type=minecraft:wolf,limit=1,sort=nearest]";
             assertThat(server.console("execute at Ada run data get entity " + wolf + " CustomName"))
