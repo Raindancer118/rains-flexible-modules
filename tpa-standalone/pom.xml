@@ -46,7 +46,8 @@
           hole /rtp had, fixed the same way: quitting sweeps the waits that are over.
              2.4.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
         <!-- 2.6.0: /tpa and /tpahere @TAG ask every online member of a group (a guild) one by one. -->
-        <plugin.version>2.6.0</plugin.version>
+        <!-- 2.7.0 (RainsCore 2.0 network edition): /tpa and /tpahere reach players on other servers (asked and answered over the network, the traveller is sent across on accept); block lists and toggles follow the player across the network. -->
+        <plugin.version>2.7.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -20,6 +20,7 @@ import de.raindancer.modules.tpa.screen.TpaHubMenu;
 import de.raindancer.modules.tpa.screen.WhoToAskMenu;
 import de.raindancer.modules.tpa.service.BackService;
 import de.raindancer.modules.tpa.service.TpaPrefsService;
+import de.raindancer.modules.tpa.store.TpaNetwork;
 import de.raindancer.modules.tpa.service.TpaRequestService;
 import de.raindancer.modules.tpa.store.TpaPrefsFile;
 import de.raindancer.modules.tpa.store.TpaRequests;
@@ -51,7 +52,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.7.0")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -133,6 +134,13 @@ public final class TpaModule implements FlexModule {
                 settings::current,
                 requests, new TpaAskingRule(), travel, asking, prefs, back,
                 new LiveScreens());
+
+        // On a network the requests of players on other servers are asked and answered over the network's calls.
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
+            asking.connectNetwork(new TpaNetwork(TpaNetwork.Directory.of(context.core().networkPlayers().get()),
+                    context.core().networkCalls().get()), (player, target, where) -> context.core().networkTravel()
+                    .ifPresent(travelling -> travelling.send(player, target, java.util.Optional.of(where))));
+        }
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of these
         // is a subsystem that keeps yesterday's numbers until the next restart, which is the sort of

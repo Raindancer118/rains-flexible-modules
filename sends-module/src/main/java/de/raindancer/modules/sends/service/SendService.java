@@ -13,6 +13,7 @@ import de.raindancer.modules.sends.rules.RecipientRule;
 import de.raindancer.modules.sends.rules.SendLimitRule;
 import de.raindancer.modules.sends.rules.SendableItemsRule;
 import de.raindancer.modules.sends.store.SendBook;
+import de.raindancer.modules.sends.store.SendStorage;
 import de.raindancer.modules.sends.util.ItemSummary;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -37,6 +38,13 @@ import java.util.function.LongSupplier;
  * therefore leaves the send as it was on disk and the items still held, never given twice; a failed write is
  * undone and said out loud. If the receiving player has gone by the time the write lands, the change is undone
  * as well rather than giving items to somebody who is no longer there.
+ *
+ * <h2>On a network</h2>
+ * The write is a conditional update in the database every server shares, so of two servers ending the same send —
+ * a recipient accepting on one while the sender cancels on another — exactly one is told {@code DONE} and hands
+ * anything over; the other reloads the send and says it is gone. Whoever the other party is, wherever they are,
+ * is told through {@link Network}; a send returning to a sender on another server is collected by that server
+ * when it hears of it.
  */
 public final class SendService implements ISendsService {
 
@@ -55,6 +63,24 @@ public final class SendService implements ISendsService {
     private final Cooldowns<UUID> cooldown;
     private final AtomicInteger inFlight = new AtomicInteger();
     private volatile SendsSettings settings;
+    private volatile Network network;
+
+    /** What sending needs of the other servers of a network. */
+    public interface Network {
+        /** The name of somebody who is online on another server, by presence; empty when nobody is. */
+        Optional<String> onlineElsewhere(UUID player);
+
+        /** Says a message to somebody on whichever server they are on; false when they are nowhere. */
+        boolean tell(UUID player, String key, String... values);
+
+        /** Tells the other servers this send changed, once the change is committed. */
+        void changed(UUID send);
+    }
+
+    /** Joins the network: recipients on other servers can be sent to, and answers are heard from them. */
+    public void connectNetwork(Network network) {
+        this.network = network;
+    }
 
     public SendService(Plugin plugin, Server server, LogChannel log, Messages messages, Effects effects,
                        SendBook book, SendableItemsRule itemsRule, LongSupplier clock, SendsSettings settings) {
@@ -86,13 +112,16 @@ public final class SendService implements ISendsService {
      */
     public boolean create(Player sender, UUID recipientId, List<ItemStack> items) {
         Player recipient = server.getPlayer(recipientId);
+        boolean here = recipient != null && recipient.isOnline();
+        Optional<String> elsewhere = here || network == null ? Optional.empty() : network.onlineElsewhere(recipientId);
+        String recipientName = here ? recipient.getName() : elsewhere.orElse("");
         Optional<String> refusal = recipientRule
-                .refusal(sender.getUniqueId(), recipientId, recipient != null && recipient.isOnline())
+                .refusal(sender.getUniqueId(), recipientId, here || elsewhere.isPresent())
                 .or(() -> limitRule.refusal(book.outgoingCount(sender.getUniqueId()),
                         settings.mostWaitingClamped()))
                 .or(() -> itemsRule.refusal(items));
         if (refusal.isPresent()) {
-            messages.send(sender, refusal.get(), "player", recipient == null ? "" : recipient.getName(),
+            messages.send(sender, refusal.get(), "player", recipientName,
                     "most", String.valueOf(settings.mostWaitingClamped()));
             effects.play(sender.getUniqueId(), Cues.NO);
             return false;
@@ -107,13 +136,14 @@ public final class SendService implements ISendsService {
         // Copies: what the window handed over can be live views of the game's own stacks, and a send must hold
         // items nothing else can change.
         List<ItemStack> held = items.stream().map(ItemStack::clone).toList();
-        Send send = Send.create(sender.getUniqueId(), sender.getName(), recipientId, recipient.getName(), held,
+        Send send = Send.create(sender.getUniqueId(), sender.getName(), recipientId, recipientName, held,
                 clock.getAsLong(), settings.lifetimeMillis());
         book.add(send);
         inFlight.incrementAndGet();
         book.persist(send).thenAccept(saved -> {
             try {
                 if (saved && book.publish(send.id())) {
+                    changed(send.id());
                     announce(send);
                 } else {
                     book.discard(send.id());
@@ -130,18 +160,57 @@ public final class SendService implements ISendsService {
 
     private void announce(Send send) {
         String items = ItemSummary.describeItems(send.items(), KINDS_IN_A_LINE);
-        Player sender = server.getPlayer(send.sender());
-        if (sender != null) {
-            messages.send(sender, "sends.created", "player", send.recipientName(), "items", items,
-                    "minutes", String.valueOf(minutes(send.millisLeft(clock.getAsLong()))), "id", send.shortId());
-            effects.play(sender.getUniqueId(), Cues.OK);
+        String minutes = String.valueOf(minutes(send.millisLeft(clock.getAsLong())));
+        if (tell(send.sender(), "sends.created", "player", send.recipientName(), "items", items,
+                "minutes", minutes, "id", send.shortId())) {
+            effects.play(send.sender(), Cues.OK);
         }
-        Player recipient = server.getPlayer(send.recipient());
-        if (recipient != null) {
-            messages.send(recipient, "sends.incoming", "player", send.senderName(), "items", items,
-                    "minutes", String.valueOf(minutes(send.millisLeft(clock.getAsLong()))), "id", send.shortId());
-            effects.play(recipient.getUniqueId(), Cues.NOTIFY);
+        if (tell(send.recipient(), "sends.incoming", "player", send.senderName(), "items", items,
+                "minutes", minutes, "id", send.shortId())) {
+            effects.play(send.recipient(), Cues.NOTIFY);
         }
+    }
+
+    /**
+     * Says something to a player of this server, or — on a network — to wherever they are.
+     *
+     * @return whether they are on this server, which is where a sound can be played for them
+     */
+    private boolean tell(UUID who, String key, String... values) {
+        Player here = server.getPlayer(who);
+        if (here != null) {
+            messages.send(here, key, (Object[]) values);
+            return true;
+        }
+        Network net = network;
+        if (net != null) {
+            net.tell(who, key, values);
+        }
+        return false;
+    }
+
+    private void changed(UUID id) {
+        Network net = network;
+        if (net != null) {
+            net.changed(id);
+        }
+    }
+
+    /**
+     * A send was lost to another server: this server's picture of it was wrong, so it reads the database's and
+     * says nothing happened here.
+     */
+    private void lost(UUID id) {
+        book.unlock(id);
+        book.reload(id);
+    }
+
+    /**
+     * Another server changed a send. A send that has come back to somebody on this server is theirs to take
+     * now, whoever ended it.
+     */
+    public void changedElsewhere(UUID id) {
+        book.reload(id).filter(send -> send.state() == Send.State.RETURNING).ifPresent(this::returnToSender);
     }
 
     // ------------------------------------------------------------------------------ accepting
@@ -150,10 +219,8 @@ public final class SendService implements ISendsService {
         SendBook.Result result = book.claim(id, player.getUniqueId(), send -> Inventories.fits(player, send.items()));
         switch (result.outcome()) {
             case DONE -> handOver(player, result, send -> {
-                Player sender = server.getPlayer(send.sender());
-                if (sender != null) {
-                    messages.send(sender, "sends.accepted", "player", send.recipientName());
-                    effects.play(sender.getUniqueId(), Cues.OK);
+                if (tell(send.sender(), "sends.accepted", "player", send.recipientName())) {
+                    effects.play(send.sender(), Cues.OK);
                 }
                 return "sends.received";
             });
@@ -183,27 +250,27 @@ public final class SendService implements ISendsService {
         }
         Send returning = result.send();
         inFlight.incrementAndGet();
-        book.persist(returning).thenAccept(saved -> {
+        book.persistChange(result.before(), returning).thenAccept(written -> {
             try {
-                if (!saved) {
+                if (written == SendStorage.Written.LOST) {
+                    lost(returning.id());
+                    messages.send(by, "sends.gone");
+                    return;
+                }
+                if (written == SendStorage.Written.FAILED) {
                     book.revert(result.before());
                     messages.send(by, "sends.save-failed");
                     return;
                 }
                 book.unlock(returning.id());
+                changed(returning.id());
                 boolean cancelled = by.getUniqueId().equals(returning.sender());
-                Player sender = server.getPlayer(returning.sender());
-                Player recipient = server.getPlayer(returning.recipient());
                 if (cancelled) {
                     messages.send(by, "sends.cancelled-by-you");
-                    if (recipient != null) {
-                        messages.send(recipient, "sends.cancelled", "player", returning.senderName());
-                    }
+                    tell(returning.recipient(), "sends.cancelled", "player", returning.senderName());
                 } else {
                     messages.send(by, "sends.declined-by-you", "player", returning.senderName());
-                    if (sender != null) {
-                        messages.send(sender, "sends.declined", "player", returning.recipientName());
-                    }
+                    tell(returning.sender(), "sends.declined", "player", returning.recipientName());
                 }
                 returnToSender(returning);
             } finally {
@@ -247,21 +314,24 @@ public final class SendService implements ISendsService {
     public void sweep() {
         for (Send ran : book.expire()) {
             inFlight.incrementAndGet();
-            book.persist(ran).thenAccept(saved -> {
+            Send before = ran.withState(Send.State.PENDING, 0);
+            book.persistChange(before, ran).thenAccept(written -> {
                 try {
-                    if (!saved) {
+                    if (written == SendStorage.Written.LOST) {
+                        // Another server ran it out first, and has told the two of them.
+                        lost(ran.id());
+                        return;
+                    }
+                    if (written == SendStorage.Written.FAILED) {
                         log.error("A send that ran out could not be saved as such; it will run out again at the "
-                                + "next start.");
+                                + "next sweep.");
+                        book.revert(before);
+                        return;
                     }
                     book.unlock(ran.id());
-                    Player sender = server.getPlayer(ran.sender());
-                    if (sender != null) {
-                        messages.send(sender, "sends.ran-out", "player", ran.recipientName());
-                    }
-                    Player recipient = server.getPlayer(ran.recipient());
-                    if (recipient != null) {
-                        messages.send(recipient, "sends.ran-out-recipient", "player", ran.senderName());
-                    }
+                    changed(ran.id());
+                    tell(ran.sender(), "sends.ran-out", "player", ran.recipientName());
+                    tell(ran.recipient(), "sends.ran-out-recipient", "player", ran.senderName());
                     returnToSender(ran);
                 } finally {
                     inFlight.decrementAndGet();
@@ -282,13 +352,21 @@ public final class SendService implements ISendsService {
                           java.util.function.Function<Send, String> afterwards) {
         Send done = result.send();
         inFlight.incrementAndGet();
-        book.persist(done).thenAccept(saved -> {
-            if (!saved) {
+        book.persistChange(result.before(), done).thenAccept(written -> {
+            if (written == SendStorage.Written.LOST) {
+                // Another server ended it first — a cancel, a decline, the clock — and it is theirs to hand over.
+                lost(done.id());
+                inFlight.decrementAndGet();
+                messages.send(to, "sends.gone");
+                return;
+            }
+            if (written == SendStorage.Written.FAILED) {
                 book.revert(result.before());
                 inFlight.decrementAndGet();
                 messages.send(to, "sends.save-failed");
                 return;
             }
+            changed(done.id());
             // Exactly one of the two ends runs, whatever the scheduler does: giving twice or undoing twice
             // would each be a bug, and the counter must come down once.
             AtomicBoolean ended = new AtomicBoolean();
@@ -298,7 +376,7 @@ public final class SendService implements ISendsService {
                 }
                 try {
                     if (!to.isOnline()) {
-                        undo(result.before());
+                        undo(result.before(), done);
                         return;
                     }
                     String key = afterwards.apply(done);
@@ -318,7 +396,7 @@ public final class SendService implements ISendsService {
                     return;
                 }
                 try {
-                    undo(result.before());
+                    undo(result.before(), done);
                 } finally {
                     inFlight.decrementAndGet();
                 }
@@ -327,9 +405,13 @@ public final class SendService implements ISendsService {
     }
 
     /** The receiver was gone before the items could be given: the send is as it was, on disk too. */
-    private void undo(Send before) {
+    private void undo(Send before, Send done) {
         book.revert(before);
-        book.persist(before);
+        book.persistChange(done, before).thenAccept(written -> {
+            if (written == SendStorage.Written.DONE) {
+                changed(before.id());
+            }
+        });
     }
 
     private void giveBackToSender(Send send, String why) {

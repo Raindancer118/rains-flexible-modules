@@ -154,6 +154,9 @@ public final class WarpListMenu extends PaginatedMenu<Warp> implements IWarpScre
         lore.add("");
         if (!warp.isReachable()) {
             lore.add("<red>Its world is not loaded right now.");
+        } else if (!warp.isHere()) {
+            lore.add("<aqua>On the server " + warp.server() + ".");
+            lore.add("<gray>Click to go there.");
         } else if (services.config().warmup() > 0) {
             lore.add("<gray>Click to go. Stand still for "
                     + services.config().warmup() + "s.");

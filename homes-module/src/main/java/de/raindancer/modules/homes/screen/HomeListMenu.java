@@ -82,6 +82,9 @@ public final class HomeListMenu extends PaginatedMenu<Home> implements IHomeScre
         List<String> lore = new ArrayList<>();
         if (home.isReachable()) {
             lore.add("<dark_gray>" + home.world() + " " + home.coordinates());
+            if (!home.isHere()) {
+                lore.add("<aqua>On the server " + home.server() + ".");
+            }
         } else {
             // Said in words as well as by the barrier the icon becomes: a home in a world that is
             // unloaded for maintenance is not a home to delete.

@@ -17,7 +17,7 @@ import de.raindancer.modules.sends.screen.SendsMenu;
 import de.raindancer.modules.sends.service.SendService;
 import de.raindancer.modules.sends.store.SendBook;
 import de.raindancer.modules.sends.store.SendsDatabase;
-import de.raindancer.modules.sends.store.SqliteSendStorage;
+import de.raindancer.modules.sends.store.SqlSendStorage;
 import de.raindancer.modules.sends.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -41,12 +41,15 @@ import java.util.concurrent.TimeUnit;
  */
 public final class SendsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("sends", "Sends", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("sends", "Sends", "0.2.0")
             .describedAs("Send items to another player: put them in a window, they accept with a click.")
             .by("Raindancer118");
 
     /** How often runs out are looked for. Five seconds is late enough to cost nothing and early enough to read as on time. */
     private static final long SWEEP_TICKS = 100L;
+
+    /** What other servers are told on when a send changes, keyed by its id. */
+    static final String TOPIC = "sends";
 
     private LogChannel log;
     private SendsServices services;
@@ -74,13 +77,13 @@ public final class SendsModule implements FlexModule {
             log.info("{} permission(s) registered.", registered);
         }
 
-        var database = context.core().databases().of(SendsDatabase.NAME, SendsDatabase.SCHEMA);
+        var database = context.core().databases().shared(SendsDatabase.NAME, SendsDatabase.SCHEMA);
         writer = Executors.newSingleThreadExecutor(task -> {
             Thread thread = new Thread(task, "sends-writer");
             thread.setDaemon(true);
             return thread;
         });
-        SendBook book = new SendBook(new SqliteSendStorage(database, new ItemBytes.OfTheServer()), writer,
+        SendBook book = new SendBook(new SqlSendStorage(database, new ItemBytes.OfTheServer()), writer,
                 System::currentTimeMillis);
         offTheServerThread(book::load);
 
@@ -88,6 +91,7 @@ public final class SendsModule implements FlexModule {
                 book, new SendableItemsRule(item -> BoundItems.isBound(item) || InsuredItems.isInsured(item)),
                 System::currentTimeMillis, settings.current());
         settings.onChange(sends::settings);
+        connectNetwork(context, book);
 
         services = new SendsServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), context.core(), settings::current, settings, book, sends,
@@ -104,6 +108,42 @@ public final class SendsModule implements FlexModule {
 
         log.info("Sends are up: {} minute(s) to accept, at most {} waiting per player.",
                 settings.current().expiryMinutes(), settings.current().mostWaitingClamped());
+    }
+
+    /**
+     * Sends are the network's: a recipient on another server can be sent to, and what another server does to a send
+     * is heard here. A server of its own has no network players and a bus that tells nobody.
+     */
+    private void connectNetwork(ModuleContext context, SendBook book) {
+        var bus = context.core().bus();
+        context.core().networkPlayers().ifPresent(players -> sends.connectNetwork(new SendService.Network() {
+            @Override
+            public java.util.Optional<String> onlineElsewhere(UUID player) {
+                return players.where(player, false)
+                        .filter(there -> !there.server().equals(players.self()))
+                        .map(there -> there.name());
+            }
+
+            @Override
+            public boolean tell(UUID player, String key, String... values) {
+                return players.tell(player, key, values);
+            }
+
+            @Override
+            public void changed(UUID send) {
+                bus.publish(TOPIC, send.toString(), "");
+            }
+        }));
+        var heard = bus.subscribe(TOPIC, event -> {
+            try {
+                sends.changedElsewhere(UUID.fromString(event.key()));
+            } catch (IllegalArgumentException notASend) {
+                // Not an id: nothing to read.
+            }
+        });
+        var resync = bus.onResync(book::reloadAll);
+        context.closeWith(heard::close);
+        context.closeWith(resync::close);
     }
 
     private static void offTheServerThread(Runnable work) {

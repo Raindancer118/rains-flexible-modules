@@ -23,6 +23,12 @@ import java.util.function.Predicate;
  * the expiry sweep — cannot both hand the same items to somebody. What the winner then does with the items is
  * the caller's business and happens after this returns.
  *
+ * <h2>Why the database has the last word</h2>
+ * Servers of a network share the sends, and two of them can end the same one at the same moment — the sender
+ * cancels here as the recipient accepts there. Each decides in its own memory first and then asks the database
+ * to make the same move ({@link SendStorage#change}); the database lets exactly one through. The one that
+ * loses {@link #reload}s the send and has nothing to hand over.
+ *
  * <h2>Why the change and the write are two steps</h2>
  * Memory changes at once and the disk follows on another thread, because a database write on the thread that
  * runs the world is a stall. The caller therefore hands items over only after {@link #persist} has answered
@@ -69,8 +75,47 @@ public final class SendBook {
     }
 
     public synchronized void load() {
-        for (Send send : storage.loadOpen()) {
-            open.put(send.id(), send);
+        storage.loadOpen().ifPresent(sends -> sends.forEach(send -> open.put(send.id(), send)));
+    }
+
+    /** Reads every open send again, for when this server may have missed what the others did. */
+    public void reloadAll() {
+        storage.loadOpen().ifPresent(this::adoptAll);
+    }
+
+    private synchronized void adoptAll(List<Send> stored) {
+        java.util.Set<UUID> seen = new java.util.HashSet<>();
+        for (Send send : stored) {
+            seen.add(send.id());
+            if (!locked.contains(send.id()) && !saving.containsKey(send.id())) {
+                open.put(send.id(), send);
+            }
+        }
+        open.keySet().removeIf(id -> !seen.contains(id) && !locked.contains(id) && !saving.containsKey(id));
+    }
+
+    /**
+     * Reads one send again, because the database says it changed or this server lost a race for it. A change of
+     * this server's that is still being written wins, and a database that cannot be read leaves what is known.
+     *
+     * @return the send when it is open now and was not, or was in another state, before
+     */
+    public Optional<Send> reload(UUID id) {
+        Optional<Optional<Send>> stored = storage.load(id);
+        if (stored.isEmpty()) {
+            return Optional.empty();
+        }
+        synchronized (this) {
+            if (locked.contains(id) || saving.containsKey(id)) {
+                return Optional.empty();
+            }
+            Send known = open.get(id);
+            if (stored.get().isEmpty()) {
+                open.remove(id);
+                return Optional.empty();
+            }
+            open.put(id, stored.get().get());
+            return known == null || known.state() != stored.get().get().state() ? stored.get() : Optional.empty();
         }
     }
 
@@ -100,6 +145,16 @@ public final class SendBook {
                     .exceptionally(failed -> false);
         } catch (java.util.concurrent.RejectedExecutionException closed) {
             return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    /** Writes the state change {@code before} to {@code after}; the database says whether this server's move won. */
+    public CompletableFuture<SendStorage.Written> persistChange(Send before, Send after) {
+        try {
+            return CompletableFuture.supplyAsync(() -> storage.change(before, after), writer)
+                    .exceptionally(failed -> SendStorage.Written.FAILED);
+        } catch (java.util.concurrent.RejectedExecutionException closed) {
+            return CompletableFuture.completedFuture(SendStorage.Written.FAILED);
         }
     }
 

@@ -67,6 +67,7 @@ public final class HomeEditMenu extends Menu implements IHomeScreen {
         band(MenuLayout.WHO, 1, Icons.of(Material.ENDER_PEARL, "<white>Go here",
                         home.isReachable()
                                 ? "<dark_gray>" + home.world() + " " + home.coordinates()
+                                        + (home.isHere() ? "" : " on " + home.server())
                                 : "<red>Its world is not loaded right now.",
                         "",
                         "<gray>Click to go. This closes the menu."),

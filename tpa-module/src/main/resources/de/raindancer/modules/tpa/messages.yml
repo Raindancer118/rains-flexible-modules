@@ -51,6 +51,8 @@ tpa:
   not-asked-by: "<red><player></red> has not asked you anything."
   no-longer-online: "<yellow><player></yellow> is not online any more."
   they-are-travelling: "<yellow><player></yellow> is already on the way somewhere. One journey at a time."
+  travelling-away: "<green>Taking you to <white><player></white> on <white><server></white>..."
+  server-unreachable: "<red><player></red> could not be reached right now. Try again in a moment."
   other-left: "<yellow><player></yellow> left, so that request is off."
   yours-ran-out: "<gray>Your request to <white><player></white> ran out. They left you on read."
   theirs-ran-out: "<gray><player></gray>'s teleport request ran out."

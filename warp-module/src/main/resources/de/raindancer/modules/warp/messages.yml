@@ -14,6 +14,8 @@ warps:
 
   # ---------------------------------------------------------------- going somewhere
   unknown: "<red>There is no warp called <white><name></white>."
+  travelling-away: "<green>Taking you to <white><name></white> on <white><server></white>..."
+  other-server-unavailable: "<red><name></red> is on <white><server></white>, and this server cannot send you there."
   world-missing: "<yellow><name></yellow> is in a world that is not loaded right now."
   on-cooldown: "<yellow>You can warp again in <white><time></white>."
   warming-up: "<gray>Off to <white><name></white> in <white><seconds></white>… stand still."

@@ -60,9 +60,18 @@ public record Home(Poi poi) {
         return poi.tag(TAG_OWNER_NAME).filter(named -> !named.isBlank());
     }
 
-    /** Whether the world it is in is loaded right now. */
+    /** Whether the world it is in is loaded right now. A home on another server is reached by going there. */
     public boolean isReachable() {
-        return poi.isReachable();
+        return !isHere() || poi.isReachable();
+    }
+
+    /** The server of the network it is on; blank on a server of its own. */
+    public String server() {
+        return poi.server();
+    }
+
+    public boolean isHere() {
+        return poi.isHere();
     }
 
     /** "x, y, z", rounded — the useful part of a place, for a lore line. */

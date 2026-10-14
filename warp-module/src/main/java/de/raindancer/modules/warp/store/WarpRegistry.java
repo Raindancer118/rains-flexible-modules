@@ -332,7 +332,7 @@ public final class WarpRegistry {
             return WarpUse.UNKNOWN;
         }
         Warp warp = found.get();
-        if (!worldLoaded.test(warp.world())) {
+        if (warp.isHere() && !worldLoaded.test(warp.world())) {
             // Not deleted and not an error: a multiverse server unloads worlds for maintenance and
             // the warp works again when the world comes back.
             return WarpUse.WORLD_MISSING;

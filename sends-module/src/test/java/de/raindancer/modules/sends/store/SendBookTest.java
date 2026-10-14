@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
+import java.util.Optional;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,35 +22,21 @@ class SendBookTest {
     private static final UUID CAROL = UUID.randomUUID();
     private static final long MINUTE = 60_000;
 
-    private static final class MemoryStorage implements SendStorage {
-        final List<Send> saved = new ArrayList<>();
-        boolean failing;
-
-        @Override
-        public List<Send> loadOpen() {
-            return saved.stream().filter(send -> send.state().isOpen()).toList();
-        }
-
-        @Override
-        public boolean save(Send send) {
-            if (failing) {
-                return false;
-            }
-            saved.removeIf(old -> old.id().equals(send.id()));
-            saved.add(send);
-            return true;
-        }
-    }
-
-    private MemoryStorage storage;
+    private MemorySendStorage storage;
     private AtomicLong now;
     private SendBook book;
 
     @BeforeEach
     void setUp() {
-        storage = new MemoryStorage();
+        storage = new MemorySendStorage();
         now = new AtomicLong(1_000_000);
         book = new SendBook(storage, Runnable::run, now::get);
+    }
+
+    private ItemStack item() {
+        ItemStack item = mock(ItemStack.class);
+        when(item.getAmount()).thenReturn(1);
+        return item;
     }
 
     private Send made() {
@@ -236,16 +222,18 @@ class SendBookTest {
     }
 
     @Test
-    @DisplayName("persisting says whether it was written, and the write is the current state")
+    @DisplayName("persisting says whether it was written; a move is made once, and a move that was already made is lost")
     void persists() {
         Send send = made();
         assertThat(book.persist(send).join()).isTrue();
-        Send returning = book.release(send.id(), ALICE).send();
-        book.persist(returning).join();
-        assertThat(storage.saved).hasSize(1);
-        assertThat(storage.saved.getFirst().state()).isEqualTo(Send.State.RETURNING);
+        SendBook.Result released = book.release(send.id(), ALICE);
+        assertThat(book.persistChange(released.before(), released.send()).join()).isEqualTo(SendStorage.Written.DONE);
+        assertThat(storage.saved.get(send.id()).state()).isEqualTo(Send.State.RETURNING);
+        assertThat(book.persistChange(released.before(), released.send()).join())
+                .as("the same move again finds the send already moved").isEqualTo(SendStorage.Written.LOST);
         storage.failing = true;
-        assertThat(book.persist(returning).join()).isFalse();
+        assertThat(book.persist(released.send()).join()).isFalse();
+        assertThat(book.persistChange(released.send(), released.send()).join()).isEqualTo(SendStorage.Written.FAILED);
     }
 
     @Test
@@ -254,14 +242,55 @@ class SendBookTest {
         Send open = made();
         Send settled = made();
         book.persist(open).join();
-        book.persist(book.claim(settled.id(), BOB, any -> true).send()).join();
-        book.persist(settled).join();   // the earlier, pending write of the same send must not resurrect it
-        storage.saved.removeIf(send -> send.id().equals(settled.id()));
-        storage.saved.add(settled.withState(Send.State.DELIVERED, now.get()));
+        book.persist(settled).join();
+        SendBook.Result claimed = book.claim(settled.id(), BOB, any -> true);
+        book.persistChange(claimed.before(), claimed.send()).join();
 
         SendBook restarted = new SendBook(storage, Runnable::run, now::get);
         restarted.load();
         assertThat(restarted.incoming(BOB)).extracting(Send::id).containsExactly(open.id());
+    }
+
+    @Test
+    @DisplayName("a send another server made is learnt by reloading it, and one it settled is forgotten")
+    void reloadFollowsTheDatabase() {
+        Send elsewhere = Send.create(CAROL, "Carol", BOB, "Bob", List.of(item()), now.get(), 10 * MINUTE);
+        storage.save(elsewhere);
+
+        assertThat(book.reload(elsewhere.id())).contains(elsewhere);
+        assertThat(book.incoming(BOB)).extracting(Send::id).containsExactly(elsewhere.id());
+        assertThat(book.reload(elsewhere.id())).as("nothing changed the second time").isEmpty();
+
+        storage.change(elsewhere, elsewhere.withState(Send.State.DELIVERED, now.get()));
+        book.reload(elsewhere.id());
+        assertThat(book.incoming(BOB)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a reload does not undo a change of this server's that is still being written")
+    void reloadLeavesChangesInFlightAlone() {
+        Send send = made();
+        storage.save(send);
+        book.release(send.id(), ALICE);
+        book.reload(send.id());
+        assertThat(book.waitingReturn(ALICE)).extracting(Send::id).containsExactly(send.id());
+    }
+
+    @Test
+    @DisplayName("a database that cannot be read leaves what is known")
+    void unreadableLeavesWhatIsKnown() {
+        Send send = made();
+        SendStorage broken = new MemorySendStorage() {
+            @Override
+            public synchronized Optional<Optional<Send>> load(UUID id) {
+                return Optional.empty();
+            }
+        };
+        SendBook blind = new SendBook(broken, Runnable::run, now::get);
+        blind.add(send);
+        blind.publish(send.id());
+        blind.reload(send.id());
+        assertThat(blind.incoming(BOB)).hasSize(1);
     }
 
     @Test

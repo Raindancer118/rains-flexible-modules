@@ -59,7 +59,7 @@ import java.util.Optional;
  */
 public final class HomeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.6.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("homes", "Homes", "2.7.0")
             .describedAs("Somewhere of your own to come back to: name it, set it, go to it, and pick "
                     + "from a menu of them")
             .by("Raindancer118");
@@ -167,8 +167,10 @@ public final class HomeModule implements FlexModule {
         travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         travelling = new HomeTravelService(travel, context.core().messages(), context.core().effects(),
                 settings.current());
+        context.core().networkTravel().ifPresent(network -> travelling.acrossServers((player, target, where) -> network.send(player, target, Optional.of(where))));
         var boughtSlots = new de.raindancer.core.social.economy.BuyableSlots(
-                context.dataFolder().resolve("bought-slots.yml"), HomeSlotService.SOURCE, "Extra home slot");
+                de.raindancer.core.data.store.YamlStore.network(context.dataFolder().resolve("bought-slots.yml")),
+                HomeSlotService.SOURCE, "Extra home slot");
         boughtSlots.load();
         slots = new HomeSlotService(boughtSlots, context.core().messages(), settings.current());
         keeping = new HomeKeepingService(homes, limits, names, context.core().messages(), slots,

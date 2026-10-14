@@ -141,7 +141,8 @@ public final class HomeCatalogue {
         Poi saved = building.build();
         places.save(saved);
         flush.getAsBoolean();
-        return Optional.of(new Home(saved));
+        // As stored: the store stamps the server a new home was set on.
+        return Optional.of(new Home(places.byId(saved.id()).orElse(saved)));
     }
 
     /** Forgets a home. */

@@ -7,7 +7,7 @@ import de.raindancer.modules.sends.SendsSettings;
 import de.raindancer.modules.sends.model.Send;
 import de.raindancer.modules.sends.rules.SendableItemsRule;
 import de.raindancer.modules.sends.store.SendBook;
-import de.raindancer.modules.sends.store.SendStorage;
+import de.raindancer.modules.sends.store.MemorySendStorage;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -44,26 +44,7 @@ class SendServiceTest {
 
     private static final long MINUTE = 60_000;
 
-    private static final class MemoryStorage implements SendStorage {
-        final Map<UUID, Send> saved = new HashMap<>();
-        boolean failing;
-
-        @Override
-        public List<Send> loadOpen() {
-            return saved.values().stream().filter(send -> send.state().isOpen()).toList();
-        }
-
-        @Override
-        public boolean save(Send send) {
-            if (failing) {
-                return false;
-            }
-            saved.put(send.id(), send);
-            return true;
-        }
-    }
-
-    private static final class Person {
+    static final class Person {
         final UUID id = UUID.randomUUID();
         final Player player = mock(Player.class);
         final PlayerInventory inventory = mock(PlayerInventory.class);
@@ -91,7 +72,7 @@ class SendServiceTest {
         }
     }
 
-    private static ItemStack item(String kind, int amount) {
+    static ItemStack item(String kind, int amount) {
         ItemStack item = mock(ItemStack.class);
         when(item.getAmount()).thenReturn(amount);
         when(item.getMaxStackSize()).thenReturn(64);
@@ -103,7 +84,7 @@ class SendServiceTest {
         return item;
     }
 
-    private MemoryStorage storage;
+    private MemorySendStorage storage;
     private AtomicLong now;
     private SendBook book;
     private Messages messages;
@@ -114,7 +95,7 @@ class SendServiceTest {
 
     @BeforeEach
     void setUp() {
-        storage = new MemoryStorage();
+        storage = new MemorySendStorage();
         now = new AtomicLong(1_000_000);
         book = new SendBook(storage, Runnable::run, now::get);
         messages = mock(Messages.class);

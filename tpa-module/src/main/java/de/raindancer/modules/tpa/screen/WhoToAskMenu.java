@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Somebody to ask.
@@ -29,9 +30,13 @@ import java.util.List;
  * meanings on one button, and every one of them is written in that button's lore — an unadvertised
  * modifier is one nobody finds.
  */
-public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScreen {
+public final class WhoToAskMenu extends PaginatedMenu<WhoToAskMenu.Entry> implements ITpaScreen {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
+
+    /** Somebody to ask; {@code server} is blank for a player on this server. */
+    public record Entry(UUID id, String name, String server) {
+    }
 
     private final TpaServices services;
     private final TpaKind kind;
@@ -62,11 +67,18 @@ public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScr
      * quietly tell you which of your friends has blocked you.
      */
     @Override
-    protected List<Player> entries() {
-        List<Player> others = new ArrayList<>(services.server().getOnlinePlayers());
-        others.remove(viewer);
-        others.removeIf(other -> !services.core().vanish().canSee(viewer.getUniqueId(), other.getUniqueId()));
-        others.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
+    protected List<Entry> entries() {
+        List<Entry> others = new ArrayList<>();
+        for (Player other : services.server().getOnlinePlayers()) {
+            if (!other.equals(viewer)
+                    && services.core().vanish().canSee(viewer.getUniqueId(), other.getUniqueId())) {
+                others.add(new Entry(other.getUniqueId(), other.getName(), ""));
+            }
+        }
+        // Players of the other servers, as presence shows them: never a vanished one.
+        services.asking().playersElsewhere().forEach(there ->
+                others.add(new Entry(there.player(), there.name(), there.server())));
+        others.sort(Comparator.comparing(Entry::name, String.CASE_INSENSITIVE_ORDER));
         return others;
     }
 
@@ -82,10 +94,10 @@ public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScr
     }
 
     @Override
-    protected ItemStack icon(Player who) {
-        boolean mayAsk = services.prefs().mayBeAskedBy(who.getUniqueId(), viewer.getUniqueId());
+    protected ItemStack icon(Entry who) {
+        boolean mayAsk = services.prefs().mayBeAskedBy(who.id(), viewer.getUniqueId());
         boolean blockedByMe = services.prefs().of(viewer.getUniqueId())
-                .hasBlocked(who.getUniqueId());
+                .hasBlocked(who.id());
 
         List<String> lore = new ArrayList<>();
         if (!mayAsk) {
@@ -94,6 +106,9 @@ public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScr
             lore.add("<red>Not accepting requests right now.");
             lore.add("");
         }
+        if (!who.server().isBlank()) {
+            lore.add("<aqua>On the server " + who.server() + ".");
+        }
         lore.add("<gray>Click to ask " + (kind == TpaKind.TO
                 ? "to go to them." : "them to come to you."));
         lore.add("<gray>Right click to ask the other way round.");
@@ -101,16 +116,17 @@ public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScr
                 ? "<gray>Shift click to unblock them."
                 : "<gray>Shift click to block them.");
 
-        return Icons.head(who.getUniqueId(), "<white>" + who.getName(), lore);
+        return Icons.head(who.id(), "<white>" + who.name(), lore);
     }
 
     @Override
-    protected void onClick(Player who, InventoryClickEvent event) {
+    protected void onClick(Entry who, InventoryClickEvent event) {
         if (event.isShiftClick()) {
-            if (services.prefs().of(viewer.getUniqueId()).hasBlocked(who.getUniqueId())) {
-                services.prefs().unblock(viewer, who);
+            services.prefs().seen(who.id(), who.name());
+            if (services.prefs().of(viewer.getUniqueId()).hasBlocked(who.id())) {
+                services.prefs().unblock(viewer, services.server().getOfflinePlayer(who.id()));
             } else {
-                services.prefs().block(viewer, who);
+                services.prefs().block(viewer, services.server().getOfflinePlayer(who.id()));
             }
             refresh();
             return;
@@ -121,7 +137,14 @@ public final class WhoToAskMenu extends PaginatedMenu<Player> implements ITpaScr
         // Closed first: what follows is a message, and a window over it is a window they have to shut
         // before they can read what happened.
         viewer.closeInventory();
-        services.asking().ask(viewer, who, asking);
+        Player here = who.server().isBlank() ? services.server().getPlayer(who.id()) : null;
+        if (here != null) {
+            services.asking().ask(viewer, here, asking);
+        } else {
+            services.asking().findElsewhere(who.name()).ifPresentOrElse(
+                    there -> services.asking().askElsewhere(viewer, there, asking),
+                    () -> services.messages().send(viewer, "tpa.no-such-player", "player", who.name()));
+        }
     }
 
     @Override

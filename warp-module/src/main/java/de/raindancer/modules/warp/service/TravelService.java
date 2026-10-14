@@ -13,6 +13,7 @@ import de.raindancer.modules.warp.store.WarpRegistry;
 import de.raindancer.modules.warp.WarpSettings;
 import de.raindancer.modules.warp.rules.WarpAccessRule;
 import de.raindancer.modules.warp.store.WarpCatalogue;
+import de.raindancer.core.platform.network.Arrivals;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -48,6 +49,19 @@ public final class TravelService implements IWarpService {
     private final WarpRentService rent;
 
     private volatile WarpSettings settings;
+
+    /** Sends a player to another server and lands them at a place; none on a server of its own. */
+    @FunctionalInterface
+    public interface Hop {
+        void send(Player player, String server, Arrivals.Destination destination);
+    }
+
+    private volatile Hop hop;
+
+    /** Where a warp on another server is travelled to; null leaves such warps unreachable. */
+    public void acrossServers(Hop hop) {
+        this.hop = hop;
+    }
 
     public TravelService(WarpCatalogue catalogue, WarpRegistry warps, Travel travel,
                          WarpAccessRule access, Messages messages, WarpSettings settings) {
@@ -160,7 +174,13 @@ public final class TravelService implements IWarpService {
     }
 
     private void depart(Player traveller, String label, de.raindancer.core.world.poi.Poi place) {
-        Location target = place.location().orElse(null);
+        boolean away = !place.isHere();
+        if (away && hop == null) {
+            messages.send(traveller, "warps.other-server-unavailable", "name", label, "server", place.server());
+            return;
+        }
+        // Another server's warp has no location here: the wait is stood on the spot, then they are sent on.
+        Location target = away ? traveller.getLocation() : place.location().orElse(null);
         if (target == null) {
             // Not a fault: a multiverse server unloads worlds for maintenance and the warp works
             // again when the world comes back. Nothing has been charged, so there is nothing to
@@ -175,10 +195,10 @@ public final class TravelService implements IWarpService {
                 // What the player is holding on to. Gathered and moved by Core, which is what the
                 // homes and the teleport requests will use for the same thing.
                 .bringing(now.companions());
-        if (!now.safeArrival()) {
+        if (!now.safeArrival() || away) {
             trip = trip.exactly();
         }
-        travel.go(traveller, target, trip, new Wording(label));
+        travel.go(traveller, target, trip, new Wording(label, away ? place : null));
     }
 
     private String waitLeft(UUID traveller) {
@@ -196,8 +216,12 @@ public final class TravelService implements IWarpService {
 
         private final String label;
 
-        private Wording(String label) {
+        /** The place to send them on to when it is on another server; null for one here. */
+        private final de.raindancer.core.world.poi.Poi elsewhere;
+
+        private Wording(String label, de.raindancer.core.world.poi.Poi elsewhere) {
             this.label = label;
+            this.elsewhere = elsewhere;
         }
 
         @Override
@@ -220,6 +244,12 @@ public final class TravelService implements IWarpService {
                 visits.settle(traveller.getUniqueId());
             }
             warps.recordUse(traveller.getUniqueId());
+            if (elsewhere != null) {
+                messages.send(traveller, "warps.travelling-away", "name", label, "server", elsewhere.server());
+                hop.send(traveller, elsewhere.server(), new Arrivals.Destination(elsewhere.world(), elsewhere.x(),
+                        elsewhere.y(), elsewhere.z(), elsewhere.yaw(), elsewhere.pitch()));
+                return;
+            }
             messages.send(traveller, "warps.arrived", "name", label);
         }
 

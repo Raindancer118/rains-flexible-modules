@@ -1,11 +1,14 @@
 package de.raindancer.modules.tpa.command;
 
+import de.raindancer.core.platform.command.PlayerLookup;
 import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.core.platform.network.Presence;
 import de.raindancer.modules.tpa.TpaServices;
 import de.raindancer.modules.tpa.model.TpaKind;
 import de.raindancer.modules.tpa.util.PermissionNodes;
 import de.raindancer.modules.tpa.util.Who;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -13,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -78,6 +82,18 @@ public final class AskCommand implements ITpaCommand {
 
         // Never getOfflinePlayer(String), which blocks on a lookup against Mojang from what on Folia may be a
         // region thread. Somebody offline is found by the server's cache and told apart from a typo.
+        PlayerLookup found = PlayerTargets.lookup(live.server(), player, args[0]);
+        if (found.singleOnline().isEmpty() && found.matches().size() <= 1
+                && found.kind() != PlayerLookup.Kind.SELECTOR && found.kind() != PlayerLookup.Kind.SELECTOR_REFUSED) {
+            // Not on this server: perhaps on another one of the network, by the name they have or the name
+            // of the player a nickname was.
+            String name = found.single().map(OfflinePlayer::getName).filter(java.util.Objects::nonNull).orElse(args[0]);
+            Optional<Presence.Here> there = live.asking().findElsewhere(name);
+            if (there.isPresent()) {
+                live.asking().askElsewhere(player, there.get(), kind);
+                return;
+            }
+        }
         Player them = Who.online(live.server(), live.messages(), player, args[0]).orElse(null);
         if (them == null) {
             return;
@@ -96,6 +112,9 @@ public final class AskCommand implements ITpaCommand {
         List<String> names = new java.util.ArrayList<>(Who.suggest(live.server(), player, typed,
                 other -> !other.equals(player)
                         && live.core().vanish().canSee(player.getUniqueId(), other.getUniqueId())));
+        live.asking().playersElsewhere().stream().map(Presence.Here::name)
+                .filter(name -> name.regionMatches(true, 0, typed, 0, typed.length()))
+                .filter(name -> !names.contains(name)).forEach(names::add);
         if (kind == TpaKind.HERE && player.hasPermission(PermissionNodes.HERE_ALL)
                 && "@a".startsWith(typed.toLowerCase(Locale.ROOT))) {
             names.add("@a");

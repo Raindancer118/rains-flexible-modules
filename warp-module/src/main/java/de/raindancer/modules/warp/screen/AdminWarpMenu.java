@@ -105,7 +105,8 @@ public final class AdminWarpMenu extends PaginatedMenu<Warp> implements IWarpScr
     @Override
     protected ItemStack icon(Warp warp) {
         List<String> lore = new ArrayList<>();
-        lore.add("<dark_gray>" + warp.world() + " " + warp.coordinates());
+        lore.add("<dark_gray>" + warp.world() + " " + warp.coordinates()
+                + (warp.isHere() ? "" : " on " + warp.server()));
         lore.add("<gray>" + services.catalogue().accessOf(warp).describe());
         if (!own) {
             warp.owner().map(id -> services.server().getOfflinePlayer(id).getName())

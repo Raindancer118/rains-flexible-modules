@@ -54,6 +54,7 @@ class HomeTravelFeeTest {
         Poi poi = mock(Poi.class);
         when(poi.location()).thenReturn(Optional.of(new Location(world, 1, 2, 3)));
         home = mock(Home.class);
+        when(home.isHere()).thenReturn(true);
         when(home.poi()).thenReturn(poi);
         when(home.name()).thenReturn("base");
         when(home.isIn(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);

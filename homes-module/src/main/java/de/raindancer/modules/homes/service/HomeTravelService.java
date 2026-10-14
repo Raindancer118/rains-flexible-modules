@@ -1,5 +1,6 @@
 package de.raindancer.modules.homes.service;
 
+import de.raindancer.core.world.poi.Poi;
 import de.raindancer.core.moderation.punishment.Durations;
 import de.raindancer.core.social.economy.EconomyResult;
 import de.raindancer.core.social.economy.Fees;
@@ -16,6 +17,7 @@ import de.raindancer.core.world.teleport.Trip;
 import de.raindancer.modules.homes.HomeSettings;
 import de.raindancer.modules.homes.model.Home;
 import de.raindancer.modules.homes.util.PermissionNodes;
+import de.raindancer.core.platform.network.Arrivals;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -71,6 +73,19 @@ public final class HomeTravelService implements IHomeService {
 
     private volatile HomeSettings settings;
 
+    /** Sends a player to another server and lands them at a place; none on a server of its own. */
+    @FunctionalInterface
+    public interface Hop {
+        void send(Player player, String server, Arrivals.Destination destination);
+    }
+
+    private volatile Hop hop;
+
+    /** Where a home on another server is travelled to; null leaves such homes unreachable. */
+    public void acrossServers(Hop hop) {
+        this.hop = hop;
+    }
+
     public HomeTravelService(Travel travel, Messages messages, Effects effects, HomeSettings settings) {
         this(travel, messages, effects, settings, null);
     }
@@ -115,7 +130,13 @@ public final class HomeTravelService implements IHomeService {
         }
         HomeSettings now = settings;
 
-        Location destination = home.poi().location().orElse(null);
+        boolean away = !home.isHere();
+        if (away && hop == null) {
+            messages.send(traveller, "homes.other-server-unavailable", "name", home.name(), "server", home.server());
+            return;
+        }
+        // Another server's home has no location here: the wait is stood on the spot, then they are sent on.
+        Location destination = away ? traveller.getLocation() : home.poi().location().orElse(null);
         if (destination == null) {
             // Not a fault and not a reason to delete it: a multiverse server unloads worlds for
             // maintenance and the home works again when the world comes back.
@@ -123,7 +144,7 @@ public final class HomeTravelService implements IHomeService {
                     "name", home.name(), "world", home.world());
             return;
         }
-        if (!now.allowCrossWorld() && !home.isIn(traveller.getWorld().getName())) {
+        if (!away && !now.allowCrossWorld() && !home.isIn(traveller.getWorld().getName())) {
             messages.send(traveller, "homes.cross-world-off", "name", home.name());
             return;
         }
@@ -143,7 +164,7 @@ public final class HomeTravelService implements IHomeService {
                 .bringing(now.bringWhatYouLead()
                         ? Companions.WHAT_YOU_LEAD
                         : Companions.NOBODY);
-        if (!now.safeArrival()) {
+        if (!now.safeArrival() || away) {
             trip = trip.exactly();
         }
         if (!now.playSound()) {
@@ -257,6 +278,13 @@ public final class HomeTravelService implements IHomeService {
         public void arrived(Player traveller, Location where, Trip trip) {
             settle(traveller.getUniqueId());
             waits.start(traveller.getUniqueId());
+            if (!home.isHere()) {
+                messages.send(traveller, "homes.travelling-away", "name", home.name(), "server", home.server());
+                Poi poi = home.poi();
+                hop.send(traveller, poi.server(), new Arrivals.Destination(poi.world(), poi.x(), poi.y(), poi.z(),
+                        poi.yaw(), poi.pitch()));
+                return;
+            }
             messages.send(traveller, "homes.arrived", "name", home.name());
             // The arrival sound is Core's now (Travel plays it, in the traveller's own choice if they
             // made one); the setting below only decides whether a home trip is quiet.

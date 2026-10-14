@@ -7,6 +7,7 @@ import de.raindancer.core.ui.menu.ItemTrayMenu;
 import de.raindancer.modules.sends.SendsServices;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,10 +43,18 @@ public final class SendComposer implements ISendsScreen {
             tray(recipient, recipientName);
             return;
         }
-        PlayerDirectory online = new PlayerDirectory(() -> services.server().getOnlinePlayers().stream()
-                .map(player -> new PlayerEntry(player.getUniqueId(), player.getName(), true,
-                        System.currentTimeMillis()))
-                .toList(), System::currentTimeMillis);
+        PlayerDirectory online = new PlayerDirectory(() -> {
+            List<PlayerEntry> everybody = new ArrayList<>(services.server().getOnlinePlayers().stream()
+                    .map(player -> new PlayerEntry(player.getUniqueId(), player.getName(), true,
+                            System.currentTimeMillis()))
+                    .toList());
+            // Players of the other servers, as presence shows them: never a vanished one.
+            services.core().networkPlayers().ifPresent(players -> players.everyone(false).stream()
+                    .filter(there -> !there.server().equals(players.self()))
+                    .forEach(there -> everybody.add(new PlayerEntry(there.player(), there.name(), true,
+                            System.currentTimeMillis()))));
+            return everybody;
+        }, System::currentTimeMillis);
         new PlayerChooser(viewer, services.brand(), null, "Send items to…", online,
                 List.of(viewer.getUniqueId()), entry -> tray(entry.id(), entry.name())).open();
     }

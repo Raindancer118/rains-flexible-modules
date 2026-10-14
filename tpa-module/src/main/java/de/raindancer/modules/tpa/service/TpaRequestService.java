@@ -19,15 +19,21 @@ import de.raindancer.modules.tpa.TpaSettings;
 import de.raindancer.modules.tpa.model.TpaKind;
 import de.raindancer.modules.tpa.model.TpaRequest;
 import de.raindancer.modules.tpa.rules.TpaAskingRule;
+import de.raindancer.modules.tpa.store.TpaNetwork;
 import de.raindancer.modules.tpa.store.TpaRequests;
 import de.raindancer.modules.tpa.util.PermissionNodes;
+import de.raindancer.core.platform.network.Arrivals;
+import de.raindancer.core.platform.network.Presence;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.LongSupplier;
 
 /**
@@ -67,6 +73,15 @@ public final class TpaRequestService implements ITpaService {
 
     private volatile TpaSettings settings;
 
+    /** Sends a player to another server and lands them at a place. */
+    @FunctionalInterface
+    public interface Hop {
+        void send(Player player, String server, Arrivals.Destination destination);
+    }
+
+    private volatile TpaNetwork network;
+    private volatile Hop hop;
+
     public TpaRequestService(Plugin plugin, TpaRequests requests, TpaPrefsService prefs,
                              TpaAskingRule asking, Travel travel, Messages messages,
                              ChatButtons buttons, Vanish vanish, TpaSettings settings) {
@@ -101,6 +116,266 @@ public final class TpaRequestService implements ITpaService {
         fees.settings(fresh);
         waits.every(Duration.ofSeconds(fresh.cooldown()));
         requests.standingFor(Duration.ofSeconds(fresh.requestStanding()));
+    }
+
+    // ------------------------------------------------------------------------ the network
+
+    /** Joins the network: players on other servers can be asked, and may ask. Answers the three calls. */
+    public void connectNetwork(TpaNetwork network, Hop hop) {
+        this.network = network;
+        this.hop = hop;
+        network.answer(TpaNetwork.ASK, (server, question) -> done(received(server, question)));
+        network.answer(TpaNetwork.ACCEPT, this::acceptedElsewhere);
+        network.answer(TpaNetwork.END, (server, question) -> done(ended(server, question)));
+    }
+
+    /** Somebody on another server by name — empty on a server of its own. */
+    public Optional<Presence.Here> findElsewhere(String name) {
+        TpaNetwork net = network;
+        return net == null ? Optional.empty() : net.find(name);
+    }
+
+    /** Everybody visible on the other servers. */
+    public java.util.List<Presence.Here> playersElsewhere() {
+        TpaNetwork net = network;
+        return net == null ? java.util.List.of() : net.everyoneElse();
+    }
+
+    private static CompletableFuture<Map<String, String>> done(Map<String, String> answer) {
+        return CompletableFuture.completedFuture(answer);
+    }
+
+    private static Map<String, String> result(String what) {
+        return Map.of("result", what);
+    }
+
+    private static Map<String, String> encode(Arrivals.Destination where) {
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("world", where.world());
+        data.put("x", String.valueOf(where.x()));
+        data.put("y", String.valueOf(where.y()));
+        data.put("z", String.valueOf(where.z()));
+        data.put("yaw", String.valueOf(where.yaw()));
+        data.put("pitch", String.valueOf(where.pitch()));
+        return data;
+    }
+
+    private static Arrivals.Destination decode(Map<String, String> data) {
+        return new Arrivals.Destination(data.get("world"), Double.parseDouble(data.get("x")),
+                Double.parseDouble(data.get("y")), Double.parseDouble(data.get("z")),
+                Float.parseFloat(data.get("yaw")), Float.parseFloat(data.get("pitch")));
+    }
+
+    private static Arrivals.Destination destinationOf(Location where) {
+        return new Arrivals.Destination(where.getWorld().getName(), where.getX(), where.getY(), where.getZ(),
+                where.getYaw(), where.getPitch());
+    }
+
+    /** Says something to a player of this server, on their thread. */
+    private void tell(UUID who, String key, Object... values) {
+        onlineOf(who).ifPresent(player -> Scheduling.entity(plugin, player,
+                () -> messages.send(player, key, values), () -> { }));
+    }
+
+    /** Tells the server somebody is on that a request between two players has ended, and how. */
+    private void endElsewhere(String server, UUID asker, UUID asked, String how, String name) {
+        TpaNetwork net = network;
+        if (net != null) {
+            net.ask(server, TpaNetwork.END, Map.of("asker", asker.toString(), "asked", asked.toString(),
+                    "how", how, "name", name));
+        }
+    }
+
+    /** A request this player made has been pushed aside or taken back: tell the one asked, wherever they are. */
+    private void bump(TpaRequest displaced, Player from) {
+        if (onlineOf(displaced.to()).isPresent()) {
+            tell(displaced.to(), "tpa.withdrawn-by-asker", "player", from.getName());
+            return;
+        }
+        TpaNetwork net = network;
+        if (net != null) {
+            net.serverOf(displaced.to()).ifPresent(server ->
+                    endElsewhere(server, from.getUniqueId(), displaced.to(), "withdrawn", from.getName()));
+        }
+    }
+
+    /** A request ended because {@code leaving} left; the other side may be on another server. */
+    public void leftWhileAsked(TpaRequest ended, Player leaving) {
+        UUID other = ended.from().equals(leaving.getUniqueId()) ? ended.to() : ended.from();
+        TpaNetwork net = network;
+        if (net != null && onlineOf(other).isEmpty()) {
+            net.serverOf(other).ifPresent(server ->
+                    endElsewhere(server, ended.from(), ended.to(), "left", leaving.getName()));
+        }
+    }
+
+    /**
+     * Asks somebody on another server. The request is kept here too, so asking again, taking it back and its
+     * running out work as for anybody; the one asked holds the one that can be answered.
+     */
+    public boolean askElsewhere(Player from, Presence.Here there, TpaKind kind) {
+        TpaNetwork net = network;
+        if (net == null) {
+            messages.send(from, "tpa.no-such-player", "player", there.name());
+            return false;
+        }
+        TpaSettings now = settings;
+        TpaAskingRule.Verdict verdict = asking.check(from.getUniqueId(), there.player(),
+                prefs.of(there.player()), now.allowCrossWorld(), from.hasPermission(PermissionNodes.BYPASS_TOGGLE),
+                requests.has(from.getUniqueId(), there.player()), !isReadyToAsk(from));
+        if (!verdict.isFine()) {
+            messages.send(from, verdict.messageKey(), "player", there.name(), "time", waitLeft(from.getUniqueId()));
+            return false;
+        }
+        TpaRequests.Outcome outcome = requests.ask(from.getUniqueId(), there.player(), kind);
+        outcome.displaced().ifPresent(displaced -> bump(displaced, from));
+        if (outcome.request().isEmpty()) {
+            messages.send(from, "tpa.already-asked", "player", there.name());
+            return false;
+        }
+        TpaRequest made = outcome.request().get();
+        prefs.seen(from);
+        prefs.seen(there.player(), there.name());
+        Map<String, String> question = new LinkedHashMap<>();
+        question.put("from", from.getUniqueId().toString());
+        question.put("fromName", from.getName());
+        question.put("to", there.player().toString());
+        question.put("kind", kind.name());
+        question.put("bypass", String.valueOf(from.hasPermission(PermissionNodes.BYPASS_TOGGLE)));
+        net.ask(there.server(), TpaNetwork.ASK, question).thenAccept(answer -> {
+            String how = answer.map(reply -> reply.getOrDefault("result", "")).orElse("unreachable");
+            if (how.equals("asked")) {
+                waits.start(from.getUniqueId());
+                tell(from.getUniqueId(), "tpa.asked", "player", there.name(), "seconds", now.requestStanding());
+                Scheduling.entityLater(plugin, from, sweepTicks(made), this::sweep);
+                return;
+            }
+            requests.withdraw(from.getUniqueId(), there.player());
+            tell(from.getUniqueId(), switch (how) {
+                case "not-accepting" -> "tpa.not-accepting";
+                case "already" -> "tpa.already-asked";
+                case "offline" -> "tpa.no-such-player";
+                default -> "tpa.server-unreachable";
+            }, "player", there.name());
+        });
+        return true;
+    }
+
+    /** On the server of the one asked: a request from a player of another server arrives. */
+    private Map<String, String> received(String server, Map<String, String> question) {
+        try {
+            UUID from = UUID.fromString(question.get("from"));
+            UUID to = UUID.fromString(question.get("to"));
+            TpaKind kind = TpaKind.valueOf(question.get("kind"));
+            String fromName = question.getOrDefault("fromName", "somebody");
+            TpaNetwork net = network;
+            if (net == null || !net.hostedBy(from, server)) {
+                return result("gone");
+            }
+            Player target = onlineOf(to).orElse(null);
+            if (target == null) {
+                return result("offline");
+            }
+            prefs.seen(from, fromName);
+            boolean bypass = Boolean.parseBoolean(question.get("bypass"));
+            if (!bypass && !prefs.of(to).mayBeAskedBy(from)) {
+                return result("not-accepting");
+            }
+            TpaRequests.Outcome outcome = requests.ask(from, to, kind);
+            outcome.displaced().ifPresent(displaced ->
+                    tell(displaced.to(), "tpa.withdrawn-by-asker", "player", fromName));
+            if (outcome.request().isEmpty()) {
+                return result("already");
+            }
+            Scheduling.entity(plugin, target, () -> announce(from, fromName, target, kind), () -> { });
+            Scheduling.entityLater(plugin, target, sweepTicks(outcome.request().get()), this::sweep);
+            return result("asked");
+        } catch (RuntimeException unreadable) {
+            return result("gone");
+        }
+    }
+
+    /** On the server of whoever asked: the one asked has accepted. Their server may say so only for them. */
+    private CompletableFuture<Map<String, String>> acceptedElsewhere(String server, Map<String, String> question) {
+        try {
+            UUID asker = UUID.fromString(question.get("asker"));
+            UUID target = UUID.fromString(question.get("target"));
+            String targetName = question.getOrDefault("targetName", "somebody");
+            TpaNetwork net = network;
+            if (net == null || !net.hostedBy(target, server)) {
+                return done(result("gone"));
+            }
+            Player here = onlineOf(asker).orElse(null);
+            if (here == null) {
+                return done(result("offline"));
+            }
+            Optional<TpaRequest> taken = requests.take(target, asker);
+            if (taken.isEmpty()) {
+                return done(result("gone"));
+            }
+            CompletableFuture<Map<String, String>> answer = new CompletableFuture<>();
+            Scheduling.entity(plugin, here, () -> {
+                if (taken.get().kind() == TpaKind.HERE) {
+                    tell(asker, "tpa.they-accepted", "player", targetName);
+                    Map<String, String> where = encode(destinationOf(here.getLocation()));
+                    where.put("result", "ok");
+                    answer.complete(where);
+                    return;
+                }
+                if (travel.isTravelling(asker) || fees.holding(asker)) {
+                    answer.complete(result("busy"));
+                    return;
+                }
+                TpaFees.Taken paid = chargeAcrossServers(here);
+                if (paid == null) {
+                    answer.complete(result("cannot-pay"));
+                    return;
+                }
+                messages.send(here, "tpa.they-accepted", "player", targetName);
+                goElsewhere(here, server, decode(question), targetName, paid);
+                answer.complete(result("ok"));
+            }, () -> answer.complete(result("offline")));
+            return answer;
+        } catch (RuntimeException unreadable) {
+            return done(result("gone"));
+        }
+    }
+
+    /** One side of a request ended on another server: a withdrawal, a refusal, or somebody leaving. */
+    private Map<String, String> ended(String server, Map<String, String> question) {
+        try {
+            UUID asker = UUID.fromString(question.get("asker"));
+            UUID asked = UUID.fromString(question.get("asked"));
+            String how = question.getOrDefault("how", "");
+            String name = question.getOrDefault("name", "somebody");
+            TpaNetwork net = network;
+            if (net == null) {
+                return result("gone");
+            }
+            switch (how) {
+                case "withdrawn" -> {
+                    if (net.hostedBy(asker, server) && requests.withdraw(asker, asked).isPresent()) {
+                        tell(asked, "tpa.withdrawn-by-asker", "player", name);
+                    }
+                }
+                case "refused" -> {
+                    if (net.hostedBy(asked, server) && requests.withdraw(asker, asked).isPresent()) {
+                        tell(asker, "tpa.they-refused", "player", name);
+                    }
+                }
+                case "left" -> {
+                    if (requests.withdraw(asker, asked).isPresent()) {
+                        tell(onlineOf(asker).isPresent() ? asker : asked, "tpa.other-left", "player", name);
+                    }
+                }
+                default -> {
+                    return result("gone");
+                }
+            }
+            return result("ok");
+        } catch (RuntimeException unreadable) {
+            return result("gone");
+        }
     }
 
     // ------------------------------------------------------------------------ asking
@@ -164,8 +439,7 @@ public final class TpaRequestService implements ITpaService {
 
         // Whatever they had asked before is pushed aside — and the person who was waiting on it has to
         // be told, or they go on waiting to answer a request that no longer exists.
-        outcome.displaced().ifPresent(displaced -> onlineOf(displaced.to()).ifPresent(bumped ->
-                messages.send(bumped, "tpa.withdrawn-by-asker", "player", from.getName())));
+        outcome.displaced().ifPresent(displaced -> bump(displaced, from));
 
         Optional<TpaRequest> made = outcome.request();
         if (made.isEmpty()) {
@@ -183,7 +457,7 @@ public final class TpaRequestService implements ITpaService {
         messages.send(from, "tpa.asked",
                 "player", to.getName(),
                 "seconds", now.requestStanding());
-        if (announce(from, to, kind)) {
+        if (announce(from.getUniqueId(), from.getName(), to, kind)) {
             tellThePrice(from, to, kind);
         }
         sweepAfter(from, made.get());
@@ -202,19 +476,19 @@ public final class TpaRequestService implements ITpaService {
      *
      * @return false when it was accepted on the spot, so there is nothing left to quote a price for
      */
-    private boolean announce(Player from, Player to, TpaKind kind) {
+    private boolean announce(UUID fromId, String fromName, Player to, TpaKind kind) {
         TpaSettings now = settings;
         if (prefs.of(to.getUniqueId()).autoAccept()) {
-            messages.send(to, "tpa.auto-accepted", "player", from.getName());
-            accept(to, from.getUniqueId());
+            messages.send(to, "tpa.auto-accepted", "player", fromName);
+            accept(to, fromId);
             return false;
         }
         Component asked = messages.prefixed(kind == TpaKind.TO ? "tpa.asked-you-to" : "tpa.asked-you-here",
-                "player", from.getName(),
+                "player", fromName,
                 "seconds", now.requestStanding());
         Component question = buttons.ask(to.getUniqueId(), Duration.ofSeconds(now.requestStanding()),
-                clicker -> onlineOf(clicker).ifPresent(answerer -> accept(answerer, from.getUniqueId())),
-                clicker -> onlineOf(clicker).ifPresent(answerer -> deny(answerer, from.getUniqueId())));
+                clicker -> onlineOf(clicker).ifPresent(answerer -> accept(answerer, fromId)),
+                clicker -> onlineOf(clicker).ifPresent(answerer -> deny(answerer, fromId)));
         to.sendMessage(asked.appendNewline().append(question));
         return true;
     }
@@ -257,8 +531,7 @@ public final class TpaRequestService implements ITpaService {
         }
         TpaRequests.Batch batch = requests.askAll(from.getUniqueId(),
                 askable.stream().map(Player::getUniqueId).toList(), TpaKind.HERE);
-        batch.displaced().forEach(displaced -> onlineOf(displaced.to()).ifPresent(bumped ->
-                messages.send(bumped, "tpa.withdrawn-by-asker", "player", from.getName())));
+        batch.displaced().forEach(displaced -> bump(displaced, from));
         if (batch.made().isEmpty()) {
             messages.send(from, "tpa.nobody-to-ask");
             return 0;
@@ -272,7 +545,7 @@ public final class TpaRequestService implements ITpaService {
         for (TpaRequest made : batch.made()) {
             onlineOf(made.to()).ifPresent(to -> {
                 prefs.seen(to);
-                announce(from, to, TpaKind.HERE);
+                announce(from.getUniqueId(), from.getName(), to, TpaKind.HERE);
             });
         }
         sweepAfter(from, batch.made().get(0));
@@ -288,8 +561,11 @@ public final class TpaRequestService implements ITpaService {
      * live server, which is the only way it ever would have been.
      */
     private void sweepAfter(Player asker, TpaRequest made) {
-        long ticks = Math.max(1, (made.expiresAt() - System.currentTimeMillis()) / 50L) + GRACE_TICKS;
-        Scheduling.entityLater(plugin, asker, ticks, this::sweep);
+        Scheduling.entityLater(plugin, asker, sweepTicks(made), this::sweep);
+    }
+
+    private static long sweepTicks(TpaRequest made) {
+        return Math.max(1, (made.expiresAt() - System.currentTimeMillis()) / 50L) + GRACE_TICKS;
     }
 
     /** How much late is enough to be sure a request has actually expired. */
@@ -325,6 +601,11 @@ public final class TpaRequestService implements ITpaService {
         Player traveller = onlineOf(request.traveller()).orElse(null);
         Player destination = onlineOf(request.destination()).orElse(null);
         if (traveller == null || destination == null) {
+            Optional<String> there = onlineOf(request.from()).isPresent() || network == null
+                    ? Optional.empty() : network.serverOf(request.from());
+            if (there.isPresent()) {
+                return acceptElsewhere(answering, request, there.get());
+            }
             messages.send(answering, "tpa.no-longer-online",
                     "player", prefs.nameOf(traveller == null ? request.traveller()
                             : request.destination()));
@@ -362,8 +643,12 @@ public final class TpaRequestService implements ITpaService {
             return false;
         }
         messages.send(answering, "tpa.you-refused", "player", prefs.nameOf(taken.get().from()));
-        onlineOf(taken.get().from()).ifPresent(asker ->
-                messages.send(asker, "tpa.they-refused", "player", answering.getName()));
+        Optional<Player> asker = onlineOf(taken.get().from());
+        asker.ifPresent(here -> messages.send(here, "tpa.they-refused", "player", answering.getName()));
+        if (asker.isEmpty() && network != null) {
+            network.serverOf(taken.get().from()).ifPresent(server -> endElsewhere(server, taken.get().from(),
+                    answering.getUniqueId(), "refused", answering.getName()));
+        }
         return true;
     }
 
@@ -390,8 +675,7 @@ public final class TpaRequestService implements ITpaService {
             messages.send(who, "tpa.took-them-back", "count", withdrawn.size());
         }
         for (TpaRequest each : withdrawn) {
-            onlineOf(each.to()).ifPresent(asked ->
-                    messages.send(asked, "tpa.withdrawn-by-asker", "player", who.getName()));
+            bump(each, who);
         }
         return true;
     }
@@ -418,6 +702,82 @@ public final class TpaRequestService implements ITpaService {
             return;
         }
         travel.go(traveller, whereTheyAre, trip, new Arriving(destination.getName()));
+    }
+
+    /**
+     * The answerer accepts a request from somebody on another server. Their own server asks the asker's, which
+     * holds the asker and can say where they are; whoever travels is charged and waits where they are, then is
+     * sent across.
+     */
+    private boolean acceptElsewhere(Player answering, TpaRequest request, String server) {
+        TpaNetwork net = network;
+        boolean answererTravels = request.kind() == TpaKind.HERE;
+        String askerName = prefs.nameOf(request.from());
+        TpaFees.Taken paid = TpaFees.Taken.NOTHING;
+        if (answererTravels) {
+            if (travel.isTravelling(answering.getUniqueId()) || fees.holding(answering.getUniqueId())) {
+                messages.send(answering, "tpa.already-travelling");
+                return false;
+            }
+            paid = chargeAcrossServers(answering);
+            if (paid == null) {
+                return false;
+            }
+        }
+        Map<String, String> question = new LinkedHashMap<>();
+        question.put("asker", request.from().toString());
+        question.put("target", answering.getUniqueId().toString());
+        question.put("targetName", answering.getName());
+        if (!answererTravels) {
+            question.putAll(encode(destinationOf(answering.getLocation())));
+        }
+        TpaFees.Taken held = paid;
+        net.ask(server, TpaNetwork.ACCEPT, question).thenAccept(answer -> Scheduling.entity(plugin, answering, () -> {
+            String how = answer.map(reply -> reply.getOrDefault("result", "")).orElse("unreachable");
+            if (!how.equals("ok")) {
+                fees.refund(answering.getUniqueId(), held);
+                messages.send(answering, switch (how) {
+                    case "busy" -> "tpa.they-are-travelling";
+                    case "cannot-pay" -> "tpa.traveller-cannot-pay";
+                    case "unreachable" -> "tpa.server-unreachable";
+                    default -> "tpa.no-longer-online";
+                }, "player", askerName);
+                return;
+            }
+            messages.send(answering, "tpa.you-accepted", "player", askerName);
+            if (answererTravels) {
+                goElsewhere(answering, answer.get().getOrDefault("server", server), decode(answer.get()),
+                        askerName, held);
+            }
+        }, () -> fees.refund(answering.getUniqueId(), held)));
+        return true;
+    }
+
+    /** The server the asker is on is where the answerer lands; the answer carries the place. */
+    private void goElsewhere(Player traveller, String server, Arrivals.Destination where, String towards,
+                             TpaFees.Taken paid) {
+        TpaSettings now = settings;
+        int warmup = bypasses(traveller, PermissionNodes.BYPASS_WARMUP) ? 0 : now.warmup();
+        // Waits on the spot: nothing here is a place to land, and nobody on a lead crosses servers.
+        Trip trip = Trip.to(towards).after(warmup).exactly();
+        if (!fees.hold(traveller.getUniqueId(), paid)) {
+            fees.refund(traveller.getUniqueId(), paid);
+            messages.send(traveller, "tpa.already-travelling");
+            return;
+        }
+        travel.go(traveller, traveller.getLocation(), trip, new Arriving(towards, server, where));
+    }
+
+    /** Takes the price of a trip to another server — the cross-world price, as the distance means nothing. */
+    private TpaFees.Taken chargeAcrossServers(Player traveller) {
+        Money price = traveller.hasPermission(PermissionNodes.BYPASS_FEE) ? Money.ZERO
+                : fees.trip(false, Double.NaN);
+        TpaFees.Charge charge = fees.charge(traveller.getUniqueId(), price, TpaFees.TRIP, Money.ZERO);
+        if (charge.paid()) {
+            return charge.taken();
+        }
+        tellWhyNotPaid(traveller, charge.refusal());
+        return null;
     }
 
     // ------------------------------------------------------------------------ paying
@@ -539,9 +899,18 @@ public final class TpaRequestService implements ITpaService {
     private final class Arriving implements TravelWatcher {
 
         private final String towards;
+        /** Where to send them on when the place is on another server; null for one on this server. */
+        private final String server;
+        private final Arrivals.Destination elsewhere;
 
         private Arriving(String towards) {
+            this(towards, null, null);
+        }
+
+        private Arriving(String towards, String server, Arrivals.Destination elsewhere) {
             this.towards = towards;
+            this.server = server;
+            this.elsewhere = elsewhere;
         }
 
         @Override
@@ -554,6 +923,11 @@ public final class TpaRequestService implements ITpaService {
             TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
             if (spent != null && spent.total().isPositive()) {
                 messages.send(traveller, "tpa.paid", "price", Fees.format(spent.total()));
+            }
+            if (elsewhere != null) {
+                messages.send(traveller, "tpa.travelling-away", "player", towards, "server", server);
+                hop.send(traveller, server, elsewhere);
+                return;
             }
             messages.send(traveller, "tpa.arrived", "player", towards);
         }

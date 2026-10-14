@@ -20,6 +20,8 @@ homes:
   arrived: "<green>Welcome home — <white><name></white>. Shoes off."
   on-cooldown: "<yellow>Another <white><time></white> before you can go home again."
   world-not-loaded: "<yellow><name></yellow> is in <white><world></white>, which is not loaded right now."
+  travelling-away: "<green>Taking you to <white><name></white> on <white><server></white>..."
+  other-server-unavailable: "<red><name></red> is on <white><server></white>, and this server cannot send you there."
   world-gone: "<yellow><name></yellow> is in a world that is not loaded right now."
   cross-world-off: "<red><name></red> is in another world, and homes across worlds are switched off here."
   nowhere-safe: "<red>There is nowhere safe to put you at <white><name></white>. Home is where the lava is not."

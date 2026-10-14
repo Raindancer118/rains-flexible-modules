@@ -84,6 +84,7 @@ class HomeTravelServiceTest {
         Home home = mock(Home.class);
         when(home.poi()).thenReturn(poi);
         when(home.name()).thenReturn("base");
+        when(home.isHere()).thenReturn(true);
         when(home.isIn(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
         return home;
     }

@@ -64,6 +64,7 @@ public final class TpaSessionListener implements ITpaListener {
             UUID other = ended.from().equals(leaving.getUniqueId()) ? ended.to() : ended.from();
             Player stillHere = services.server().getPlayer(other);
             if (stillHere == null || !stillHere.isOnline()) {
+                services.asking().leftWhileAsked(ended, leaving);
                 continue;
             }
             services.messages().send(stillHere, "tpa.other-left", "player", leaving.getName());

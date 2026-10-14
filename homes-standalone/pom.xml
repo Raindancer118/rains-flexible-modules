@@ -43,8 +43,9 @@
 
           2.3.2: logging out no longer clears the wait between trips home — the same hole /rtp had,
           fixed the same way: quitting sweeps the waits that are over, not the running ones.
-             2.6.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>2.6.0</plugin.version>
+             2.6.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. 
+             2.7.0 (RainsCore 2.0 network edition): homes follow a player across the network and each knows its server; /home x for one on another server waits, then sends you there; limits and bought slots count across the network. -->
+        <plugin.version>2.7.0</plugin.version>
     </properties>
 
     <dependencies>

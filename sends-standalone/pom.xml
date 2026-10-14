@@ -28,7 +28,10 @@
         <!-- 0.1.0: /send create <player> opens a window to put items in (shift-click works), send puts them
              to the other player, who accepts with a click or /send accept. Items wait ten minutes, are
              kept across restarts, and go back to the sender when declined, cancelled or expired. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.2.0 (RainsCore 2.0 network edition): sends live in the network's one database; a send reaches a player
+             on another server, and whichever server the recipient (or, on return, the sender) is on claims it with a
+             conditional update only one server can win — items are never given twice or lost between servers. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>

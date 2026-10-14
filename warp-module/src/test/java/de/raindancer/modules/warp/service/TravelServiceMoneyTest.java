@@ -99,6 +99,7 @@ class TravelServiceMoneyTest {
     private Warp warp(String fee, boolean closed) {
         Poi poi = mock(Poi.class);
         when(poi.name()).thenReturn("shop");
+        when(poi.isHere()).thenReturn(true);
         when(poi.label()).thenReturn("shop");
         when(poi.owner()).thenReturn(ownerId);
         when(poi.location()).thenReturn(Optional.of(new Location(world, 1, 2, 3)));

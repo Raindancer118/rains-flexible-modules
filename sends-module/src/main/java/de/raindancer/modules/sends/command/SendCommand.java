@@ -64,6 +64,16 @@ public final class SendCommand implements ISendsCommand {
         }
         Optional<Player> found = PlayerTargets.online(live.server(), player, name);
         if (found.isEmpty()) {
+            // Not here: maybe on another server of the network.
+            var elsewhere = live.core().networkPlayers().flatMap(players -> players.named(name, false));
+            if (elsewhere.isPresent()) {
+                if (elsewhere.get().player().equals(player.getUniqueId())) {
+                    live.messages().send(player, "sends.refuse.self");
+                    return;
+                }
+                live.screens().compose(player, elsewhere.get().player(), elsewhere.get().name());
+                return;
+            }
             live.messages().send(player, "sends.refuse.unknown", "player", name);
             return;
         }
@@ -120,8 +130,14 @@ public final class SendCommand implements ISendsCommand {
         String started = args[1].toLowerCase(Locale.ROOT);
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "create" -> {
-                return PlayerTargets.suggest(live.server(), source.getSender(), args[1],
-                        other -> !other.equals(player));
+                List<String> names = new ArrayList<>(PlayerTargets.suggest(live.server(), source.getSender(),
+                        args[1], other -> !other.equals(player)));
+                live.core().networkPlayers().ifPresent(players -> players.everyone(false).stream()
+                        .filter(there -> !there.server().equals(players.self()))
+                        .map(there -> there.name())
+                        .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(started))
+                        .filter(name -> !names.contains(name)).forEach(names::add));
+                return names;
             }
             case "accept", "decline" -> {
                 return shortIds(live.book().incoming(player.getUniqueId()), started);

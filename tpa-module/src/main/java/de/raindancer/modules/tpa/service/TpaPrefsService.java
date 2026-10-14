@@ -152,6 +152,11 @@ public final class TpaPrefsService implements ITpaService {
         prefs.seen(who.getUniqueId(), who.getName());
     }
 
+    /** The same for somebody who is on another server. */
+    public void seen(UUID who, String name) {
+        prefs.seen(who, name);
+    }
+
     /** What somebody has asked, for a screen that offers to take it back. */
     public java.util.Optional<TpaRequest> outgoingOf(UUID who) {
         return requests.from(who);

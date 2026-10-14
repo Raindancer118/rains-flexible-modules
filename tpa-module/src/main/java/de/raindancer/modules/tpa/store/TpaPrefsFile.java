@@ -3,6 +3,7 @@ package de.raindancer.modules.tpa.store;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.modules.tpa.model.TpaPrefs;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
@@ -57,7 +58,14 @@ public final class TpaPrefsFile {
     private volatile boolean readable = true;
 
     public TpaPrefsFile(Path file) {
-        this.store = new YamlStore(file);
+        this(YamlStore.network(file));
+    }
+
+    /** On a store of the caller's choosing — a network document in a test. */
+    public TpaPrefsFile(YamlStore store) {
+        this.store = store;
+        // What another server of the network decided is read in as it is written.
+        store.onChange(this::load);
     }
 
     public Path file() {
@@ -66,21 +74,27 @@ public final class TpaPrefsFile {
 
     // ------------------------------------------------------------------------ reading
 
-    /** Reads what is there. A file that is not there is a server nobody has decided anything on. */
+    /**
+     * Reads what is there. A file that is not there is a server nobody has decided anything on. What could not be
+     * read leaves what is known as it is, and stops anything being written until it can.
+     */
     public void load() {
-        prefs.clear();
-        names.clear();
-        readable = true;
         if (!store.exists()) {
+            prefs.clear();
+            readable = true;
             return;
         }
-        ConfigurationSection players = store.read().getConfigurationSection("players");
+        YamlConfiguration yaml = store.read();
         // A file that would not parse is reported by the store rather than thrown, and read as empty.
         // Empty and unreadable look identical from here, so the difference has to come from the store.
         if (!store.problems().isEmpty()) {
             readable = false;
             return;
         }
+        readable = true;
+        prefs.clear();
+        // Names are kept: this server may know some another one has not written yet.
+        ConfigurationSection players = yaml.getConfigurationSection("players");
         if (players == null) {
             return;
         }
