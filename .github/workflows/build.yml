@@ -135,7 +135,7 @@ jobs:
       # version the root pom's rainscore.version property names — bump that property to pick up a new
       # RainsCore release, the same way bumping a *-module.version property picks up a new module.
       - name: Build and run tests
-        run: mvn --batch-mode --no-transfer-progress clean install
+        run: mvn --batch-mode --no-transfer-progress -U clean install
 
       # ── the jars a server operator actually wants ────────────────────────────────────────────────
       #
@@ -568,7 +568,7 @@ jobs:
           XML
 
       - name: Install the reactor
-        run: mvn --batch-mode --no-transfer-progress -q clean install -DskipTests
+        run: mvn --batch-mode --no-transfer-progress -U -q clean install -DskipTests
 
       # ── auto-publish every module version that has no tag yet ──────────────────────────────────
       #
