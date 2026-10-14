@@ -48,7 +48,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.6.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.7.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -123,6 +123,13 @@ public final class EnchantsModule implements FlexModule {
             }
         });
         context.closeWith(timer::cancel);
+        // The shard world's weather, rolled every five minutes (the world's own clock stands still at midnight).
+        java.util.random.RandomGenerator weatherDice = new java.util.SplittableRandom();
+        var weather = Scheduling.globalTimer(context.plugin(), 20L, 6_000L,
+                task -> shardWorlds.world().ifPresent(world -> shardWorlds.rollWeather(world, weatherDice)));
+        if (weather != null) {
+            context.closeWith(weather::cancel);
+        }
         context.log().info("Enchants are up: {} enchantment(s) registered.", EnchantsDefinitions.all().size());
     }
 

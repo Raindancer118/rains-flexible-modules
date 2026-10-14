@@ -52,7 +52,28 @@ public final class ShardWorldService {
         return Optional.of(world);
     }
 
+    /** The weather is ours to roll (see {@link #rollWeather}): the game's own cycle would undo it. */
+    private static final int WEATHER_TICKS = 6_000 + 200;
+
+    /**
+     * The next five minutes' weather: a thunderstorm as often as the owner set, otherwise clear. Lasts a little
+     * longer than the roll's period, so it never runs out between two rolls.
+     */
+    public void rollWeather(World world, java.util.random.RandomGenerator random) {
+        boolean thunder = de.raindancer.modules.enchants.rules.ShardWeather.thunder(random,
+                settings.get().shardWorldThunderPercent());
+        world.setStorm(thunder);
+        world.setThundering(thunder);
+        if (thunder) {
+            world.setWeatherDuration(WEATHER_TICKS);
+            world.setThunderDuration(WEATHER_TICKS);
+        } else {
+            world.setClearWeatherDuration(WEATHER_TICKS);
+        }
+    }
+
     private static void configure(World world, EnchantsSettings config) {
+        world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
         world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setTime(MIDNIGHT);
         world.setDifficulty(Difficulty.HARD);

@@ -45,8 +45,9 @@ public record EnchantsSettings(
         @Key("boost-recharge-seconds")
         int boostRechargeSeconds,
 
-        @In("enchants") @Title("Boost speed, percent of a rocket") @Range(min = 50, max = 400)
-        @Describe("How fast a Boost pulls: 100 is a firework rocket, 150 half as fast again.")
+        @In("enchants") @Title("Boost speed, percent of a rocket") @Range(min = 50, max = 1000)
+        @Describe("How fast a Boost pulls: 100 is a firework rocket, 150 half as fast again. Far above 400 the "
+                + "ground ahead may not be loaded in time, and an anti-cheat may take the speed for a cheat.")
         @Key("boost-speed-percent")
         int boostSpeedPercent,
 
@@ -105,8 +106,13 @@ public record EnchantsSettings(
         @In("enchants/shards") @Title("Shards per player per hour") @Range(min = 1, max = 10000)
         @Describe("The most shards one player can find in any hour, so a farm in the eternal night cannot print them.")
         @Key("shards-per-hour")
-        int shardsPerHour) {
+        int shardsPerHour,
+
+        @In("enchants/shards") @Title("Thunderstorms, percent of the time") @Range(min = 0, max = 100)
+        @Describe("How much of the time the shard world lies under a thunderstorm; rolled anew every five minutes.")
+        @Key("shard-world-thunder-percent")
+        int shardWorldThunderPercent) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70);
 }

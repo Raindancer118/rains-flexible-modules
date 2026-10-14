@@ -30,4 +30,14 @@ class EnchantsSettingsTest {
         assertThat(defaults.shardDropPercent()).isEqualTo(100);
         assertThat(defaults.shardsPerHour()).isEqualTo(150);
     }
+
+    @Test
+    @DisplayName("Boost may be set to five times its default: up to 1000 percent of a rocket")
+    void boostGoesHigh() throws Exception {
+        var component = java.util.Arrays.stream(EnchantsSettings.class.getRecordComponents())
+                .filter(each -> each.getName().equals("boostSpeedPercent")).findFirst().orElseThrow();
+        de.raindancer.core.data.settings.Range range = component.getAnnotation(de.raindancer.core.data.settings.Range.class);
+
+        assertThat(range.max()).isGreaterThanOrEqualTo(1000);
+    }
 }

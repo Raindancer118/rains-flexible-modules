@@ -27,7 +27,8 @@
         <!-- 0.2.0: the flight charge and flown time follow the player across the network. -->
         <!-- 0.6.1: whoever may build on a claim may open a shard portal there (it was the fire right, which trusted players do not have). -->
         <!-- 0.6.2: a shard portal is recognised wherever the player's hitbox touches it, as the game does; stepping in from the side led to the nether. -->
-        <plugin.version>0.6.2</plugin.version>
+        <!-- 0.7.0: thunderstorms in the shard world, 70 % of the time by default (shard-world-thunder-percent, rolled every five minutes); Boost may be set up to 1000 % of a rocket. -->
+        <plugin.version>0.7.0</plugin.version>
     </properties>
 
     <dependencies>
