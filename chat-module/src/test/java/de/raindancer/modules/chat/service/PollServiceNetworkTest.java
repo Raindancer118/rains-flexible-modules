@@ -22,9 +22,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -41,6 +43,7 @@ class PollServiceNetworkTest {
     private static final List<String> ANSWERS = List.of("Yes", "No");
 
     private final LocalBus.Hub hub = new LocalBus.Hub();
+    private final Set<String> presence = new HashSet<>();
 
     /** One server of the network: its players, what they were told, its buttons, and the timers it was asked for. */
     private final class Node {
@@ -53,7 +56,10 @@ class PollServiceNetworkTest {
         final List<Runnable> timers = new ArrayList<>();
         final PollService polls;
 
+        final String nodeId;
+
         Node(String id, boolean onNetwork) {
+            this.nodeId = id;
             ChatButtons chatButtons = mock(ChatButtons.class);
             when(chatButtons.label(any())).thenAnswer(label -> {
                 String name = label.getArgument(0);
@@ -74,7 +80,8 @@ class PollServiceNetworkTest {
                     ChatSettings.DEFAULTS, (ticks, task) -> timers.add(task));
             LocalBus bus = hub.bus(id);
             NetworkCalls calls = new NetworkCalls(bus);
-            polls.network(bus, () -> Optional.of(calls), () -> onNetwork);
+            polls.network(bus, () -> Optional.of(calls), () -> onNetwork,
+                    (who, at) -> presence.contains(who + "@" + at));
         }
 
         private Object saying(InvocationOnMock call) {
@@ -102,6 +109,7 @@ class PollServiceNetworkTest {
             doAnswer(line -> shown.add(name + " saw " + PLAIN.serialize(line.<Component>getArgument(0))))
                     .when(player).sendMessage(any(Component.class));
             players.put(id, player);
+            presence.add(id + "@" + nodeId);
             return player;
         }
 
@@ -345,6 +353,80 @@ class PollServiceNetworkTest {
         assertThat(arena.buttons).isEmpty();
         assertThat(alone.told).containsExactly("Tom: chat.poll.voted [answer, Yes]");
         assertThat(alone.sawResultsOf("Best mob?")).isTrue();
+    }
+
+    private static String opening(Player starter) {
+        return "{\"question\":\"Forged?\",\"answers\":[\"Yes\",\"No\"],\"starter\":\"" + starter.getUniqueId()
+                + "\",\"starterName\":\"" + starter.getName() + "\",\"lasting\":60000}";
+    }
+
+    private Optional<Map<String, String>> asked(String server, String topic, Map<String, String> data) {
+        NetworkCalls forger = new NetworkCalls(hub.bus("elsewhere"));
+        var reply = forger.ask(server, topic, data, Duration.ofSeconds(2));
+        settle();
+        return reply.join();
+    }
+
+    @Test
+    @DisplayName("a server cannot vote for a player who is on another server, and the real vote still counts")
+    void forgedVoteIgnored() {
+        Node smp = new Node("smp", true);
+        Node arena = new Node("arena", true);
+        Player tom = smp.join("Tom");
+        Player lilly = arena.join("Lilly");
+        UUID poll = startedOn(smp, tom);
+
+        var reply = asked("smp", NetworkPolls.VOTE, Map.of("poll", poll.toString(),
+                "voter", lilly.getUniqueId().toString(), "answer", "No"));
+        assertThat(reply.map(found -> found.get("ballot"))).isEmpty();
+
+        arena.click(lilly, "Yes");
+        assertThat(arena.told).containsExactly("Lilly: chat.poll.voted [answer, Yes]");
+    }
+
+    @Test
+    @DisplayName("a server cannot end a poll or read its count for a player who is on another server")
+    void forgedEndIgnored() {
+        Node smp = new Node("smp", true);
+        Node arena = new Node("arena", true);
+        Player tom = smp.join("Tom");
+        UUID poll = startedOn(smp, tom);
+
+        assertThat(asked("smp", NetworkPolls.END, Map.of("poll", poll.toString(),
+                "asker", tom.getUniqueId().toString()))).map(found -> found.get("ended")).isNotEqualTo(Optional.of("true"));
+        assertThat(asked("smp", NetworkPolls.COUNTS, Map.of("poll", poll.toString(),
+                "asker", tom.getUniqueId().toString())).orElse(Map.of())).doesNotContainKey("c0");
+        assertThat(asked("smp", NetworkPolls.END, Map.of("poll", poll.toString())).orElse(Map.of()))
+                .doesNotContainKey("ended");
+
+        assertThat(smp.polls.current()).isPresent();
+        assertThat(arena.polls.current()).isPresent();
+    }
+
+    @Test
+    @DisplayName("a poll opened or a result sent by a server that does not own it changes nothing")
+    void forgedOpenAndResultIgnored() {
+        Node smp = new Node("smp", true);
+        Node arena = new Node("arena", true);
+        Player tom = smp.join("Tom");
+        var forger = hub.bus("elsewhere");
+
+        forger.publish(NetworkPolls.TOPIC, "open:" + UUID.randomUUID(), opening(tom));
+        settle();
+        assertThat(arena.polls.current()).isEmpty();
+
+        UUID poll = startedOn(smp, tom);
+        forger.publish(NetworkPolls.TOPIC, "result:" + poll, "[99,0]");
+        settle();
+
+        assertThat(arena.polls.current()).isPresent();
+        assertThat(arena.sawResultsOf("Best mob?")).isFalse();
+    }
+
+    private UUID startedOn(Node node, Player starter) {
+        node.polls.start(starter, "Best mob?", ANSWERS, TWO_MINUTES);
+        settle();
+        return node.polls.current().orElseThrow().voteId();
     }
 
     private static void sleep() {

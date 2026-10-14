@@ -160,12 +160,16 @@ public final class ChatCommand implements IChatCommand {
                 || sender instanceof org.bukkit.command.RemoteConsoleCommandSender;
     }
 
+    private static java.util.UUID idOf(CommandSender sender) {
+        return sender instanceof org.bukkit.entity.Player player ? player.getUniqueId() : null;
+    }
+
     private void clear(ChatServices live, CommandSender sender) {
-        live.network().clear(sender.getName());
+        live.network().clear(idOf(sender), sender.getName());
     }
 
     private void freeze(ChatServices live, CommandSender sender) {
-        live.network().freeze(!live.freeze().isFrozen(), sender.getName());
+        live.network().freeze(!live.freeze().isFrozen(), idOf(sender), sender.getName());
     }
 
     private void slowmode(ChatServices live, CommandSender sender, String[] args) {
@@ -174,7 +178,7 @@ public final class ChatCommand implements IChatCommand {
             return;
         }
         if (args[1].equalsIgnoreCase("off")) {
-            live.network().slowmode(-1, sender.getName());
+            live.network().slowmode(-1, idOf(sender), sender.getName());
             return;
         }
         int seconds;
@@ -188,7 +192,7 @@ public final class ChatCommand implements IChatCommand {
             live.messages().send(sender, "chat.admin.slowmode-range");
             return;
         }
-        live.network().slowmode(seconds, sender.getName());
+        live.network().slowmode(seconds, idOf(sender), sender.getName());
     }
 
     @Override

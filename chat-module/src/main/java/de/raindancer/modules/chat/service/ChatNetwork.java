@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
@@ -23,7 +24,8 @@ import java.util.function.Supplier;
  * What staff do to chat, on every server of a network: {@code /announce}, {@code /ad}, {@code /chat clear},
  * {@code freeze} and {@code slowmode}. Each call does it here through the {@link Receiver} and, on a network, tells
  * the other servers, which do the same through theirs — each worded by its own messages. The permission was checked
- * on the server the command was typed on and is not asked again.
+ * on the server the command was typed on and is not asked again — but whoever an event names must really be on the
+ * server that sent it, so no server can speak for a player on another. No player named means that server's console.
  *
  * <p>A freeze or slowmode travels as the state it sets, never as a toggle, so a server that missed one cannot end
  * up opposite to the rest. A server that starts later asks the others for the state ({@link #catchUp}) and takes
@@ -38,6 +40,7 @@ public final class ChatNetwork {
     private static final Gson JSON = new Gson();
     private static final Duration TIMEOUT = Duration.ofSeconds(3);
     private static final int LONGEST_SLOWMODE = 60;
+    private static final String CONSOLE = "CONSOLE";
 
     /** Freeze and slowmode as they stand; {@code slowmode} is -1 while the settings' default is in force. */
     public record State(boolean frozen, int slowmode) {
@@ -68,23 +71,27 @@ public final class ChatNetwork {
     private final BooleanSupplier onNetwork;
     private final Supplier<List<String>> otherServers;
     private final Predicate<UUID> mutedHere;
+    private final BiPredicate<UUID, String> playerOn;
     private final Receiver receiver;
     private final LongSupplier clock;
+    private final Rejected rejected = new Rejected();
     private final List<NetworkBus.Subscription> subscriptions = new ArrayList<>();
     private long changedAt;
 
     /**
      * @param otherServers the ids of the other servers online now, whom a starting server asks for the state
      * @param mutedHere    whether somebody is muted on this server: their ad is not shown here
+     * @param playerOn     whether a player is, by the network's presence, on the server with that id
      */
     public ChatNetwork(NetworkBus bus, Supplier<Optional<NetworkCalls>> calls, BooleanSupplier onNetwork,
-                       Supplier<List<String>> otherServers, Predicate<UUID> mutedHere, Receiver receiver,
-                       LongSupplier clock) {
+                       Supplier<List<String>> otherServers, Predicate<UUID> mutedHere,
+                       BiPredicate<UUID, String> playerOn, Receiver receiver, LongSupplier clock) {
         this.bus = bus;
         this.calls = calls;
         this.onNetwork = onNetwork;
         this.otherServers = otherServers;
         this.mutedHere = mutedHere;
+        this.playerOn = playerOn;
         this.receiver = receiver;
         this.clock = clock;
     }
@@ -112,9 +119,12 @@ public final class ChatNetwork {
 
     // ------------------------------------------------------------------ saying it here and everywhere
 
-    public void announce(String text) {
+    /** @param by who announces; null for the console */
+    public void announce(UUID by, String text) {
         receiver.banner(text);
-        publish(ANNOUNCE, "banner", payload("text", text));
+        JsonObject payload = payload("text", text);
+        issuer(payload, by, null);
+        publish(ANNOUNCE, "banner", payload);
     }
 
     public void ad(UUID sender, String name, String text) {
@@ -124,24 +134,29 @@ public final class ChatNetwork {
         publish(ANNOUNCE, "ad:" + sender, payload);
     }
 
-    public void clear(String by) {
+    /** @param byId who does it; null for the console */
+    public void clear(UUID byId, String by) {
         receiver.clear(by);
-        publish(CONTROL, "clear", payload("by", by));
+        JsonObject payload = new JsonObject();
+        issuer(payload, byId, by);
+        publish(CONTROL, "clear", payload);
     }
 
-    public void freeze(boolean frozen, String by) {
+    public void freeze(boolean frozen, UUID byId, String by) {
         receiver.freeze(frozen, by);
         changed();
-        JsonObject payload = payload("by", by);
+        JsonObject payload = new JsonObject();
+        issuer(payload, byId, by);
         payload.addProperty("value", frozen);
         publish(CONTROL, "freeze", payload);
     }
 
     /** @param seconds -1 for off */
-    public void slowmode(int seconds, String by) {
+    public void slowmode(int seconds, UUID byId, String by) {
         receiver.slowmode(seconds, by);
         changed();
-        JsonObject payload = payload("by", by);
+        JsonObject payload = new JsonObject();
+        issuer(payload, byId, by);
         payload.addProperty("value", seconds);
         publish(CONTROL, "slowmode", payload);
     }
@@ -150,6 +165,17 @@ public final class ChatNetwork {
         JsonObject payload = new JsonObject();
         payload.addProperty(name, value);
         return payload;
+    }
+
+    private static void issuer(JsonObject payload, UUID id, String name) {
+        if (id == null) {
+            payload.addProperty("console", true);
+        } else {
+            payload.addProperty("byId", id.toString());
+        }
+        if (name != null) {
+            payload.addProperty("by", name);
+        }
     }
 
     private void publish(String topic, String key, JsonObject payload) {
@@ -169,10 +195,14 @@ public final class ChatNetwork {
             JsonObject payload = JsonParser.parseString(event.payload()).getAsJsonObject();
             String text = payload.get("text").getAsString();
             if (event.key().equals("banner")) {
-                receiver.banner(text);
+                if (issuer(event, payload).isPresent()) {
+                    receiver.banner(text);
+                }
             } else if (event.key().startsWith("ad:")) {
                 UUID sender = UUID.fromString(event.key().substring(3));
-                if (!mutedHere.test(sender)) {
+                if (!playerOn.test(sender, event.server())) {
+                    rejected.of(event.server(), kind(event));
+                } else if (!mutedHere.test(sender)) {
                     receiver.ad(sender, payload.get("name").getAsString(), text);
                 }
             }
@@ -184,7 +214,11 @@ public final class ChatNetwork {
     private void controlled(NetworkEvent event) {
         try {
             JsonObject payload = JsonParser.parseString(event.payload()).getAsJsonObject();
-            String by = payload.get("by").getAsString();
+            Optional<String> issuer = issuer(event, payload);
+            if (issuer.isEmpty()) {
+                return;
+            }
+            String by = issuer.get();
             switch (event.key()) {
                 case "clear" -> receiver.clear(by);
                 case "freeze" -> {
@@ -204,6 +238,25 @@ public final class ChatNetwork {
         } catch (RuntimeException notAControl) {
             // A malformed control from another server changes nothing.
         }
+    }
+
+    private static String kind(NetworkEvent event) {
+        int colon = event.key().indexOf(':');
+        return event.topic() + " " + (colon < 0 ? event.key() : event.key().substring(0, colon));
+    }
+
+    /** @return who did it, as to show; empty when the event names a player who is not on the server that sent it */
+    private Optional<String> issuer(NetworkEvent event, JsonObject payload) {
+        if (payload.has("byId")) {
+            UUID who = UUID.fromString(payload.get("byId").getAsString());
+            if (playerOn.test(who, event.server())) {
+                return Optional.of(payload.get("by") == null ? who.toString() : payload.get("by").getAsString());
+            }
+        } else if (payload.has("console") && payload.get("console").getAsBoolean()) {
+            return Optional.of(CONSOLE);
+        }
+        rejected.of(event.server(), kind(event));
+        return Optional.empty();
     }
 
     // ------------------------------------------------------------------ starting late

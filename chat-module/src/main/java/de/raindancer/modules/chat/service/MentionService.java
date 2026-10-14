@@ -134,7 +134,7 @@ public final class MentionService implements IChatService {
             if (who != null) {
                 ping(who, sender.getName(), plainText);
             } else if (mention.reachable() && elsewhere != null) {
-                elsewhere.ping(mention.player(), sender.getName(), plainText).thenAccept(pinged -> {
+                elsewhere.ping(mention.player(), sender.getUniqueId(), sender.getName(), plainText).thenAccept(pinged -> {
                     if (!pinged) {
                         leaveNote(mention.player(), sender.getName(), plainText);
                     }

@@ -2,12 +2,15 @@ package de.raindancer.modules.chat.service;
 
 import de.raindancer.core.platform.network.LocalBus;
 import de.raindancer.core.platform.network.NetworkCalls;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -20,6 +23,9 @@ class ChatNetworkTest {
 
     private final LocalBus.Hub hub = new LocalBus.Hub();
     private final AtomicLong clock = new AtomicLong(1000);
+    private final Map<UUID, String> whereIs = new HashMap<>();
+    private final UUID tom = UUID.nameUUIDFromBytes("Tom".getBytes());
+    private final UUID lilly = UUID.nameUUIDFromBytes("Lilly".getBytes());
 
     /** One server: what it did, in order, and its own freeze and slowmode. */
     private final class Server implements ChatNetwork.Receiver {
@@ -31,7 +37,8 @@ class ChatNetworkTest {
         Server(String id, boolean onNetwork, List<String> others) {
             var bus = hub.bus(id);
             NetworkCalls calls = new NetworkCalls(bus);
-            network = new ChatNetwork(bus, () -> Optional.of(calls), () -> onNetwork, () -> others, muted::contains, this, clock::get);
+            network = new ChatNetwork(bus, () -> Optional.of(calls), () -> onNetwork, () -> others, muted::contains,
+                    (who, at) -> at.equals(whereIs.get(who)), this, clock::get);
         }
 
         @Override
@@ -73,6 +80,11 @@ class ChatNetworkTest {
         }
     }
 
+    @BeforeEach
+    void whoIsWhere() {
+        whereIs.put(tom, "smp");
+    }
+
     private Server server(String id, String... others) {
         Server server = new Server(id, true, List.of(others));
         server.network.listen();
@@ -86,7 +98,7 @@ class ChatNetworkTest {
         Server arena = server("arena");
         Server lobby = server("lobby");
 
-        smp.network.announce("Restart in 5");
+        smp.network.announce(null, "Restart in 5");
         hub.drain();
 
         assertThat(smp.done).containsExactly("banner Restart in 5");
@@ -100,7 +112,7 @@ class ChatNetworkTest {
         Server smp = server("smp");
         Server arena = server("arena");
         Server lobby = server("lobby");
-        UUID lilly = UUID.randomUUID();
+        whereIs.put(lilly, "smp");
         arena.muted.add(lilly);
 
         smp.network.ad(lilly, "Lilly", "Selling cows");
@@ -117,11 +129,11 @@ class ChatNetworkTest {
         Server smp = server("smp");
         Server arena = server("arena");
 
-        smp.network.clear("Tom");
-        smp.network.freeze(true, "Tom");
-        smp.network.slowmode(10, "Tom");
-        smp.network.slowmode(-1, "Tom");
-        smp.network.freeze(false, "Tom");
+        smp.network.clear(tom, "Tom");
+        smp.network.freeze(true, tom, "Tom");
+        smp.network.slowmode(10, tom, "Tom");
+        smp.network.slowmode(-1, tom, "Tom");
+        smp.network.freeze(false, tom, "Tom");
         hub.drain();
 
         List<String> expected = List.of("clear Tom", "freeze Tom", "slowmode 10 Tom", "slowmode -1 Tom", "unfreeze Tom");
@@ -152,8 +164,8 @@ class ChatNetworkTest {
         Server smp = server("smp");
         hub.drain();
         clock.set(5000);
-        smp.network.freeze(true, "Tom");
-        smp.network.slowmode(15, "Tom");
+        smp.network.freeze(true, tom, "Tom");
+        smp.network.slowmode(15, tom, "Tom");
         hub.drain();
 
         Server late = new Server("late", true, List.of("smp"));
@@ -169,13 +181,13 @@ class ChatNetworkTest {
     void newerWins() throws Exception {
         Server smp = server("smp");
         clock.set(2000);
-        smp.network.freeze(true, "Tom");
+        smp.network.freeze(true, tom, "Tom");
         hub.drain();
 
         Server late = new Server("late", true, List.of("smp"));
         late.network.listen();
         clock.set(9000);
-        late.network.freeze(false, "Lilly");
+        late.network.freeze(false, lilly, "Lilly");
         late.network.catchUp().get();
 
         assertThat(late.state.frozen()).isFalse();
@@ -201,8 +213,8 @@ class ChatNetworkTest {
         alone.network.listen();
         Server arena = server("arena");
 
-        alone.network.announce("hi");
-        alone.network.freeze(true, "Tom");
+        alone.network.announce(null, "hi");
+        alone.network.freeze(true, tom, "Tom");
         hub.drain();
 
         assertThat(alone.done).containsExactly("banner hi", "freeze Tom");
@@ -216,9 +228,60 @@ class ChatNetworkTest {
         Server arena = server("arena");
         arena.network.stop();
 
-        smp.network.announce("hi");
+        smp.network.announce(null, "hi");
         hub.drain();
 
         assertThat(arena.done).isEmpty();
+    }
+
+    private static String control(String key, UUID by, String name, String value) {
+        return "{\"byId\":\"" + by + "\",\"by\":\"" + name + "\"" + (value == null ? "" : ",\"value\":" + value) + "}";
+    }
+
+    @Test
+    @DisplayName("a server cannot announce, advertise or control chat as a player who is on another server")
+    void forgedSenderIgnored() {
+        Server smp = server("smp");
+        Server arena = server("arena");
+        var forger = hub.bus("elsewhere");
+
+        forger.publish(ChatNetwork.ANNOUNCE, "banner", "{\"text\":\"fake\",\"byId\":\"" + tom + "\"}");
+        forger.publish(ChatNetwork.ANNOUNCE, "ad:" + tom, "{\"text\":\"fake\",\"name\":\"Tom\"}");
+        forger.publish(ChatNetwork.CONTROL, "clear", control("clear", tom, "Tom", null));
+        forger.publish(ChatNetwork.CONTROL, "freeze", control("freeze", tom, "Tom", "true"));
+        forger.publish(ChatNetwork.CONTROL, "slowmode", control("slowmode", tom, "Tom", "30"));
+        hub.drain();
+
+        assertThat(smp.done).isEmpty();
+        assertThat(arena.done).isEmpty();
+        assertThat(arena.state).isEqualTo(new ChatNetwork.State(false, -1));
+    }
+
+    @Test
+    @DisplayName("an event with no sender at all, a garbled one, or one for somebody nobody has seen is ignored")
+    void unknownSenderIgnored() {
+        Server arena = server("arena");
+        var smp = hub.bus("smp");
+
+        smp.publish(ChatNetwork.ANNOUNCE, "banner", "{\"text\":\"anonymous\"}");
+        smp.publish(ChatNetwork.ANNOUNCE, "banner", "{\"text\":\"x\",\"byId\":\"not-a-uuid\"}");
+        smp.publish(ChatNetwork.ANNOUNCE, "banner", "{\"text\":\"x\",\"byId\":\"" + UUID.randomUUID() + "\"}");
+        smp.publish(ChatNetwork.CONTROL, "freeze", "{\"by\":\"Tom\",\"value\":true}");
+        hub.drain();
+
+        assertThat(arena.done).isEmpty();
+    }
+
+    @Test
+    @DisplayName("what the sending server's own console or a player there does still arrives")
+    void genuineSenderArrives() {
+        Server arena = server("arena");
+        var smp = hub.bus("smp");
+
+        smp.publish(ChatNetwork.ANNOUNCE, "banner", "{\"text\":\"console\",\"console\":true}");
+        smp.publish(ChatNetwork.CONTROL, "freeze", control("freeze", tom, "Tom", "true"));
+        hub.drain();
+
+        assertThat(arena.done).containsExactly("banner console", "freeze Tom");
     }
 }

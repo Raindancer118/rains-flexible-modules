@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiPredicate;
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -23,6 +25,10 @@ import java.util.function.Supplier;
  * A poll across the servers of a network. The server it was started on keeps the count (Core's {@code Votes}, one
  * vote per player); the others show it and send each click there with {@link NetworkCalls}, so a player counts once
  * whichever server they click on. The start and the result go to every server on the bus.
+ *
+ * <p>Whoever a message names — who votes, who asks for the count or ends it, who started the poll — must be on the
+ * server that sent it; the server that owns the poll is the only one whose result counts. No player named means the
+ * console of the sending server.
  */
 public final class NetworkPolls {
 
@@ -57,21 +63,25 @@ public final class NetworkPolls {
 
         void opened(String origin, Opened poll);
 
-        void result(UUID voteId, List<Integer> counts);
+        /** @param origin the server that sent the result */
+        void result(String origin, UUID voteId, List<Integer> counts);
     }
 
     private final NetworkBus bus;
     private final Supplier<Optional<NetworkCalls>> calls;
     private final BooleanSupplier onNetwork;
+    private final BiPredicate<UUID, String> playerOn;
+    private final Rejected rejected = new Rejected();
     private final Host host;
     private final Guest guest;
     private final List<NetworkBus.Subscription> subscriptions = new ArrayList<>();
 
     public NetworkPolls(NetworkBus bus, Supplier<Optional<NetworkCalls>> calls, BooleanSupplier onNetwork,
-                        Host host, Guest guest) {
+                        BiPredicate<UUID, String> playerOn, Host host, Guest guest) {
         this.bus = bus;
         this.calls = calls;
         this.onNetwork = onNetwork;
+        this.playerOn = playerOn;
         this.host = host;
         this.guest = guest;
     }
@@ -82,16 +92,47 @@ public final class NetworkPolls {
         }
         subscriptions.add(bus.subscribe(TOPIC, this::heard));
         calls.get().ifPresent(live -> {
-            subscriptions.add(live.answer(VOTE, question -> {
-                Optional<String> ballot = host.vote(UUID.fromString(question.get("poll")),
-                        UUID.fromString(question.get("voter")), question.get("answer"));
-                return ballot.map(name -> Map.of("ballot", name)).orElse(Map.of());
+            subscriptions.add(answering(live, VOTE, (server, question) -> {
+                UUID voter = UUID.fromString(question.get("voter"));
+                if (!playerOn.test(voter, server)) {
+                    rejected.of(server, VOTE);
+                    return Map.of();
+                }
+                return host.vote(UUID.fromString(question.get("poll")), voter, question.get("answer"))
+                        .map(name -> Map.of("ballot", name)).orElse(Map.of());
             }));
-            subscriptions.add(live.answer(COUNTS, question -> host.counts(UUID.fromString(question.get("poll")))
-                    .map(NetworkPolls::encode).orElse(Map.of())));
-            subscriptions.add(live.answer(END, question -> Map.of("ended",
-                    String.valueOf(host.end(UUID.fromString(question.get("poll")))))));
+            subscriptions.add(answering(live, COUNTS, (server, question) ->
+                    askedBy(server, COUNTS, question)
+                            ? host.counts(UUID.fromString(question.get("poll"))).map(NetworkPolls::encode)
+                                    .orElse(Map.of())
+                            : Map.of()));
+            subscriptions.add(answering(live, END, (server, question) ->
+                    askedBy(server, END, question)
+                            ? Map.of("ended", String.valueOf(host.end(UUID.fromString(question.get("poll")))))
+                            : Map.of()));
         });
+    }
+
+    /** An answer that is empty when the question is garbled, instead of a failure in the log for every one. */
+    private static NetworkBus.Subscription answering(NetworkCalls live, String topic,
+                                                     BiFunction<String, Map<String, String>, Map<String, String>> answer) {
+        return live.answerFrom(topic, (server, question) -> {
+            try {
+                return CompletableFuture.completedFuture(answer.apply(server, question));
+            } catch (RuntimeException garbled) {
+                return CompletableFuture.completedFuture(Map.of());
+            }
+        });
+    }
+
+    /** Whether the asking player is on the server that asked, or the asker is that server's console. */
+    private boolean askedBy(String server, String topic, Map<String, String> question) {
+        String asker = question.get("asker");
+        if (asker == null ? "true".equals(question.get("console")) : playerOn.test(UUID.fromString(asker), server)) {
+            return true;
+        }
+        rejected.of(server, topic);
+        return false;
     }
 
     public void stop() {
@@ -130,15 +171,22 @@ public final class NetworkPolls {
                 .thenApply(reply -> reply.map(found -> found.get("ballot")));
     }
 
-    /** @return the votes per answer, in the poll's order; empty when the owning server did not answer */
-    public CompletableFuture<Optional<List<Integer>>> counts(String origin, UUID voteId) {
-        return ask(origin, COUNTS, Map.of("poll", voteId.toString()))
+    private static Map<String, String> asking(UUID voteId, UUID asker) {
+        return asker == null ? Map.of("poll", voteId.toString(), "console", "true")
+                : Map.of("poll", voteId.toString(), "asker", asker.toString());
+    }
+
+    /** @param asker who asks; null for the console
+     *  @return the votes per answer, in the poll's order; empty when the owning server did not answer */
+    public CompletableFuture<Optional<List<Integer>>> counts(String origin, UUID voteId, UUID asker) {
+        return ask(origin, COUNTS, asking(voteId, asker))
                 .thenApply(reply -> reply.flatMap(NetworkPolls::decode));
     }
 
-    /** @return whether the owning server ended it */
-    public CompletableFuture<Boolean> end(String origin, UUID voteId) {
-        return ask(origin, END, Map.of("poll", voteId.toString()))
+    /** @param asker who asks; null for the console
+     *  @return whether the owning server ended it */
+    public CompletableFuture<Boolean> end(String origin, UUID voteId, UUID asker) {
+        return ask(origin, END, asking(voteId, asker))
                 .thenApply(reply -> reply.map(found -> "true".equals(found.get("ended"))).orElse(false));
     }
 
@@ -183,14 +231,19 @@ public final class NetworkPolls {
                 JsonObject payload = JsonParser.parseString(event.payload()).getAsJsonObject();
                 List<String> answers = new ArrayList<>();
                 payload.getAsJsonArray("answers").forEach(answer -> answers.add(answer.getAsString()));
+                UUID starter = UUID.fromString(payload.get("starter").getAsString());
+                if (!playerOn.test(starter, event.server())) {
+                    rejected.of(event.server(), "poll open");
+                    return;
+                }
                 guest.opened(event.server(), new Opened(voteId, payload.get("question").getAsString(),
-                        List.copyOf(answers), UUID.fromString(payload.get("starter").getAsString()),
+                        List.copyOf(answers), starter,
                         payload.get("starterName").getAsString(), payload.get("lasting").getAsLong()));
             } else if (event.key().startsWith("result:")) {
                 List<Integer> counts = new ArrayList<>();
                 JsonParser.parseString(event.payload()).getAsJsonArray()
                         .forEach(count -> counts.add(count.getAsInt()));
-                guest.result(voteId, counts);
+                guest.result(event.server(), voteId, counts);
             }
         } catch (RuntimeException notAPoll) {
             // A malformed poll from another server is one nobody sees, not a broken chat.

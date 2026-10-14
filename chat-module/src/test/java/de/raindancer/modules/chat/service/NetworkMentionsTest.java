@@ -21,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** A mention of somebody on another server pings them there; a note is left only when they are offline everywhere. */
@@ -73,12 +76,12 @@ class NetworkMentionsTest {
                 ChatSettings.DEFAULTS, null);
 
         NetworkCalls smpCalls = new NetworkCalls(hub.bus("smp"));
-        NetworkMentions smpNet = new NetworkMentions(() -> Optional.of(smpCalls), who -> alexIsOn.get(), smp::pingHere);
+        NetworkMentions smpNet = new NetworkMentions(() -> Optional.of(smpCalls), who -> alexIsOn.get(), this::tomIsOn, smp::pingHere);
         smp.network(smpNet);
         smpNet.listen();
         NetworkCalls arenaCalls = new NetworkCalls(hub.bus("arena"));
         NetworkMentions arenaNet = new NetworkMentions(() -> Optional.of(arenaCalls), who -> Optional.empty(),
-                arena::pingHere);
+                this::tomIsOn, arena::pingHere);
         arena.network(arenaNet);
         arenaNet.listen();
     }
@@ -86,6 +89,10 @@ class NetworkMentionsTest {
     @AfterEach
     void tearDown() {
         PlayerTargets.useNicknames(null);
+    }
+
+    private boolean tomIsOn(UUID who, String server) {
+        return who.equals(tom.getUniqueId()) && server.equals("smp");
     }
 
     private void settle() {
@@ -167,5 +174,30 @@ class NetworkMentionsTest {
 
         assertThat(found).singleElement().satisfies(mention -> assertThat(mention.reachable()).isFalse());
         assertThat(inbox.waitingFor(alexId)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a third server cannot make another server ping for a player who is not on it")
+    void forgedMentionIgnored() {
+        NetworkCalls forger = new NetworkCalls(hub.bus("elsewhere"));
+        var asked = forger.ask("arena", NetworkMentions.TOPIC, Map.of("player", alexId.toString(),
+                "fromId", tom.getUniqueId().toString(), "from", "Tom", "text", "forged"), Duration.ofSeconds(2));
+        settle();
+
+        assertThat(asked.join().map(reply -> reply.get("pinged"))).contains("false");
+        verify(alex, never()).playSound(any(Sound.class));
+        verifyNoInteractions(arenaMessages);
+    }
+
+    @Test
+    @DisplayName("a mention without a named mentioner is not pinged")
+    void anonymousMentionIgnored() {
+        NetworkCalls smpAsking = new NetworkCalls(hub.bus("smp"));
+        var asked = smpAsking.ask("arena", NetworkMentions.TOPIC,
+                Map.of("player", alexId.toString(), "from", "Tom", "text", "x"), Duration.ofSeconds(2));
+        settle();
+
+        assertThat(asked.join().map(reply -> reply.get("pinged"))).contains("false");
+        verify(alex, never()).playSound(any(Sound.class));
     }
 }

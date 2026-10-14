@@ -75,7 +75,8 @@
         <!-- 1.17.0: the whole chat config (format, filters, mentions, network chat) follows the SMP over the link (RainsCore 1.136.0 syncFile). -->
         <!-- 1.18.0 (RainsCore 2.0 network edition): public chat reaches every server of a network over the bus; history, chat colours and mentions are network documents (history kept 365 days by default, max 730); panel-feed lives in the database; shareProfile/syncFile gone. -->
         <!-- 1.19.0: on a network @-mentions ping players on other servers, /announce and /ad show everywhere, polls are votable on every server (one vote per player), and /chat clear, freeze and slowmode apply on every server (a server starting later asks the others for the state). -->
-        <plugin.version>1.19.0</plugin.version>
+        <!-- 1.19.1: messages from another server about a player (announce, ad, staff controls, votes, poll end, mentions) are ignored unless the player is on the server that sent them. -->
+        <plugin.version>1.19.1</plugin.version>
     </properties>
 
     <dependencies>

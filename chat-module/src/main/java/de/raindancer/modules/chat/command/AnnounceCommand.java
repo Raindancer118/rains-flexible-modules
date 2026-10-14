@@ -42,7 +42,7 @@ public final class AnnounceCommand implements IChatCommand {
         }
         String text = String.join(" ", args);
 
-        live.network().announce(text);
+        live.network().announce(sender instanceof org.bukkit.entity.Player player ? player.getUniqueId() : null, text);
     }
 
     @Override

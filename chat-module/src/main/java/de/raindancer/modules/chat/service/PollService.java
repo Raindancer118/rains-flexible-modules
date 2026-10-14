@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -173,9 +174,10 @@ public final class PollService implements IChatService {
      * Makes polls reach the other servers of a network: what is started here is shown and votable there, what is
      * started there is shown and votable here.
      */
-    public void network(NetworkBus bus, Supplier<Optional<NetworkCalls>> calls, BooleanSupplier onNetwork) {
+    public void network(NetworkBus bus, Supplier<Optional<NetworkCalls>> calls, BooleanSupplier onNetwork,
+                        BiPredicate<UUID, String> playerOn) {
         stopNetwork();
-        NetworkPolls polls = new NetworkPolls(bus, calls, onNetwork, new NetworkPolls.Host() {
+        NetworkPolls polls = new NetworkPolls(bus, calls, onNetwork, playerOn, new NetworkPolls.Host() {
             @Override
             public Optional<String> vote(UUID voteId, UUID voter, String answer) {
                 return ownPoll(voteId) ? Optional.of(votes.cast(voteId, voter, answer).name()) : Optional.empty();
@@ -199,8 +201,8 @@ public final class PollService implements IChatService {
             }
 
             @Override
-            public void result(UUID voteId, List<Integer> counts) {
-                endedElsewhere(voteId, counts);
+            public void result(String origin, UUID voteId, List<Integer> counts) {
+                endedElsewhere(origin, voteId, counts);
             }
         });
         polls.listen();
@@ -298,9 +300,9 @@ public final class PollService implements IChatService {
         later.run(Math.max(1, lasting.plus(GRACE).toMillis() / 50), () -> running.remove(poll.voteId()));
     }
 
-    private void endedElsewhere(UUID voteId, List<Integer> counts) {
+    private void endedElsewhere(String origin, UUID voteId, List<Integer> counts) {
         Running poll = running.get(voteId);
-        if (poll == null || !poll.elsewhere() || !running.remove(voteId, poll)) {
+        if (poll == null || !poll.elsewhere() || !poll.origin().equals(origin) || !running.remove(voteId, poll)) {
             return;
         }
         show(results(poll, Standing.of(poll.answers(), counts), true));
@@ -383,11 +385,15 @@ public final class PollService implements IChatService {
         if (poll.get().elsewhere()) {
             NetworkPolls polls = network;
             if (polls != null) {
-                polls.end(poll.get().origin(), poll.get().voteId());
+                polls.end(poll.get().origin(), poll.get().voteId(), idOf(who));
             }
             return;
         }
         finish(poll.get().voteId());
+    }
+
+    private static UUID idOf(CommandSender who) {
+        return who instanceof Player player ? player.getUniqueId() : null;
     }
 
     /** The results as they stand, for whoever asks. */
@@ -403,7 +409,7 @@ public final class PollService implements IChatService {
             if (polls == null) {
                 return;
             }
-            polls.counts(shown.origin(), shown.voteId()).thenAccept(counts -> {
+            polls.counts(shown.origin(), shown.voteId(), idOf(who)).thenAccept(counts -> {
                 if (counts.isEmpty()) {
                     messages.send(who, "chat.poll.unreachable");
                 } else {

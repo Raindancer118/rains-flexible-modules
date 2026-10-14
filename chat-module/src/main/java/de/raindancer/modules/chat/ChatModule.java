@@ -27,6 +27,7 @@ import org.bukkit.Server;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
@@ -48,7 +49,7 @@ import java.util.function.Predicate;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.19.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.19.1")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -144,13 +145,15 @@ public final class ChatModule implements FlexModule {
         Predicate<UUID> mutedHere = who ->
                 core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE);
         BooleanSupplier onNetwork = () -> core.network().isNetwork();
+        BiPredicate<UUID, String> playerOn = (who, at) -> core.networkPlayers()
+                .flatMap(players -> players.where(who, true)).map(there -> there.server().equals(at)).orElse(false);
 
         // Everything below crosses to the other servers of a network and does nothing more than today on a server of its own.
         NetworkMentions networkMentions = new NetworkMentions(core::networkCalls,
                 who -> core.networkPlayers().flatMap(players -> players.where(who, false))
                         .map(Presence.Here::server)
                         .filter(there -> core.networkPlayers().map(players -> !there.equals(players.self())).orElse(false)),
-                mentions::pingHere);
+                playerOn, mentions::pingHere);
         mentions.network(networkMentions);
         networkMentions.listen();
         context.closeWith(networkMentions::stop);
@@ -160,12 +163,12 @@ public final class ChatModule implements FlexModule {
         ChatNetwork chatNetwork = new ChatNetwork(core.bus(), core::networkCalls, onNetwork,
                 () -> core.networkPlayers().map(players -> players.servers().stream().map(NetworkServers.Server::id)
                         .filter(id -> !id.equals(players.self())).toList()).orElse(List.of()),
-                mutedHere, effects, System::currentTimeMillis);
+                mutedHere, playerOn, effects, System::currentTimeMillis);
         chatNetwork.listen();
         chatNetwork.catchUp();
         context.closeWith(chatNetwork::stop);
 
-        polls.network(core.bus(), core::networkCalls, onNetwork);
+        polls.network(core.bus(), core::networkCalls, onNetwork, playerOn);
         context.closeWith(polls::stopNetwork);
 
         services = new ChatServices(context.plugin(), server, context.core(), log,
