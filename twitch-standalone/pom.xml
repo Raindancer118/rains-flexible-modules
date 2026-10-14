@@ -32,7 +32,7 @@
         <!-- 0.1.3: the announcer takes its links as a supplier, so the delivery across a link is tested (AnnouncerLinkTest). -->
         <!-- 0.2.0: on a network one server asks Twitch (the "twitch" role, taken over when its holder stops) and tells the rest over the network bus; the login and the announced streams are network documents. -->
         <!-- 0.3.0: the login is a secret in the network database (RAINS_TWITCH_CLIENT_ID/SECRET win), set with /twitch login from the console; an old credentials.yml is moved over and emptied. -->
-        <plugin.version>0.4.0</plugin.version>
+        <plugin.version>0.4.1</plugin.version>
     </properties>
 
     <dependencies>

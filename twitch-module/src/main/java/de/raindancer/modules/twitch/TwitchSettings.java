@@ -55,7 +55,7 @@ public record TwitchSettings(
 
         @In("twitch") @Title("The streamer's Minecraft name")
         @Describe("Who the stream is of, in the game. The advancements Caught on Stream (ten minutes near them while "
-                + "live) and Clip That! (dying near them) need it; empty, nobody earns those two.")
+                + "live) and Clip That! (dying near them) need it; empty, nobody earns those two. Lilly's is lillyyxoxo.")
         @Key("streamer-minecraft-name")
         String streamerName,
 
@@ -64,7 +64,7 @@ public record TwitchSettings(
         @Key("near-blocks")
         int nearBlocks) {
 
-    public static final TwitchSettings DEFAULTS = new TwitchSettings(true, "lillyyxoxo_", 60, 3, 15, true, "", 32);
+    public static final TwitchSettings DEFAULTS = new TwitchSettings(true, "lillyyxoxo_", 60, 3, 15, true, "lillyyxoxo", 32);
 
     public String channelClean() {
         String clean = channel == null ? "" : channel.strip().toLowerCase(java.util.Locale.ROOT);

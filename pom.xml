@@ -66,7 +66,7 @@
         <xpbottle-module.version>1.4.0</xpbottle-module.version>
         <sends-module.version>0.3.0</sends-module.version>
         <oneblock-module.version>0.3.1</oneblock-module.version>
-        <twitch-module.version>0.4.0</twitch-module.version>
+        <twitch-module.version>0.4.1</twitch-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.6.0</arena-api.version>
         <arena-module.version>0.14.1</arena-module.version>

@@ -31,7 +31,7 @@ import java.util.List;
  */
 public final class TwitchModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("twitch", "Twitch", "0.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("twitch", "Twitch", "0.4.1")
             .describedAs("A chat announcement on every server when the channel goes live and when it ends, and advancements for watching.")
             .by("Raindancer118");
 
