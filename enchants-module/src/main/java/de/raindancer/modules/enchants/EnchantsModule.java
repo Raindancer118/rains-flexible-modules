@@ -50,7 +50,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.11.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.12.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -118,6 +118,8 @@ public final class EnchantsModule implements FlexModule {
         ShardPortalService portals = new ShardPortalService(context.plugin(), context.core().land(), shardWorlds, settings::current,
                 advancements, context.core().messages(), context.core().effects());
         ShardMobService shardMobs = new ShardMobService(context.plugin(), shardWorlds);
+        context.listener(new de.raindancer.modules.enchants.listener.CrystalWitherListener(context.plugin(), shardWorlds,
+                shardMobs));
         de.raindancer.modules.enchants.listener.ShardBiomeListener purple =
                 new de.raindancer.modules.enchants.listener.ShardBiomeListener(shardWorlds);
         context.listener(purple);

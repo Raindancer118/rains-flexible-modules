@@ -32,7 +32,8 @@
         <!-- 0.9.0: the shard world is purple — sky, fog, clouds and light — from purple copies of the game's biomes in a datapack written at bootstrap; each chunk is switched to them once. -->
         <!-- 0.10.0: Heat-seeking (bows, crossbows, tridents, I–III): a shot locks onto the creature nearest the aim that the shooter may hurt and flies into it. -->
         <!-- 0.11.0: Thor — an axe or mace thrown like Mjölnir (lightning, flies back; the weapon never leaves the inventory), a trident calls a storm where it lands; the shard world's rain spares its endermen; shards-per-hour 0 is no limit; a hunting creature no longer fails on a target gone to another world. -->
-        <plugin.version>0.11.0</plugin.version>
+        <!-- 0.12.0: the Crystal Wither — built like a wither, of amethyst blocks, in the shard world; a wither of the Crystal kind. -->
+        <plugin.version>0.12.0</plugin.version>
     </properties>
 
     <dependencies>

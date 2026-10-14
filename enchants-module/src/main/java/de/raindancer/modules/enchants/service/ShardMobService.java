@@ -37,6 +37,8 @@ public final class ShardMobService {
 
     /** How far an always-angry creature looks for somebody to go for. */
     private static final double HUNT_BLOCKS = 24;
+    /** As long as a built wither charges before it fights: the game's own. */
+    private static final int WITHER_CHARGE_TICKS = 220;
     private static final int ANGER_TICKS = 400;
 
     private final Plugin plugin;
@@ -92,6 +94,17 @@ public final class ShardMobService {
                 && target.distanceSquared(mob) <= within * within;
     }
 
+    /**
+     * Raises a Crystal Wither where its build stood: the game's wither, of the Crystal kind, charging up as a built
+     * wither does. Only in the shard world.
+     */
+    public org.bukkit.entity.Wither crystalWither(org.bukkit.Location base) {
+        org.bukkit.entity.Wither wither = base.getWorld().spawn(base.clone().add(0.5, 0, 0.5), org.bukkit.entity.Wither.class,
+                made -> made.setInvulnerableTicks(WITHER_CHARGE_TICKS));
+        giveKind(wither, ShardTier.CRYSTAL);
+        return wither;
+    }
+
     /** Keeps an always-angry creature on the nearest player who can be hurt, angry the way its kind gets angry. */
     private static void hunt(Mob mob) {
         if (mob.getTarget() instanceof Player held && huntable(held)
@@ -133,7 +146,11 @@ public final class ShardMobService {
         if (!(entity instanceof Mob mob) || !bySelf(reason) || !worlds.isShardWorld(entity.getWorld())) {
             return;
         }
-        ShardTier tier = ShardTier.roll(ThreadLocalRandom.current());
+        giveKind(mob, ShardTier.roll(ThreadLocalRandom.current()));
+    }
+
+    /** Makes a creature one of the shard world's: its kind's name, strength and shards. */
+    public void giveKind(Mob mob, ShardTier tier) {
         mob.getPersistentDataContainer().set(TIER, PersistentDataType.STRING, tier.key());
         mob.customName(MiniMessage.miniMessage().deserialize(tier.title(),
                 Placeholder.component("name", Component.translatable(mob.getType().translationKey()))));
