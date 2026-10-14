@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.Auction;
 import de.raindancer.modules.economy.model.AuctionBid;
@@ -9,6 +10,7 @@ import de.raindancer.modules.economy.model.AuctionEnd;
 import de.raindancer.modules.economy.rules.AuctionRule;
 import de.raindancer.modules.economy.rules.BalanceRule;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Auctions in the ledger: the item and the bids are held in escrow, an outbid bidder is paid back at once,
  * and all of it — queue, live auction, money held and items owed — survives a restart.
  */
+@Tag("database")
 @DisplayName("auctions in the ledger")
 class AuctionBookTest {
 
@@ -45,7 +48,7 @@ class AuctionBookTest {
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         book.open(seller, "Sel", Money.of(1_000));
@@ -61,7 +64,7 @@ class AuctionBookTest {
     private AccountBook reopened() {
         book.flush();
         database.close();
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         AccountBook fresh = new AccountBook(database, new BalanceRule(), clock::get);
         fresh.load();
         return fresh;

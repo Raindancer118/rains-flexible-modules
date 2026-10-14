@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.social.economy.EconomyResult;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.Loan;
@@ -9,6 +10,7 @@ import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.BalanceRule;
 import de.raindancer.modules.economy.rules.LoanRule;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Loans in the ledger: borrowing, paying back, the bank collecting, and all of it surviving a restart. */
+@Tag("database")
 class LoanBookTest {
 
     private static final long DAY = LoanRule.DAY;
@@ -37,7 +40,7 @@ class LoanBookTest {
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         book.open(alice, "Alice", Money.of(100));
@@ -118,7 +121,7 @@ class LoanBookTest {
         book.repay(alice, Money.of(100));
         book.flush();
         database.close();
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         assertThat(book.loanOf(alice)).map(Loan::owed).contains(Money.of(1_000));
@@ -127,7 +130,7 @@ class LoanBookTest {
         book.forgive(alice);
         book.flush();
         database.close();
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         assertThat(book.loanOf(alice)).isEmpty();

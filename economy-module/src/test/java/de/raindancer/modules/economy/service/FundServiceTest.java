@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.service;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.EconomySettings;
 import de.raindancer.modules.economy.model.Fund;
@@ -10,6 +11,7 @@ import de.raindancer.modules.economy.store.AccountBook;
 import de.raindancer.modules.economy.store.EconomyDatabase;
 import de.raindancer.modules.economy.store.SupplyBook;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("database")
 class FundServiceTest {
 
     @TempDir
@@ -39,7 +42,7 @@ class FundServiceTest {
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         book.open(alice, "Alice", Money.of(1_000));

@@ -55,7 +55,8 @@
         <!-- 0.37.0: tipped arrows in the shop (Potions drawer; 8 arrows + 1 lingering potion make 8, the craft markup on that; click buys 8, shift 64). -->
         <!-- 0.38.0: on a network — the cash key is the network's secret (old cash.key carried over, money stays good), /pay from other servers through the bank. -->
         <!-- 0.39.0: a server that is not the network's bank runs /balance, /pay and /baltop against it (no ledger of its own); the bank answers /baltop and tells payees on other servers; pay/gamble waits follow the player; the ledger loads and saves on PostgreSQL. -->
-        <plugin.version>0.39.0</plugin.version>
+        <!-- 0.39.1: PostgreSQL fixes: no INSERT OR IGNORE (auction claims, notes, gamble insurance), the flows report reads its boolean column as one; every store test runs on both dialects. -->
+        <plugin.version>0.39.1</plugin.version>
     </properties>
 
     <dependencies>

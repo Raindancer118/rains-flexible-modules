@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.AuctionClaim;
 import de.raindancer.modules.economy.model.Raffle;
@@ -8,6 +9,7 @@ import de.raindancer.modules.economy.model.RaffleBuy;
 import de.raindancer.modules.economy.model.RaffleDraw;
 import de.raindancer.modules.economy.rules.BalanceRule;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Raffles in the ledger: the prize and every ticket's money are held until the draw, and the queue of
  * tickets survives a restart.
  */
+@Tag("database")
 @DisplayName("raffles in the ledger")
 class RaffleBookTest {
 
@@ -44,7 +47,7 @@ class RaffleBookTest {
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         book.open(host, "Host", Money.of(5_000));
@@ -60,7 +63,7 @@ class RaffleBookTest {
     private AccountBook reopened() {
         book.flush();
         database.close();
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         AccountBook fresh = new AccountBook(database, new BalanceRule(), clock::get);
         fresh.load();
         return fresh;

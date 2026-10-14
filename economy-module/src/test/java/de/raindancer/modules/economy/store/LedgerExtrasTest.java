@@ -1,10 +1,12 @@
 package de.raindancer.modules.economy.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.BalanceRule;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** What the ledger keeps for the anti-inflation tools: where money came from, today's takings, idle money. */
+@Tag("database")
 class LedgerExtrasTest {
 
     @TempDir
@@ -31,7 +34,7 @@ class LedgerExtrasTest {
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         book.open(alice, "Alice", Money.of(1_000));
@@ -46,7 +49,7 @@ class LedgerExtrasTest {
     private AccountBook reopened() {
         book.flush();
         database.close();
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         AccountBook fresh = new AccountBook(database, new BalanceRule(), clock::get);
         fresh.load();
         return fresh;

@@ -3,7 +3,9 @@ package de.raindancer.modules.farmworld;
 import de.raindancer.modules.farmworld.model.WorldSet;
 import de.raindancer.modules.farmworld.store.FarmWorldState;
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
  * suspicious: it refuses anything outside the server directory, anything that is not a world folder
  * we manage, and anything reached through a link.
  */
+@Tag("database")
 class FarmWorldStateTest {
 
     private Database openedDatabase;
@@ -37,8 +40,7 @@ class FarmWorldStateTest {
     /** One database per test, opened on first use so the temporary directory already exists. */
     private Database database() {
         if (openedDatabase == null || !openedDatabase.isUsable()) {
-            openedDatabase = Database.open(serverDirectory.resolve("core.db"), FarmWorldState.SCHEMA,
-                    () -> false);
+            openedDatabase = TestDatabases.open(serverDirectory.resolve("core.db"), FarmWorldState.SCHEMA);
         }
         return openedDatabase;
     }
@@ -171,8 +173,7 @@ class FarmWorldStateTest {
         @DisplayName("a missing file is simply no farm worlds")
         void survivesAMissingFile() {
             FarmWorldState fresh = new FarmWorldState(serverDirectory.resolve("nothing.yml"),
-                    Database.open(serverDirectory.resolve("never-used.db"), FarmWorldState.SCHEMA,
-                            () -> false));
+                    TestDatabases.open(serverDirectory.resolve("never-used.db"), FarmWorldState.SCHEMA));
             assertThatCode(fresh::load).doesNotThrowAnyException();
             assertThat(fresh.all()).isEmpty();
         }
@@ -589,10 +590,8 @@ class FarmWorldStateTest {
 
         @BeforeEach
         void openBoth() {
-            legacyCore = Database.open(serverDirectory.resolve("core.db"), FarmWorldState.SCHEMA,
-                    () -> false);
-            ownDatabase = Database.open(serverDirectory.resolve("farmworld.db"), FarmWorldState.SCHEMA,
-                    () -> false);
+            legacyCore = TestDatabases.open(serverDirectory.resolve("core.db"), FarmWorldState.SCHEMA);
+            ownDatabase = TestDatabases.open(serverDirectory.resolve("farmworld.db"), FarmWorldState.SCHEMA);
         }
 
         @AfterEach
@@ -715,8 +714,7 @@ class FarmWorldStateTest {
         @Test
         @DisplayName("a legacy database that will not open is not a reason to fail startup")
         void survivesAnUnusableLegacyDatabase() {
-            Database closed = Database.open(serverDirectory.resolve("gone.db"), FarmWorldState.SCHEMA,
-                    () -> false);
+            Database closed = TestDatabases.open(serverDirectory.resolve("gone.db"), FarmWorldState.SCHEMA);
             closed.close();
             FarmWorldState state = new FarmWorldState(serverDirectory.resolve("farmworlds.yml"),
                     ownDatabase);

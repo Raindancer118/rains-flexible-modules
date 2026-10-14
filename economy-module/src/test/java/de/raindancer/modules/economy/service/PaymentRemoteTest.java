@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.service;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.platform.network.NetworkCooldowns;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.chat.ChatButtons;
@@ -14,6 +15,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** A payment made at the bank for a player on another server: the payee is told wherever they are. */
+@Tag("database")
 class PaymentRemoteTest {
 
     private static final UUID PAYER = UUID.randomUUID();
@@ -53,7 +56,7 @@ class PaymentRemoteTest {
 
     @BeforeEach
     void bank() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         AccountBook book = new AccountBook(database, new BalanceRule(), () -> 1_000_000L);
         book.load();
         book.open(PAYER, "Alex", Money.of(100_000));

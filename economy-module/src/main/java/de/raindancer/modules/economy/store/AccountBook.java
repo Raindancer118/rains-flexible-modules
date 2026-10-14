@@ -2174,8 +2174,8 @@ public final class AccountBook {
                     }
                 }
                 try (PreparedStatement insert = connection.prepareStatement(
-                        "INSERT OR IGNORE INTO auction_claim (id, player, item, item_name, reason, at) "
-                                + "VALUES (?, ?, ?, ?, ?, ?)");
+                        "INSERT INTO auction_claim (id, player, item, item_name, reason, at) "
+                                + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING");
                      PreparedStatement delete = connection.prepareStatement("DELETE FROM auction_claim WHERE id = ?")) {
                     for (Map.Entry<UUID, AuctionClaim> each : claimWrites.entrySet()) {
                         AuctionClaim claim = each.getValue();
@@ -2286,7 +2286,7 @@ public final class AccountBook {
                     }
                 }
                 try (PreparedStatement issue = connection.prepareStatement(
-                        "INSERT OR IGNORE INTO note (serial, value, issued_to, issued_at) VALUES (?, ?, ?, ?)");
+                        "INSERT INTO note (serial, value, issued_to, issued_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING");
                      PreparedStatement redeem = connection.prepareStatement(
                              "UPDATE note SET redeemed_by = ?, redeemed_at = ? WHERE serial = ?")) {
                     for (NoteWrite note : noteWrites) {
@@ -2433,7 +2433,7 @@ public final class AccountBook {
                 try (ResultSet rows = select.executeQuery()) {
                     while (rows.next()) {
                         boolean system = isSystem(UUID.fromString(rows.getString(1)));
-                        boolean other = rows.getInt(2) != 0;
+                        boolean other = rows.getBoolean(2);
                         TransactionKind kind = TransactionKind.read(rows.getString(3));
                         String source = rows.getString(4);
                         String label = source == null || source.isBlank() ? kind.label() : source;

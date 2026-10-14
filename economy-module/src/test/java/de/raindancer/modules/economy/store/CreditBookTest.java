@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.data.sql.Schema;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.CreditHistory;
@@ -9,6 +10,7 @@ import de.raindancer.modules.economy.model.TransactionKind;
 import de.raindancer.modules.economy.rules.BalanceRule;
 import de.raindancer.modules.economy.rules.LoanRule;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** What an account ever took in and paid out, and how its loans ended — for life, whatever the statement keeps. */
+@Tag("database")
 class CreditBookTest {
 
     private static final long DAY = LoanRule.DAY;
@@ -31,7 +34,7 @@ class CreditBookTest {
     private final UUID alice = UUID.randomUUID();
 
     private Database open(Schema schema) {
-        return Database.open(folder.resolve("economy.db"), schema, () -> false);
+        return TestDatabases.open(folder.resolve("economy.db"), schema);
     }
 
     private AccountBook book(Database database) {

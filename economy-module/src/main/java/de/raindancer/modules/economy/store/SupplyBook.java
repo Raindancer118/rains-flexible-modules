@@ -176,7 +176,7 @@ public final class SupplyBook {
     public boolean insureGambler(UUID player, boolean insured) {
         return database.write(connection -> {
             try (PreparedStatement change = connection.prepareStatement(insured
-                    ? "INSERT OR IGNORE INTO gamble_insured (account) VALUES (?)"
+                    ? "INSERT INTO gamble_insured (account) VALUES (?) ON CONFLICT DO NOTHING"
                     : "DELETE FROM gamble_insured WHERE account = ?")) {
                 change.setString(1, player.toString());
                 change.executeUpdate();

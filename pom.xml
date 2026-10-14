@@ -68,12 +68,12 @@
         <twitch-module.version>0.3.0</twitch-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.6.0</arena-api.version>
-        <arena-module.version>0.14.0</arena-module.version>
+        <arena-module.version>0.14.1</arena-module.version>
         <arenagate-module.version>0.8.1</arenagate-module.version>
         <veintoggle-module.version>0.5.0</veintoggle-module.version>
         <enchants-module.version>0.2.0</enchants-module.version>
         <performance-module.version>0.2.0</performance-module.version>
-        <economy-module.version>0.39.0</economy-module.version>
+        <economy-module.version>0.39.1</economy-module.version>
         <roles-module.version>0.8.0</roles-module.version>
         <ranks-module.version>0.5.0</ranks-module.version>
         <jobs-module.version>0.9.1</jobs-module.version>

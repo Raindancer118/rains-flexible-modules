@@ -1,11 +1,13 @@
 package de.raindancer.modules.economy.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.social.economy.EconomyResult.Outcome;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.economy.model.Auction;
 import de.raindancer.modules.economy.rules.BalanceRule;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The ledger's side of the new sinks: jumping the auction queue, and a season ending. */
+@Tag("database")
 class SinksBookTest {
 
     @TempDir
@@ -33,7 +36,7 @@ class SinksBookTest {
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA, () -> false);
+        database = TestDatabases.open(folder.resolve("economy.db"), EconomyDatabase.SCHEMA);
         book = new AccountBook(database, new BalanceRule(), clock::get);
         book.load();
         book.open(alice, "Alice", Money.of(1_000));

@@ -1,9 +1,11 @@
 package de.raindancer.modules.arena.store;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.modules.arena.model.Kit;
 import de.raindancer.modules.arena.model.Stats;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@Tag("database")
 class KitsAndStatsTest {
 
     @TempDir
@@ -61,7 +64,7 @@ class KitsAndStatsTest {
     @Test
     @DisplayName("stats add up, the best wave is the best ever, and the leaderboard is in order")
     void stats() {
-        Database database = Database.open(folder.resolve("arena.db"), StatsDatabase.SCHEMA, () -> false);
+        Database database = TestDatabases.open(folder.resolve("arena.db"), StatsDatabase.SCHEMA);
         try {
             StatsStore stats = new StatsStore(database);
             UUID ada = UUID.randomUUID();
@@ -83,7 +86,7 @@ class KitsAndStatsTest {
     @Test
     @DisplayName("fights ending at once all count — no result is lost to another written at the same moment")
     void concurrentAdds() throws Exception {
-        Database database = Database.open(folder.resolve("arena.db"), StatsDatabase.SCHEMA, () -> false);
+        Database database = TestDatabases.open(folder.resolve("arena.db"), StatsDatabase.SCHEMA);
         try {
             StatsStore stats = new StatsStore(database);
             UUID ada = UUID.randomUUID();

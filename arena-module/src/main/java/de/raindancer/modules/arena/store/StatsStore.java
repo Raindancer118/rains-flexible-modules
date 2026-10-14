@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Stats in SQLite. Each fight's result is added in one statement per player — {@code wins = wins + 1} — so two fights
+ * Stats in the database. Each fight's result is added in one statement per player — {@code wins = wins + 1} — so two fights
  * ending at once cannot both read the old numbers and one of them be lost.
  */
 public final class StatsStore {
@@ -27,9 +27,10 @@ public final class StatsStore {
             try (PreparedStatement row = connection.prepareStatement(
                     "INSERT INTO stats (player, name, wins, losses, draws, kills, deaths, best_wave) "
                             + "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(player) DO UPDATE SET name = excluded.name, "
-                            + "wins = wins + excluded.wins, losses = losses + excluded.losses, "
-                            + "draws = draws + excluded.draws, kills = kills + excluded.kills, "
-                            + "deaths = deaths + excluded.deaths, best_wave = MAX(best_wave, excluded.best_wave)")) {
+                            + "wins = stats.wins + excluded.wins, losses = stats.losses + excluded.losses, "
+                            + "draws = stats.draws + excluded.draws, kills = stats.kills + excluded.kills, "
+                            + "deaths = stats.deaths + excluded.deaths, best_wave = CASE WHEN stats.best_wave > "
+                            + "excluded.best_wave THEN stats.best_wave ELSE excluded.best_wave END")) {
                 row.setString(1, player.toString());
                 row.setString(2, name);
                 row.setInt(3, wins);
