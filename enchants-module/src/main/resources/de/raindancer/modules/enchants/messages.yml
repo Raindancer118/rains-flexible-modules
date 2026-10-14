@@ -17,3 +17,8 @@ enchants:
   link-missing: "<gray>This tool has Chest Link but no chest yet. <white>Sneak and right-click a chest</white> to link it."
   link-missed: "<gray>Your linked chest is full or gone, so what you mined came to you."
   link-elsewhere: "<gray>Your linked chest is not on this server, so what you mined came to you."
+  portal-opened: "<light_purple>The portal hums open. <gray>It leads to the shard world, where it is always night."
+  portal-arrived: "<light_purple>The shard world. <gray>Monsters here drop the enchantments' shards. Any portal takes you back."
+  shard-dropped: "<light_purple>+1 <white><name></white> shard"
+  shard-given: "<green>Gave <white><player></white> <white><amount></white> shard(s) of <white><name></white>."
+  shard-usage: "<gray>/enchants shard <player> <enchantment> [amount] <dark_gray>— staff"

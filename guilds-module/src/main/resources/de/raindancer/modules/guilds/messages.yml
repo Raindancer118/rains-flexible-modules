@@ -107,6 +107,12 @@ guilds:
     boost: "<gray>/guild admin boost <percent> <time> <dark_gray>— e.g. 50 2h · or <gray>/guild admin boost off"
   style-unreadable: "<red><problem> <gray>Colours are chat colours (gold, aqua…) or #hex codes."
   style-locked: "<red>Your guild paints its tag and name from level <white><level></white>. Earn it first — fame is not free."
+  enchant-no-guild: "<red>Only a guild can unlock Rain's enchantments. Join one, or found your own."
+  enchant-no-shards: "<red>You carry no <white><name></white> shards."
+  enchant-already: "<gray><white><name></white> is unlocked for your guild already. Buy its books at the shop."
+  enchant-paid: "<light_purple>You paid in <white><amount></white> <name> shard(s). <gray><paid>/<needed> towards unlocking it."
+  enchant-unlocked: "<gold>Your guild unlocked <white><name></white>! <gray>Every member can buy its books at the shop now."
+  enchant-failed: "<red>The guild's records could not be written just now. Your shards are back with you."
   outcome:
     success: "<green>Done."
     asked: "<green>Asked. <gray>They have been told."

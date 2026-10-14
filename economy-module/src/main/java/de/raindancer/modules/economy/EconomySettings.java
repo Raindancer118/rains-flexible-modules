@@ -37,6 +37,7 @@ import java.util.List;
         @Topic(path = "economy/shop", title = "Shop", icon = Material.EMERALD),
         @Topic(path = "economy/experience", title = "Experience", icon = Material.EXPERIENCE_BOTTLE),
         @Topic(path = "economy/shop/categories", title = "Shop categories", icon = Material.CHEST),
+        @Topic(path = "economy/shop/rains-enchantments", title = "Rain's enchantments", icon = Material.ECHO_SHARD),
         @Topic(path = "economy/earn", title = "Earning", icon = Material.DIAMOND_PICKAXE),
         @Topic(path = "economy/interest", title = "Interest", icon = Material.CLOCK),
         @Topic(path = "economy/shop/spawn-eggs", title = "Spawn eggs", icon = Material.PIG_SPAWN_EGG),
@@ -854,7 +855,29 @@ public record EconomySettings(
         @In("economy/shop") @Title("Cheaper in bulk")
         @Describe("Shop drawers (building_blocks, decorations…) and items ('iron_ingot', '*_planks'), comma "
                 + "separated; '!diamond_block' leaves one out.")
-        @Key("shop.bulk-items") List<String> bulkItems) {
+        @Key("shop.bulk-items") List<String> bulkItems,
+
+        @In("economy/shop/rains-enchantments") @Title("Rain's enchantments in the shop")
+        @Describe("A drawer selling the books of Rain's enchantments to the members of a guild that unlocked "
+                + "them, for the enchantment's shards and money.")
+        @Key("rains-enchantments.enabled") boolean rainsEnchantments,
+
+        @In("economy/shop/rains-enchantments") @Title("Shards per level")
+        @Describe("How many of its shards a book takes, level I first, comma separated. Past the last, each "
+                + "level doubles it.")
+        @Key("rains-enchantments.shards") List<String> rainsEnchantShards,
+
+        @In("economy/shop/rains-enchantments") @Title("Money per level")
+        @Describe("Paid on top of the shards, times the level.")
+        @Key("rains-enchantments.money-per-level") String rainsEnchantMoney,
+
+        @In("economy/shop/rains-enchantments") @Title("What the shop pays for a shard")
+        @Describe("Shards sell like any item, one stack at a time. Zero and the shop takes none.")
+        @Key("rains-enchantments.shard-price") String shardPrice,
+
+        @In("economy/shop/rains-enchantments") @Title("Shard prices by enchantment")
+        @Describe("'<enchantment> <price>' per line, for shards worth more or less than the rest.")
+        @Key("rains-enchantments.shard-prices") List<String> shardPrices) {
 
     public static final EconomySettings DEFAULTS = new EconomySettings(
             // currency
@@ -916,9 +939,24 @@ public record EconomySettings(
                     "*_concrete_powder", "*terracotta", "rail",
                     "!*_ore", "!ancient_debris", "!diamond_block", "!emerald_block", "!gold_block",
                     "!netherite_block", "!lapis_block", "!redstone_block", "!coal_block", "!raw_gold_block",
-                    "!raw_copper_block", "!amethyst_block", "!glass_bottle", "!*_shulker_box"));
+                    "!raw_copper_block", "!amethyst_block", "!glass_bottle", "!*_shulker_box"),
+            // Rain's enchantments
+            true, List.of("8", "24", "64", "128", "256"), "250", "20",
+            List.of("flight 60", "launch 60", "soulbound 60", "veinminer 35", "excavator 35", "chest_link 35",
+                    "auto_sell 35", "boost 35"));
 
     /** The currency these settings describe. */
+    public de.raindancer.modules.economy.rules.ShardPriceRule shardPricing() {
+        return new de.raindancer.modules.economy.rules.ShardPriceRule(rainsEnchantShards,
+                money(rainsEnchantMoney, DEFAULTS.rainsEnchantMoney));
+    }
+
+    /** What the shop pays for one shard of this enchantment ({@code rainsenchants:boost}); zero takes none. */
+    public Money shardPrice(String enchantment) {
+        String bare = enchantment.substring(enchantment.indexOf(':') + 1);
+        return de.raindancer.modules.economy.model.PricedNames.parse(shardPrices, currency()).of(bare).orElseGet(() -> money(shardPrice, DEFAULTS.shardPrice));
+    }
+
     public Currency currency() {
         char group = firstChar(groupSeparator, ',');
         return new Currency(currencySingular, currencyPlural, currencySymbol, currencyPlacement, 0,

@@ -90,6 +90,10 @@ public final class EnchantAdvancements {
                 "Have drops fly straight into your inventory", AdvancementFrame.TASK, 1);
         child("chest_link", "root", Material.ENDER_CHEST, "Special Delivery",
                 "Send what you mined to a linked chest", AdvancementFrame.TASK, 1);
+        child("shardlands", "root", Material.CRYING_OBSIDIAN, "Into the Dark",
+                "Step through a portal into the shard world", AdvancementFrame.TASK, 1);
+        child("first_shard", "shardlands", Material.ECHO_SHARD, "Shard Hunter",
+                "Take an enchantment's shard off a monster in the shard world", AdvancementFrame.TASK, 1);
         child("full_set", "root", Material.NETHER_STAR, "Fully Enchanted",
                 "Use every one of Rain's " + FIRST_USE.size() + " enchantments", AdvancementFrame.CHALLENGE,
                 FIRST_USE.size());
@@ -176,6 +180,15 @@ public final class EnchantAdvancements {
         if (blocks >= LAUNCH_BLOCKS) {
             advancements.award(player, "rainsenchants:ludicrous_speed");
         }
+    }
+
+    public void enteredShardWorld(UUID player) {
+        advancements.award(player, ROOT);
+        advancements.award(player, "rainsenchants:shardlands");
+    }
+
+    public void foundShard(UUID player) {
+        advancements.award(player, "rainsenchants:first_shard");
     }
 
     public void forget(UUID player) {

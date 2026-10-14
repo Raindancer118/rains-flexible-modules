@@ -15,6 +15,7 @@ class GuildsSettingsTest {
     @DisplayName("founding costs nothing by default, so a server needs no economy")
     void money() {
         assertThat(defaults.foundingPrice()).isEqualTo("0");
+        assertThat(defaults.unlockShards()).isEqualTo(100);
         assertThat(defaults.bankEnabled()).isTrue();
         assertThat(defaults.bankMost()).isEmpty();
         assertThat(defaults.disbandShare()).isEqualTo(ShareRule.Mode.CONTRIBUTION);

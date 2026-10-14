@@ -560,6 +560,102 @@ public final class ShopService implements IEconomyService {
                 "amount", currency.render(price.get()));
     }
 
+    // ---------------------------------------------------------------------------- Rain's enchantments
+
+    /** One book in the drawer of Rain's enchantments: the enchantment, a level, and whether this player may buy it. */
+    public record RainsOffer(String enchantment, int level, int shards, Money money, boolean unlocked) {
+    }
+
+    public static String rainsName(String enchantment) {
+        return de.raindancer.core.content.enchant.CustomEnchantments.find(enchantment)
+                .map(found -> net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                        .serialize(found.description()))
+                .orElse(enchantment);
+    }
+
+    /** Every level of every one of Rain's enchantments, locked ones too — the drawer says how to unlock them. */
+    public List<RainsOffer> rainsOffers(UUID player) {
+        EconomySettings live = settings;
+        if (!live.rainsEnchantments()) {
+            return List.of();
+        }
+        de.raindancer.modules.economy.rules.ShardPriceRule pricing = live.shardPricing();
+        List<RainsOffer> offers = new ArrayList<>();
+        try {
+            io.papermc.paper.registry.RegistryAccess.registryAccess()
+                    .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT).stream()
+                    .filter(enchantment -> enchantment.getKey().getNamespace().equals("rainsenchants"))
+                    .sorted(java.util.Comparator.comparing(enchantment -> rainsName(enchantment.getKey().asString())))
+                    .forEach(enchantment -> {
+                        String key = enchantment.getKey().asString();
+                        boolean unlocked = de.raindancer.core.content.enchant.EnchantUnlocks.isUnlocked(player, key);
+                        for (int level = 1; level <= enchantment.getMaxLevel(); level++) {
+                            offers.add(new RainsOffer(key, level, pricing.shards(level), pricing.money(level), unlocked));
+                        }
+                    });
+        } catch (RuntimeException | LinkageError noServer) {
+            return List.of();
+        }
+        // What this player can buy first; the locked ones after, to show what the guild could unlock.
+        offers.sort(java.util.Comparator.comparing((RainsOffer offer) -> !offer.unlocked()));
+        return offers;
+    }
+
+    /**
+     * Sells one book of Rain's enchantments: the shards are taken first, then the money; if the money cannot
+     * be paid the shards come back. Refused when the guild has not unlocked it or the price moved since shown.
+     */
+    public void buyRains(Player player, RainsOffer shown) {
+        EconomySettings live = settings;
+        Currency currency = live.currency();
+        String name = rainsName(shown.enchantment());
+        if (!live.rainsEnchantments()) {
+            refuse(player, "economy.shop.rains-off");
+            return;
+        }
+        if (!de.raindancer.core.content.enchant.EnchantUnlocks.isUnlocked(player.getUniqueId(), shown.enchantment())) {
+            refuse(player, "economy.shop.rains-locked", "name", name);
+            return;
+        }
+        de.raindancer.modules.economy.rules.ShardPriceRule pricing = live.shardPricing();
+        if (pricing.shards(shown.level()) != shown.shards() || !pricing.money(shown.level()).equals(shown.money())) {
+            refuse(player, "economy.shop.enchant-gone");
+            return;
+        }
+        ItemStack book;
+        try {
+            book = de.raindancer.core.content.enchant.CustomEnchantments.book(shown.enchantment(), shown.level());
+        } catch (IllegalArgumentException gone) {
+            refuse(player, "economy.shop.enchant-gone");
+            return;
+        }
+        if (!CashService.fits(player.getInventory(), List.of(book))) {
+            refuse(player, "economy.shop.no-room");
+            return;
+        }
+        if (!de.raindancer.core.content.enchant.EnchantShards.take(player.getInventory(), shown.enchantment(),
+                shown.shards())) {
+            refuse(player, "economy.shop.rains-no-shards", "name", name, "shards", String.valueOf(shown.shards()));
+            return;
+        }
+        String label = "Enchanted book: " + name + " " + shown.level();
+        EconomyResult result = economy.move(player.getUniqueId(), shown.money().negate(), TransactionKind.BUY, label);
+        if (!result.succeeded()) {
+            List<ItemStack> back = new ArrayList<>();
+            for (int left = shown.shards(); left > 0; left -= 64) {
+                back.add(de.raindancer.core.content.enchant.EnchantShards.of(shown.enchantment(), Math.min(64, left)));
+            }
+            de.raindancer.core.platform.util.Inventories.giveOrDrop(player, back);
+            Outcomes.tell(messages, effects, player, EconomyResult.failed(result.outcome(), shown.money(),
+                    result.balance()), currency, "");
+            return;
+        }
+        de.raindancer.core.platform.util.Inventories.giveOrDrop(player, List.of(book));
+        effects.play(player.getUniqueId(), Cues.REWARD);
+        messages.send(player, "economy.shop.rains-bought", "name", name, "level", String.valueOf(shown.level()),
+                "shards", String.valueOf(shown.shards()), "amount", currency.render(shown.money()));
+    }
+
     /** Selling or stripping these enchantments pushes each one's price down, as selling an item does. */
     /** One bottle in the shop's Potions drawer. */
     public record PotionOffer(PotionKey key) {
@@ -867,6 +963,17 @@ public final class ShopService implements IEconomyService {
      * item carrying anything else (lore, plugin data, contents) is not bought at all.
      */
     public Optional<SaleLot> appraise(UUID seller, ItemStack stack, int slot) {
+        Optional<String> shard = de.raindancer.core.content.enchant.EnchantShards.enchantmentOf(stack);
+        if (shard.isPresent()) {
+            // Before the non-ingredient refusal below: a shard is marked as one, and is still for sale.
+            Money each = settings.shardPrice(shard.get());
+            if (!settings.sellingEnabled() || !each.isPositive()
+                    || de.raindancer.core.content.items.InsuredItems.isInsured(stack)) {
+                return Optional.empty();
+            }
+            return trade.total(each, stack.getAmount()).map(total -> new SaleLot(stack.getType(), slot,
+                    stack.getAmount(), total, rainsName(shard.get()) + " Shard"));
+        }
         if (stack == null || stack.getType().isAir() || CashTags.isCash(stack)
                 || de.raindancer.core.content.items.NonIngredients.isMarked(stack)
                 || de.raindancer.core.content.items.InsuredItems.isInsured(stack)) {

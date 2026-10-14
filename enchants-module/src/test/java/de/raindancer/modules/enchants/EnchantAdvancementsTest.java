@@ -59,7 +59,7 @@ class EnchantAdvancementsTest {
         for (String id : new String[]{"root", "veinminer", "motherlode", "night_vision", "flight", "empty_tank",
                 "frequent_flyer", "double_jump", "triple_jump", "full_set", "auto_sell", "boost", "burnout",
                 "launch", "ludicrous_speed", "swiftness", "haste", "soulbound", "wisdom", "excavator", "tunnel_vision",
-                "harvester", "bumper_crop", "smelting", "telekinesis", "chest_link"}) {
+                "harvester", "bumper_crop", "smelting", "telekinesis", "chest_link", "shardlands", "first_shard"}) {
             assertThat(advancements.isLoaded("rainsenchants:" + id)).as(id).isTrue();
         }
     }

@@ -11,6 +11,7 @@ import de.raindancer.modules.guilds.service.GuildService;
 import de.raindancer.modules.guilds.service.HomeService;
 import de.raindancer.modules.guilds.service.PositionService;
 import de.raindancer.modules.guilds.service.PerkService;
+import de.raindancer.modules.guilds.service.ShardService;
 import de.raindancer.modules.guilds.service.RelationService;
 import de.raindancer.modules.guilds.service.XpService;
 import de.raindancer.modules.guilds.store.GuildBook;
@@ -37,5 +38,6 @@ public record GuildsServices(
         HomeService homes,
         GuildChatService chat,
         PositionService positions,
-        PerkService perks) {
+        PerkService perks,
+        ShardService shards) {
 }

@@ -22,5 +22,12 @@ class EnchantsSettingsTest {
         assertThat(defaults.launchSpeed()).isEqualTo(200);
         assertThat(defaults.launchCooldownSeconds()).isEqualTo(600);
         assertThat(defaults.wisdomPercentPerLevel()).isEqualTo(50);
+        assertThat(defaults.shardWorldEnabled()).isTrue();
+        assertThat(defaults.shardWorld()).isEqualTo("shardlands");
+        assertThat(defaults.shardWorldRadius()).isEqualTo(2500);
+        assertThat(defaults.shardWorldMonsters()).isEqualTo(140);
+        assertThat(defaults.portalKey()).isEqualTo(org.bukkit.Material.AMETHYST_SHARD);
+        assertThat(defaults.shardDropPercent()).isEqualTo(10);
+        assertThat(defaults.shardsPerHour()).isEqualTo(40);
     }
 }

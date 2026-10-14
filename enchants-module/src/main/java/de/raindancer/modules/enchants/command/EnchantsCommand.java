@@ -39,6 +39,10 @@ public final class EnchantsCommand implements BasicCommand {
             }
             return;
         }
+        if (first.equals("shard")) {
+            shard(live, sender, args);
+            return;
+        }
         if (!first.equals("give") || args.length < 3 || !sender.hasPermission(PermissionNodes.GIVE)) {
             live.messages().send(sender, "enchants.usage");
             return;
@@ -74,15 +78,54 @@ public final class EnchantsCommand implements BasicCommand {
                 "level", level);
     }
 
+    private static boolean staffWord(String word) {
+        return word.equalsIgnoreCase("give") || word.equalsIgnoreCase("shard");
+    }
+
+    /** {@code /enchants shard <player> <enchantment> [amount]} — for staff, events and tests. */
+    private static void shard(EnchantsServices live, CommandSender sender, String[] args) {
+        if (args.length < 3 || !sender.hasPermission(PermissionNodes.GIVE)) {
+            live.messages().send(sender, "enchants.shard-usage");
+            return;
+        }
+        Player target = live.server().getPlayerExact(args[1]);
+        if (target == null) {
+            live.messages().send(sender, "enchants.not-online", "player", args[1]);
+            return;
+        }
+        Optional<EnchantDef> def = EnchantsDefinitions.all().stream()
+                .filter(each -> each.path().equals(args[2].toLowerCase(Locale.ROOT))).findFirst();
+        if (def.isEmpty()) {
+            live.messages().send(sender, "enchants.unknown", "name", args[2]);
+            return;
+        }
+        int amount = 1;
+        if (args.length >= 4) {
+            try {
+                amount = Math.max(1, Math.min(6400, Integer.parseInt(args[3])));
+            } catch (NumberFormatException notANumber) {
+                live.messages().send(sender, "enchants.shard-usage");
+                return;
+            }
+        }
+        java.util.List<ItemStack> stacks = new java.util.ArrayList<>();
+        for (int left = amount; left > 0; left -= 64) {
+            stacks.add(de.raindancer.core.content.enchant.EnchantShards.of(def.get().key(), Math.min(64, left)));
+        }
+        de.raindancer.core.platform.util.Inventories.giveOrDrop(target, stacks);
+        live.messages().send(sender, "enchants.shard-given", "player", target.getName(), "amount", amount,
+                "name", def.get().path());
+    }
+
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         List<String> options = switch (args.length) {
-            case 0, 1 -> source.getSender().hasPermission(PermissionNodes.GIVE) ? List.of("list", "give")
+            case 0, 1 -> source.getSender().hasPermission(PermissionNodes.GIVE) ? List.of("list", "give", "shard")
                     : List.of("list");
-            case 2 -> args[0].equalsIgnoreCase("give") && source.getSender().hasPermission(PermissionNodes.GIVE)
+            case 2 -> staffWord(args[0]) && source.getSender().hasPermission(PermissionNodes.GIVE)
                     ? services.get().server().getOnlinePlayers().stream().map(Player::getName).toList() : List.of();
-            case 3 -> args[0].equalsIgnoreCase("give")
+            case 3 -> staffWord(args[0])
                     ? EnchantsDefinitions.all().stream().map(EnchantDef::path).toList() : List.of();
             default -> List.of();
         };

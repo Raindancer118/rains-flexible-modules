@@ -73,6 +73,10 @@ public final class GuildMenu extends Menu implements IGuildsScreen {
                 "<white>" + escaped(guild.emblem().prefix() + guild.name()) + " <gray>[" + guild.tag() + "]",
                 infoLines(guild, level, rank)));
 
+        set(MenuLayout.HEADER_RIGHT, Icons.of(Material.ENCHANTED_BOOK, "<white>Enchantments",
+                        "<gray>Pay in shards to unlock Rain's", "<gray>enchantments for the whole guild.",
+                        "", "<gray>Click to see how far you are."),
+                click -> new GuildEnchantsMenu(services, viewer, this).open());
         band(MenuLayout.WHO, 1, Icons.of(Material.PLAYER_HEAD, "<white>Members",
                         "<gray>" + guild.size() + " of " + services.guilds().memberCap(guild) + ".",
                         "", "<gray>Click to see everybody, and to promote,", "<gray>demote or remove those below you."),

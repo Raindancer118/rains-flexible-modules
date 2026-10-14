@@ -195,6 +195,16 @@ public final class GuildsDatabase {
             // When a member was last on any server: what a leader's absence is measured by.
             """
             ALTER TABLE member ADD COLUMN seen INTEGER NOT NULL DEFAULT 0
+            """,
+            // Shards of Rain's enchantments paid in, per guild and enchantment; unlocked once enough came in.
+            """
+            CREATE TABLE guild_shard (
+                guild TEXT NOT NULL,
+                enchantment TEXT NOT NULL,
+                paid INTEGER NOT NULL,
+                unlocked INTEGER NOT NULL,
+                PRIMARY KEY (guild, enchantment)
+            )
             """);
 
     private GuildsDatabase() {

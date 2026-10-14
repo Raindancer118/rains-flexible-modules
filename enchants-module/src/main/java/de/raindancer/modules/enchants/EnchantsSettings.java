@@ -12,6 +12,7 @@ import org.bukkit.Material;
 /** What an owner decides about the enchantments. The schema of the file and of the /settings page. */
 @Settings(id = "enchants", topics = {
         @Topic(path = "enchants", title = "Enchantments", icon = Material.ENCHANTED_BOOK),
+        @Topic(path = "enchants/shards", title = "Shards and the shard world", icon = Material.ECHO_SHARD),
 })
 public record EnchantsSettings(
 
@@ -64,7 +65,47 @@ public record EnchantsSettings(
         @Describe("How much more experience mobs and blocks give per level of Wisdom: 50 makes Wisdom III "
                 + "two and a half times as much.")
         @Key("wisdom-percent-per-level")
-        int wisdomPercentPerLevel) {
+        int wisdomPercentPerLevel,
 
-    public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50);
+        @In("enchants/shards") @Title("The shard world")
+        @Describe("An amplified world in eternal night, full of monsters, where the enchantments' shards drop. "
+                + "Created at the first start if it does not exist (not on Folia, which cannot make worlds while "
+                + "running: create it there beforehand).")
+        @Key("shard-world-enabled")
+        boolean shardWorldEnabled,
+
+        @In("enchants/shards") @Title("Shard world name")
+        @Key("shard-world")
+        String shardWorld,
+
+        @In("enchants/shards") @Title("Shard world radius") @Range(min = 200, max = 30000)
+        @Describe("Its world border, in blocks from the middle. Amplified ground is slow to generate: keep it small "
+                + "or generate it beforehand.")
+        @Key("shard-world-radius")
+        int shardWorldRadius,
+
+        @In("enchants/shards") @Title("Monsters at once") @Range(min = 10, max = 500)
+        @Describe("How many monsters the shard world keeps around its players; the game's own is 70.")
+        @Key("shard-world-monsters")
+        int shardWorldMonsters,
+
+        @In("enchants/shards") @Title("Portal key")
+        @Describe("Right-click the inside of an obsidian portal frame with this to open it to the shard world; "
+                + "one is used up. Any portal in the shard world leads back to where the player came from.")
+        @Key("portal-key")
+        Material portalKey,
+
+        @In("enchants/shards") @Title("Shard chance, percent") @Range(min = 1, max = 100)
+        @Describe("How likely a monster that spawned by itself in the shard world drops a shard when a player "
+                + "kills it. Spawner, egg and command monsters never do.")
+        @Key("shard-drop-percent")
+        int shardDropPercent,
+
+        @In("enchants/shards") @Title("Shards per player per hour") @Range(min = 1, max = 10000)
+        @Describe("The most shards one player can find in any hour, so a farm cannot print them.")
+        @Key("shards-per-hour")
+        int shardsPerHour) {
+
+    public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 10, 40);
 }

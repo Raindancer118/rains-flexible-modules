@@ -12,7 +12,11 @@ import de.raindancer.modules.enchants.listener.VeinAdvancementListener;
 import de.raindancer.modules.enchants.rules.AirRule;
 import de.raindancer.modules.enchants.service.AirService;
 import de.raindancer.modules.enchants.listener.ElytraListener;
+import de.raindancer.modules.enchants.listener.ShardListener;
 import de.raindancer.modules.enchants.listener.TabListener;
+import de.raindancer.modules.enchants.service.ShardDropService;
+import de.raindancer.modules.enchants.service.ShardPortalService;
+import de.raindancer.modules.enchants.service.ShardWorldService;
 import de.raindancer.modules.enchants.listener.ToolListener;
 import de.raindancer.modules.enchants.service.ChestLinkService;
 import de.raindancer.modules.enchants.service.ElytraService;
@@ -43,8 +47,8 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.3.0")
-            .describedAs("Sixteen real enchantments for tools, armour and the elytra, with advancements")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.4.0")
+            .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
     private AirService air;
@@ -90,6 +94,12 @@ public final class EnchantsModule implements FlexModule {
         context.listener(new ElytraListener(elytra));
         context.listener(new ToolListener(tools, links));
         context.listener(new TabListener(advancements));
+        ShardWorldService shardWorlds = new ShardWorldService(settings::current, context.log());
+        shardWorlds.ensure();
+        ShardPortalService portals = new ShardPortalService(context.plugin(), shardWorlds, settings::current,
+                advancements, context.core().messages(), context.core().effects());
+        context.listener(new ShardListener(shardWorlds, portals,
+                new ShardDropService(shardWorlds, settings::current, advancements, context.core().messages())));
         EnchantsCommands.ready(new EnchantsServices(context.plugin().getServer(), context.core().messages()));
 
         int[] beat = {0};

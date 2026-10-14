@@ -146,11 +146,16 @@ public record GuildsSettings(
 
         @In("guilds") @Title("Guild in the sidebar")
         @Describe("Under the balance in the sidebar: your guild, its level and the experience to the next, and its bank.")
-        @Key("sidebar") boolean sidebar) {
+        @Key("sidebar") boolean sidebar,
+
+        @In("guilds") @Title("Shards to unlock an enchantment") @Range(min = 1, max = 100_000)
+        @Describe("How many shards of one of Rain's enchantments the members pay in together before the guild "
+                + "has it: from then on every member can buy its books at the shop.")
+        @Key("enchants.unlock-shards") int unlockShards) {
 
     public static final GuildsSettings DEFAULTS = new GuildsSettings(
             "0", 3, 24, 2, 5, List.of(), 8, 48, 7, 30, true, true,
             1000, 1.6, 25, 8, 2, 50, 1, 5, 3, 600, 0.35, 2, 250, 25, 1,
             true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100",
-            5, 60, 2, true);
+            5, 60, 2, true, 100);
 }
