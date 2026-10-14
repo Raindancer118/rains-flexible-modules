@@ -20,8 +20,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Sending somebody to a warp.
@@ -51,6 +53,12 @@ public final class TravelService implements IWarpService {
     /** Rent, which is what closes a warp; null for a host that charges none. */
     private final WarpRentService rent;
 
+    /**
+     * Who is on the way to another server: their fee is decided by how the hop ends, not by them leaving
+     * this server, which is what a hop looks like from here, and they cannot start another trip until it has.
+     */
+    private final Set<UUID> hopping = ConcurrentHashMap.newKeySet();
+
     private volatile WarpSettings settings;
 
     /**
@@ -60,6 +68,16 @@ public final class TravelService implements IWarpService {
     @FunctionalInterface
     public interface Hop {
         CompletableFuture<Boolean> send(Player player, String server, Arrivals.Destination destination);
+
+        /** As {@link #send}, never throwing and never null: a hop that could not even start did not move them. */
+        default CompletableFuture<Boolean> sendSafely(Player player, String server, Arrivals.Destination destination) {
+            try {
+                CompletableFuture<Boolean> sent = send(player, server, destination);
+                return sent == null ? CompletableFuture.completedFuture(false) : sent;
+            } catch (RuntimeException failed) {
+                return CompletableFuture.failedFuture(failed);
+            }
+        }
     }
 
     private volatile Hop hop;
@@ -146,7 +164,8 @@ public final class TravelService implements IWarpService {
             return;
         }
         boolean paying = visits != null;
-        if (paying && travel.isTravelling(traveller.getUniqueId())) {
+        if (hopping.contains(traveller.getUniqueId())
+                || (paying && travel.isTravelling(traveller.getUniqueId()))) {
             // Before charging: Core refuses a second trip, and that refusal must not be what hands
             // back the money of the first.
             messages.send(traveller, "warps.already-travelling");
@@ -160,7 +179,7 @@ public final class TravelService implements IWarpService {
 
     /** Lets go of a player who has left, paying back a visit that never finished. */
     public void leaves(UUID who) {
-        if (visits != null) {
+        if (visits != null && !hopping.contains(who)) {
             visits.refund(who);
         }
     }
@@ -175,6 +194,10 @@ public final class TravelService implements IWarpService {
         }
         if (!warps.isReadyToWarp(traveller.getUniqueId())) {
             messages.send(traveller, "warps.on-cooldown", "time", waitLeft(traveller.getUniqueId()));
+            return;
+        }
+        if (hopping.contains(traveller.getUniqueId())) {
+            messages.send(traveller, "warps.already-travelling");
             return;
         }
         depart(traveller, label, place);
@@ -275,11 +298,13 @@ public final class TravelService implements IWarpService {
         /** The fee and the wait are settled by how the hop ends: kept and started when they left, else refunded. */
         private void hopAway(Player traveller) {
             UUID who = traveller.getUniqueId();
+            hopping.add(who);
             messages.send(traveller, "warps.travelling-away", "name", label, "server", elsewhere.server());
-            hop.send(traveller, elsewhere.server(), new Arrivals.Destination(elsewhere.world(), elsewhere.x(),
+            hop.sendSafely(traveller, elsewhere.server(), new Arrivals.Destination(elsewhere.world(), elsewhere.x(),
                             elsewhere.y(), elsewhere.z(), elsewhere.yaw(), elsewhere.pitch()))
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {
+                        hopping.remove(who);
                         if (left) {
                             Scheduling.entity(plugin, traveller, () -> landed(who), () -> landed(who));
                         } else {

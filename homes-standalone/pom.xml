@@ -46,7 +46,7 @@
              2.6.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. 
              2.7.0 (RainsCore 2.0 network edition): homes follow a player across the network and each knows its server; /home x for one on another server waits, then sends you there; limits and bought slots count across the network.
              2.8.0: a trip to a home on another server no longer fakes a teleport in place (no bogus /back point); the fee is kept and the wait started only once the hop really moved you, otherwise refunded. -->
-        <plugin.version>2.8.1</plugin.version>
+        <plugin.version>2.8.2</plugin.version>
     </properties>
 
     <dependencies>

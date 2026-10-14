@@ -293,4 +293,37 @@ class TravelServiceMoneyTest {
         service.go(visitor, warpElsewhere("10"));
         verify(messages).send(eq(visitor), eq("warps.on-cooldown"), any(Object[].class));
     }
+
+    @Test
+    @DisplayName("leaving this server for the hop does not hand the fee back: the hop decides")
+    void quittingForTheHopKeepsTheFee() {
+        FakeEconomy bank = FakeEconomy.install();
+        Player visitor = player(PermissionNodes.USE);
+        bank.give(visitor.getUniqueId(), "50").give(ownerId, "0");
+        CompletableFuture<Boolean> hopped = new CompletableFuture<>();
+        TravelService service = acrossServers(hopped);
+        service.go(visitor, warpElsewhere("10"));
+        awayWatcher().arrived(visitor, new Location(world, 1, 2, 3), Trip.to("shop"));
+
+        service.leaves(visitor.getUniqueId());
+        hopped.complete(true);
+
+        assertThat(bank.balance(visitor.getUniqueId())).isEqualTo(Fees.amount("40"));
+    }
+
+    @Test
+    @DisplayName("while a hop is under way no second trip is started or charged")
+    void noSecondTripDuringTheHop() {
+        FakeEconomy bank = FakeEconomy.install();
+        Player visitor = player(PermissionNodes.USE);
+        bank.give(visitor.getUniqueId(), "50").give(ownerId, "0");
+        TravelService service = acrossServers(new CompletableFuture<>());
+        service.go(visitor, warpElsewhere("10"));
+        awayWatcher().arrived(visitor, new Location(world, 1, 2, 3), Trip.to("shop"));
+
+        service.go(visitor, warpElsewhere("10"));
+
+        assertThat(bank.balance(visitor.getUniqueId())).isEqualTo(Fees.amount("40"));
+        verify(messages).send(eq(visitor), eq("warps.already-travelling"), any(Object[].class));
+    }
 }

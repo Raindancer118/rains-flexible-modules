@@ -48,7 +48,8 @@
         <!-- 2.6.0: /tpa and /tpahere @TAG ask every online member of a group (a guild) one by one. -->
         <!-- 2.7.0 (RainsCore 2.0 network edition): /tpa and /tpahere reach players on other servers (asked and answered over the network, the traveller is sent across on accept); block lists and toggles follow the player across the network. -->
         <!-- 2.8.0: a trip to another server no longer fakes a teleport in place (no bogus /back point); the fee is kept only once the hop really moved you, otherwise refunded. -->
-        <plugin.version>2.8.0</plugin.version>
+        <!-- 2.8.1: leaving this server for a cross-server hop no longer refunds the fee, and no second trip can start while the hop is under way. -->
+        <plugin.version>2.8.1</plugin.version>
     </properties>
 
     <dependencies>

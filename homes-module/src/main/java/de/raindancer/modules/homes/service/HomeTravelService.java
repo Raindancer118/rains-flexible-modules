@@ -88,6 +88,16 @@ public final class HomeTravelService implements IHomeService {
     @FunctionalInterface
     public interface Hop {
         CompletableFuture<Boolean> send(Player player, String server, Arrivals.Destination destination);
+
+        /** As {@link #send}, never throwing and never null: a hop that could not even start did not move them. */
+        default CompletableFuture<Boolean> sendSafely(Player player, String server, Arrivals.Destination destination) {
+            try {
+                CompletableFuture<Boolean> sent = send(player, server, destination);
+                return sent == null ? CompletableFuture.completedFuture(false) : sent;
+            } catch (RuntimeException failed) {
+                return CompletableFuture.failedFuture(failed);
+            }
+        }
     }
 
     private volatile Hop hop;
@@ -319,7 +329,7 @@ public final class HomeTravelService implements IHomeService {
             hopping.add(who);
             messages.send(traveller, "homes.travelling-away", "name", home.name(), "server", home.server());
             Poi poi = home.poi();
-            hop.send(traveller, poi.server(), new Arrivals.Destination(poi.world(), poi.x(), poi.y(), poi.z(),
+            hop.sendSafely(traveller, poi.server(), new Arrivals.Destination(poi.world(), poi.x(), poi.y(), poi.z(),
                             poi.yaw(), poi.pitch()))
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {

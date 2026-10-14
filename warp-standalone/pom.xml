@@ -39,7 +39,8 @@
              1.7.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. 
              1.8.0 (RainsCore 2.0 network edition): warps are the network's and each knows its server; using one on another server waits, then sends you there.
              1.9.0: a trip to a warp on another server no longer fakes a teleport in place (no bogus /back point); the visit fee is kept and the wait started only once the hop really moved you, otherwise refunded. -->
-        <plugin.version>1.9.0</plugin.version>
+        <!-- 1.9.1: leaving this server for a cross-server hop no longer refunds the visit fee, and no second trip can start while the hop is under way. -->
+        <plugin.version>1.9.1</plugin.version>
     </properties>
 
     <dependencies>

@@ -32,8 +32,10 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 
 /**
@@ -71,6 +73,12 @@ public final class TpaRequestService implements ITpaService {
     /** The wait between one player's requests. Core's, so two clicks in a millisecond cannot both pass. */
     private final Cooldowns<UUID> waits;
 
+    /**
+     * Who is on the way to another server: their fee is decided by how the hop ends, not by them leaving
+     * this server, which is what a hop looks like from here, and they cannot start another trip until it has.
+     */
+    private final Set<UUID> hopping = ConcurrentHashMap.newKeySet();
+
     private volatile TpaSettings settings;
 
     /**
@@ -80,6 +88,16 @@ public final class TpaRequestService implements ITpaService {
     @FunctionalInterface
     public interface Hop {
         CompletableFuture<Boolean> send(Player player, String server, Arrivals.Destination destination);
+
+        /** As {@link #send}, never throwing and never null: a hop that could not even start did not move them. */
+        default CompletableFuture<Boolean> sendSafely(Player player, String server, Arrivals.Destination destination) {
+            try {
+                CompletableFuture<Boolean> sent = send(player, server, destination);
+                return sent == null ? CompletableFuture.completedFuture(false) : sent;
+            } catch (RuntimeException failed) {
+                return CompletableFuture.failedFuture(failed);
+            }
+        }
     }
 
     private volatile TpaNetwork network;
@@ -325,7 +343,7 @@ public final class TpaRequestService implements ITpaService {
                     answer.complete(where);
                     return;
                 }
-                if (travel.isTravelling(asker) || fees.holding(asker)) {
+                if (travel.isTravelling(asker) || fees.holding(asker) || hopping.contains(asker)) {
                     answer.complete(result("busy"));
                     return;
                 }
@@ -620,7 +638,8 @@ public final class TpaRequestService implements ITpaService {
             return false;
         }
 
-        if (travel.isTravelling(traveller.getUniqueId()) || fees.holding(traveller.getUniqueId())) {
+        if (travel.isTravelling(traveller.getUniqueId()) || fees.holding(traveller.getUniqueId())
+                || hopping.contains(traveller.getUniqueId())) {
             // One journey at a time — a second would be paid for while the first still holds its fee.
             if (answering.equals(traveller)) {
                 messages.send(answering, "tpa.already-travelling");
@@ -723,7 +742,8 @@ public final class TpaRequestService implements ITpaService {
         String askerName = prefs.nameOf(request.from());
         TpaFees.Taken paid = TpaFees.Taken.NOTHING;
         if (answererTravels) {
-            if (travel.isTravelling(answering.getUniqueId()) || fees.holding(answering.getUniqueId())) {
+            if (travel.isTravelling(answering.getUniqueId()) || fees.holding(answering.getUniqueId())
+                    || hopping.contains(answering.getUniqueId())) {
                 messages.send(answering, "tpa.already-travelling");
                 return false;
             }
@@ -885,8 +905,11 @@ public final class TpaRequestService implements ITpaService {
      */
     public void leaves(UUID who) {
         waits.sweep();
-        // Standing through a wait when they quit: no trip, so no charge.
-        fees.refundHeld(who);
+        // Standing through a wait when they quit: no trip, so no charge. A hop is the exception: it
+        // is what made them quit, and how it ends decides the fee.
+        if (!hopping.contains(who)) {
+            fees.refundHeld(who);
+        }
     }
 
     /** Gives back everything paid for trips that never ended — for the module stopping. */
@@ -946,10 +969,12 @@ public final class TpaRequestService implements ITpaService {
         /** What was held is kept when the hop moved them and given back when it did not. */
         private void hopAway(Player traveller) {
             UUID who = traveller.getUniqueId();
+            hopping.add(who);
             messages.send(traveller, "tpa.travelling-away", "player", towards, "server", server);
-            hop.send(traveller, server, elsewhere)
+            hop.sendSafely(traveller, server, elsewhere)
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {
+                        hopping.remove(who);
                         if (left) {
                             Scheduling.entity(plugin, traveller, () -> paid(traveller), () -> fees.settle(who));
                         } else {

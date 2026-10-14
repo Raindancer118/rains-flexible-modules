@@ -310,4 +310,22 @@ class HomeTravelFeeTest {
         assertThat(bank.balance(id)).isEqualTo(Fees.amount("7"));
         verify(messages).send(eq(player), eq("homes.already-travelling"), any(Object[].class));
     }
+
+    @Test
+    @DisplayName("a hop that cannot even start refunds, and the player is not left stuck mid-hop")
+    void hopThatThrows() {
+        FakeEconomy bank = FakeEconomy.install().give(id, "10");
+        HomeTravelService service = new HomeTravelService(travel, messages,
+                new Effects(mock(EffectSink.class), () -> 0L),
+                HomeSettings.DEFAULTS.withTeleportPrice("3").withCooldownSeconds(60));
+        service.acrossServers((who, server, where) -> {
+            throw new IllegalStateException("no proxy");
+        });
+        service.go(player, homeElsewhere());
+        awayWatcher().arrived(player, new Location(world, 1, 2, 3), Trip.to("base"));
+
+        assertThat(bank.balance(id)).isEqualTo(Fees.amount("10"));
+        service.go(player, homeElsewhere());
+        verify(messages, never()).send(eq(player), eq("homes.already-travelling"), any(Object[].class));
+    }
 }

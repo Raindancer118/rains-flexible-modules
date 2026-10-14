@@ -49,6 +49,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -236,6 +237,37 @@ class TpaAcrossServersTest {
         verify(smp.messages, never()).send(eq(steve), eq("tpa.refunded"), any(Object[].class));
         smp.hopped.complete(false);
         assertThat(bank.balance(steve.getUniqueId())).isEqualTo(Money.of(2000));
+    }
+
+    @Test
+    @DisplayName("leaving this server for the hop does not hand the fee back: the hop decides")
+    void quittingForTheHopKeepsTheFee() throws Exception {
+        Bank bank = acceptedForAFee(null);
+
+        smp.service.leaves(steve.getUniqueId());
+        smp.hopped.complete(true);
+
+        assertThat(bank.balance(steve.getUniqueId())).isLessThan(Money.of(2000));
+        verify(smp.messages).send(eq(steve), eq("tpa.paid"), any(Object[].class));
+        verify(smp.messages, never()).send(eq(steve), eq("tpa.refunded"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("while a hop is under way no second trip is started, even a free one")
+    void noSecondTripDuringTheHop() throws Exception {
+        smp.hopped = new CompletableFuture<>();
+        smp.service.askElsewhere(steve, smp.service.findElsewhere("Alex").orElseThrow(), TpaKind.TO);
+        eventually(() -> arena.requests.has(steve.getUniqueId(), alex.getUniqueId()));
+        arena.service.accept(alex, steve.getUniqueId());
+        eventually(() -> !smp.requests.has(steve.getUniqueId(), alex.getUniqueId()));
+        arrive(smp.travel, steve);
+        arena.service.askElsewhere(alex, arena.service.findElsewhere("Steve").orElseThrow(), TpaKind.HERE);
+        eventually(() -> smp.requests.has(alex.getUniqueId(), steve.getUniqueId()));
+
+        smp.service.accept(steve, alex.getUniqueId());
+
+        verify(smp.messages).send(eq(steve), eq("tpa.already-travelling"), any(Object[].class));
+        verify(smp.travel, times(1)).goElsewhere(any(), any(), any(), any());
     }
 
     private static void eventually(BooleanSupplier condition) throws InterruptedException {
