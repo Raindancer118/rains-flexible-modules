@@ -1,10 +1,10 @@
 package de.raindancer.modules.roles.store;
 
+import de.raindancer.core.data.store.KeyedDocument;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.roles.model.Ownership;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,112 +15,96 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Which roles a player bought or rents, in {@code owned.yml}. Held in memory. Like {@link ChoiceBook} it is a
- * document of the network ({@code YamlStore.network}), a change writes only its own entry, {@link #watch()}
- * reloads when another server writes, and a document that could not be read is never written over.
+ * Which roles a player bought or rents, in {@code owned.yml}. Held in memory. Like {@link ChoiceBook} a document of
+ * the network, one player per key ({@link KeyedDocument}): a change starts from what the document holds for that
+ * player now, so two servers changing them both count.
  */
 public final class OwnedBook {
 
-    private final YamlStore store;
-    private final Map<UUID, Map<String, Ownership>> owned = new LinkedHashMap<>();
-    private volatile boolean readable = true;
+    private final KeyedDocument<Map<String, Ownership>> document;
 
     public OwnedBook(YamlStore store) {
-        this.store = store;
+        this.document = new KeyedDocument<>(store, "owned", OwnedBook::read, OwnedBook::write);
+    }
+
+    private static Map<String, Ownership> read(ConfigurationSection yaml, String key) {
+        ConfigurationSection roles = yaml.getConfigurationSection(key);
+        UUID player;
+        try {
+            player = UUID.fromString(key);
+        } catch (IllegalArgumentException notAPlayer) {
+            return null;
+        }
+        if (roles == null) {
+            return null;
+        }
+        Map<String, Ownership> mine = new LinkedHashMap<>();
+        for (String role : roles.getKeys(false)) {
+            ConfigurationSection each = roles.getConfigurationSection(role);
+            if (each == null) {
+                continue;
+            }
+            Ownership.Kind kind = "rented".equalsIgnoreCase(each.getString("kind"))
+                    ? Ownership.Kind.RENTED : Ownership.Kind.BOUGHT;
+            mine.put(role, new Ownership(player, role, kind, each.getLong("due", 0L)));
+        }
+        return mine.isEmpty() ? null : mine;
+    }
+
+    private static void write(ConfigurationSection yaml, String path, Map<String, Ownership> mine) {
+        mine.values().forEach(ownership -> {
+            yaml.set(path + "." + ownership.role() + ".kind", ownership.kind().name().toLowerCase(Locale.ROOT));
+            yaml.set(path + "." + ownership.role() + ".due", ownership.dueAt());
+        });
     }
 
     /** Reads the document; a read that fails keeps what is held and refuses changes until one succeeds. */
-    public synchronized void load() {
-        Optional<YamlConfiguration> read = store.readIfReadable();
-        if (read.isEmpty()) {
-            readable = false;
-            return;
-        }
-        readable = true;
-        owned.clear();
-        ConfigurationSection all = read.get().getConfigurationSection("owned");
-        if (all == null) {
-            return;
-        }
-        for (String key : all.getKeys(false)) {
-            ConfigurationSection roles = all.getConfigurationSection(key);
-            if (roles == null) {
-                continue;
-            }
-            try {
-                UUID player = UUID.fromString(key);
-                for (String role : roles.getKeys(false)) {
-                    ConfigurationSection each = roles.getConfigurationSection(role);
-                    if (each == null) {
-                        continue;
-                    }
-                    Ownership.Kind kind = "rented".equalsIgnoreCase(each.getString("kind"))
-                            ? Ownership.Kind.RENTED : Ownership.Kind.BOUGHT;
-                    owned.computeIfAbsent(player, ignored -> new LinkedHashMap<>())
-                            .put(role, new Ownership(player, role, kind, each.getLong("due", 0L)));
-                }
-            } catch (IllegalArgumentException notAPlayer) {
-                // Skipped; the rest still count.
-            }
-        }
+    public void load() {
+        document.load();
     }
 
-    /** Reloads when another server writes the document. Close to stop. */
+    /** Told when another server changed somebody's roles (they are read in already). Close to stop. */
     public NetworkBus.Subscription watch() {
-        return store.onChange(this::load);
+        return document.onChange(changed -> { });
     }
 
     public boolean readable() {
-        return readable;
+        return document.readable();
     }
 
-    public synchronized Optional<Ownership> of(UUID player, String role) {
-        Map<String, Ownership> mine = owned.get(player);
-        return Optional.ofNullable(mine == null || role == null ? null : mine.get(role));
+    public Optional<Ownership> of(UUID player, String role) {
+        return role == null ? Optional.empty() : Optional.ofNullable(mine(player).get(role));
     }
 
-    public synchronized List<Ownership> of(UUID player) {
-        Map<String, Ownership> mine = owned.get(player);
-        return mine == null ? List.of() : new ArrayList<>(mine.values());
+    public List<Ownership> of(UUID player) {
+        return new ArrayList<>(mine(player).values());
+    }
+
+    private Map<String, Ownership> mine(UUID player) {
+        return player == null ? Map.of() : document.get(player.toString()).orElse(Map.of());
     }
 
     /** Records an ownership. @return false, and nothing changed, when it could not be saved */
-    public synchronized boolean put(Ownership ownership) {
-        if (!writable()) {
-            return false;
-        }
-        String path = "owned." + ownership.player() + "." + ownership.role();
-        if (!store.update(yaml -> {
-            yaml.set(path + ".kind", ownership.kind().name().toLowerCase(Locale.ROOT));
-            yaml.set(path + ".due", ownership.dueAt());
-        })) {
-            return false;
-        }
-        owned.computeIfAbsent(ownership.player(), ignored -> new LinkedHashMap<>()).put(ownership.role(), ownership);
-        return true;
+    public boolean put(Ownership ownership) {
+        return document.change(ownership.player().toString(), now -> {
+            Map<String, Ownership> mine = now == null ? new LinkedHashMap<>() : new LinkedHashMap<>(now);
+            mine.put(ownership.role(), ownership);
+            return mine;
+        });
     }
 
     /** Forgets one ownership. @return false, and nothing changed, when it could not be saved */
-    public synchronized boolean remove(UUID player, String role) {
-        if (!writable()) {
-            return false;
-        }
-        Map<String, Ownership> mine = owned.get(player);
-        if (mine == null || mine.get(role) == null) {
+    public boolean remove(UUID player, String role) {
+        if (document.readable() && of(player, role).isEmpty()) {
             return true;
         }
-        String path = "owned." + player + "." + role;
-        if (!store.update(yaml -> yaml.set(path, null))) {
-            return false;
-        }
-        mine.remove(role);
-        return true;
-    }
-
-    private boolean writable() {
-        if (!readable) {
-            load();
-        }
-        return readable;
+        return document.change(player.toString(), now -> {
+            if (now == null) {
+                return null;
+            }
+            Map<String, Ownership> mine = new LinkedHashMap<>(now);
+            mine.remove(role);
+            return mine.isEmpty() ? null : mine;
+        });
     }
 }

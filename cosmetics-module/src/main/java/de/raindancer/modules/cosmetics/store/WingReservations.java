@@ -1,20 +1,16 @@
 package de.raindancer.modules.cosmetics.store;
 
+import de.raindancer.core.data.store.KeyedDocument;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.cosmetics.model.ParticleChoice;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Wing combinations an op keeps for themselves: nobody else may wear the same kind of wings in the same
@@ -25,9 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>On a network</h2>
  * One document for every server ({@code YamlStore.network}): a combination reserved anywhere is the owner's
- * everywhere. Reserving and releasing are decided against the document as it is <em>now</em>, inside one
- * {@link YamlStore#update}, so two servers reserving the same wings at the same moment cannot both succeed.
- * {@link #watch()} reloads when another server writes.
+ * everywhere. Reserving and releasing are decided against the document as it is <em>now</em>, one combination per
+ * key ({@link KeyedDocument}), so two servers reserving the same wings at the same moment cannot both succeed.
  */
 public final class WingReservations {
 
@@ -37,11 +32,12 @@ public final class WingReservations {
     public record Reservation(String combo, UUID owner, String ownerName, String shown) {
     }
 
-    private final YamlStore store;
-    private final Map<String, Reservation> reserved = new ConcurrentHashMap<>();
+    private final KeyedDocument<Reservation> document;
 
     public WingReservations(YamlStore store) {
-        this.store = store;
+        this.document = new KeyedDocument<>(store, "reservations",
+                (yaml, key) -> parse(yaml.getConfigurationSection(key), YamlStore.fromPathPart(key)).orElse(null),
+                WingReservations::put);
     }
 
     /** The combination these wings are, or empty for none worn. */
@@ -77,7 +73,7 @@ public final class WingReservations {
     }
 
     public Optional<Reservation> holderOf(ParticleChoice wings) {
-        return combo(wings).map(reserved::get);
+        return combo(wings).flatMap(combo -> document.get(YamlStore.asPathPart(combo)));
     }
 
     /** Whether {@code who} may wear these: free, or theirs. */
@@ -85,120 +81,81 @@ public final class WingReservations {
         return holderOf(wings).map(held -> held.owner().equals(who)).orElse(true);
     }
 
-    public synchronized Outcome reserve(UUID who, String name, ParticleChoice wings) {
+    public Outcome reserve(UUID who, String name, ParticleChoice wings) {
         Optional<String> combo = combo(wings);
         if (combo.isEmpty()) {
             return Outcome.NOTHING_WORN;
         }
         Reservation mine = new Reservation(combo.get(), who, name, shown(wings));
-        String at = at(combo.get());
         Outcome[] outcome = new Outcome[1];
-        Reservation[] holder = new Reservation[1];
-        boolean written = store.update(yaml -> {
-            holder[0] = parse(yaml.getConfigurationSection(at), combo.get()).orElse(null);
-            if (holder[0] != null) {
-                outcome[0] = holder[0].owner().equals(who) ? Outcome.ALREADY_YOURS : Outcome.TAKEN;
-                return;
+        boolean written = document.change(YamlStore.asPathPart(combo.get()), holder -> {
+            if (holder != null) {
+                outcome[0] = holder.owner().equals(who) ? Outcome.ALREADY_YOURS : Outcome.TAKEN;
+                return holder;
             }
-            put(yaml, mine);
             outcome[0] = Outcome.RESERVED;
+            return mine;
         });
-        if (!written) {
-            return Outcome.NOT_SAVED;
-        }
-        reserved.put(combo.get(), holder[0] != null ? holder[0] : mine);
-        return outcome[0];
+        return written ? outcome[0] : Outcome.NOT_SAVED;
     }
 
     /** @param staff may free anybody's, not only their own */
-    public synchronized Outcome release(UUID who, boolean staff, ParticleChoice wings) {
+    public Outcome release(UUID who, boolean staff, ParticleChoice wings) {
         Optional<String> combo = combo(wings);
         if (combo.isEmpty()) {
             return Outcome.NOT_RESERVED;
         }
-        String at = at(combo.get());
         Outcome[] outcome = new Outcome[1];
-        Reservation[] holder = new Reservation[1];
-        boolean written = store.update(yaml -> {
-            holder[0] = parse(yaml.getConfigurationSection(at), combo.get()).orElse(null);
-            if (holder[0] == null) {
+        boolean written = document.change(YamlStore.asPathPart(combo.get()), holder -> {
+            if (holder == null) {
                 outcome[0] = Outcome.NOT_RESERVED;
-            } else if (!staff && !holder[0].owner().equals(who)) {
-                outcome[0] = Outcome.NOT_YOURS;
-            } else {
-                yaml.set(at, null);
-                outcome[0] = Outcome.RELEASED;
+                return null;
             }
+            if (!staff && !holder.owner().equals(who)) {
+                outcome[0] = Outcome.NOT_YOURS;
+                return holder;
+            }
+            outcome[0] = Outcome.RELEASED;
+            return null;
         });
-        if (!written) {
-            return Outcome.NOT_SAVED;
-        }
-        if (holder[0] == null || outcome[0] == Outcome.RELEASED) {
-            reserved.remove(combo.get());
-        } else {
-            reserved.put(combo.get(), holder[0]);
-        }
-        return outcome[0];
+        return written ? outcome[0] : Outcome.NOT_SAVED;
     }
 
-    /** Frees everything reserved by whoever is called {@code ownerName}, in any case. @return how many; none when it could not be saved */
-    public synchronized int releaseAllOf(String ownerName) {
-        List<String> freed = new ArrayList<>();
-        boolean written = store.update(yaml -> {
-            freed.clear();
-            ConfigurationSection all = yaml.getConfigurationSection("reservations");
-            if (all == null) {
-                return;
+    /** Frees everything reserved by whoever is called {@code ownerName}, in any case. @return how many were freed */
+    public int releaseAllOf(String ownerName) {
+        int freed = 0;
+        for (var each : document.all().entrySet()) {
+            if (!each.getValue().ownerName().equalsIgnoreCase(ownerName)) {
+                continue;
             }
-            for (String key : all.getKeys(false)) {
-                ConfigurationSection entry = all.getConfigurationSection(key);
-                if (entry != null && entry.getString("owner-name", "?").equalsIgnoreCase(ownerName)) {
-                    freed.add(entry.getString("combo", YamlStore.fromPathPart(key)));
-                    all.set(key, null);
-                }
+            boolean[] theirs = {false};
+            boolean written = document.change(each.getKey(), holder -> {
+                theirs[0] = holder != null && holder.ownerName().equalsIgnoreCase(ownerName);
+                return theirs[0] ? null : holder;
+            });
+            if (written && theirs[0]) {
+                freed++;
             }
-        });
-        if (!written) {
-            return 0;
         }
-        freed.forEach(reserved::remove);
-        return freed.size();
+        return freed;
     }
 
     /** Every reservation, by owner then what it is. */
     public List<Reservation> all() {
-        return reserved.values().stream()
+        return document.all().values().stream()
                 .sorted(Comparator.comparing(Reservation::ownerName, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(Reservation::shown))
                 .toList();
     }
 
-    /** Reads the document; a read that fails keeps what is held. */
-    public synchronized void load() {
-        Optional<YamlConfiguration> read = store.readIfReadable();
-        if (read.isEmpty()) {
-            return;
-        }
-        Map<String, Reservation> fresh = new HashMap<>();
-        ConfigurationSection section = read.get().getConfigurationSection("reservations");
-        if (section != null) {
-            for (String key : section.getKeys(false)) {
-                // An entry that is not readable is left in the document as it is: writes touch only the entries they change.
-                parse(section.getConfigurationSection(key), YamlStore.fromPathPart(key))
-                        .ifPresent(held -> fresh.put(held.combo(), held));
-            }
-        }
-        reserved.keySet().retainAll(fresh.keySet());
-        reserved.putAll(fresh);
+    /** Reads the document; a read that fails keeps what is held and refuses changes until one succeeds. */
+    public void load() {
+        document.load();
     }
 
-    /** Reloads when another server writes the document. Close to stop. */
+    /** Told when another server reserved or freed wings (read in already). Close to stop. */
     public NetworkBus.Subscription watch() {
-        return store.onChange(this::load);
-    }
-
-    private static String at(String combo) {
-        return "reservations." + YamlStore.asPathPart(combo);
+        return document.onChange(changed -> { });
     }
 
     private static Optional<Reservation> parse(ConfigurationSection entry, String fallbackCombo) {
@@ -214,8 +171,7 @@ public final class WingReservations {
         }
     }
 
-    private static void put(YamlConfiguration yaml, Reservation held) {
-        String at = at(held.combo());
+    private static void put(ConfigurationSection yaml, String at, Reservation held) {
         yaml.set(at + ".combo", held.combo());
         yaml.set(at + ".owner", held.owner().toString());
         yaml.set(at + ".owner-name", held.ownerName());

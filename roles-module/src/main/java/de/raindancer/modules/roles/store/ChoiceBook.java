@@ -1,92 +1,72 @@
 package de.raindancer.modules.roles.store;
 
+import de.raindancer.core.data.store.KeyedDocument;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.roles.model.Choice;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Who took which role, and when, in {@code choices.yml}. Held in memory — a shop asks for every price it
- * draws.
+ * Who took which role, and when, in {@code choices.yml}. Held in memory — a shop asks for every price it draws.
  *
- * <h2>On a network</h2>
- * One document for every server ({@code YamlStore.network}): a role is the player's wherever they play. A change
- * writes only that player's entry, into the document as it is now, so two servers changing different players lose
- * nothing of each other's. {@link #watch()} reloads when another server writes and says whose choice differs now,
- * so what a role puts on a player can follow it.
- *
- * <p>A document that could not be read is never written over, and a failed read keeps what is held: until it can
- * be read nobody can change role.
+ * <p>One document for every server ({@code YamlStore.network}), one player per key ({@link KeyedDocument}): a role is
+ * the player's wherever they play; {@link #watch()} says whose choice another server changed, so what a role puts
+ * on a player can follow it. A document that cannot be read refuses changes and keeps what is held.
  */
 public final class ChoiceBook {
 
-    private final YamlStore store;
-    private final Map<UUID, Choice> choices = new HashMap<>();
-    private volatile boolean readable = true;
+    private final KeyedDocument<Choice> document;
     private volatile Consumer<Set<UUID>> elsewhere = ignored -> { };
 
     public ChoiceBook(YamlStore store) {
-        this.store = store;
+        this.document = new KeyedDocument<>(store, "choices", ChoiceBook::read, ChoiceBook::write);
+    }
+
+    private static Choice read(ConfigurationSection yaml, String key) {
+        ConfigurationSection each = yaml.getConfigurationSection(key);
+        String role = each == null ? null : each.getString("role");
+        if (role == null || role.isBlank()) {
+            return null;
+        }
+        try {
+            UUID player = UUID.fromString(key);
+            long chosen = each.getLong("chosen-at", 0L);
+            return new Choice(player, role, chosen, each.getLong("held-since", chosen));
+        } catch (IllegalArgumentException notAPlayer) {
+            return null;
+        }
+    }
+
+    private static void write(ConfigurationSection yaml, String path, Choice choice) {
+        yaml.set(path + ".role", choice.role());
+        yaml.set(path + ".chosen-at", choice.chosenAt());
+        yaml.set(path + ".held-since", choice.heldSince());
     }
 
     /** Reads the document; a read that fails keeps what is held and refuses changes until one succeeds. */
-    public synchronized void load() {
-        reading();
+    public void load() {
+        document.load();
     }
 
-    /** @return the players whose choice is not what it was */
-    private synchronized Set<UUID> reading() {
-        Optional<YamlConfiguration> read = store.readIfReadable();
-        if (read.isEmpty()) {
-            readable = false;
-            return Set.of();
-        }
-        readable = true;
-        Map<UUID, Choice> fresh = new HashMap<>();
-        ConfigurationSection all = read.get().getConfigurationSection("choices");
-        if (all != null) {
-            for (String key : all.getKeys(false)) {
-                ConfigurationSection each = all.getConfigurationSection(key);
-                String role = each == null ? null : each.getString("role");
-                if (role == null || role.isBlank()) {
-                    continue;
-                }
-                try {
-                    UUID player = UUID.fromString(key);
-                    long chosen = each.getLong("chosen-at", 0L);
-                    fresh.put(player, new Choice(player, role, chosen, each.getLong("held-since", chosen)));
-                } catch (IllegalArgumentException notAPlayer) {
-                    // Skipped; the rest still count.
-                }
-            }
-        }
-        Set<UUID> differing = new HashSet<>();
-        fresh.forEach((player, choice) -> {
-            if (!choice.equals(choices.get(player))) {
-                differing.add(player);
-            }
-        });
-        choices.keySet().stream().filter(player -> !fresh.containsKey(player)).forEach(differing::add);
-        choices.clear();
-        choices.putAll(fresh);
-        return differing;
-    }
-
-    /** Reloads when another server writes the document, then tells {@code changed} whose choice differs now. */
+    /** Tells {@link #changedElsewhere} whose choice another server changed, once it is read in. */
     public NetworkBus.Subscription watch() {
-        return store.onChange(() -> {
-            Set<UUID> differing = reading();
-            if (!differing.isEmpty()) {
-                elsewhere.accept(differing);
+        return document.onChange(keys -> {
+            Set<UUID> players = new HashSet<>();
+            for (String key : keys) {
+                try {
+                    players.add(UUID.fromString(key));
+                } catch (IllegalArgumentException notAPlayer) {
+                    // Never written by this book.
+                }
+            }
+            if (!players.isEmpty()) {
+                elsewhere.accept(players);
             }
         });
     }
@@ -97,54 +77,27 @@ public final class ChoiceBook {
     }
 
     public boolean readable() {
-        return readable;
+        return document.readable();
     }
 
-    public synchronized Optional<Choice> of(UUID player) {
-        return Optional.ofNullable(player == null ? null : choices.get(player));
+    public Optional<Choice> of(UUID player) {
+        return player == null ? Optional.empty() : document.get(player.toString());
     }
 
-    public synchronized int count() {
-        return choices.size();
+    public int count() {
+        return document.all().size();
     }
 
     /** Records a choice. @return false, and nothing changed, when it could not be saved */
-    public synchronized boolean put(Choice choice) {
-        if (!writable()) {
-            return false;
-        }
-        String path = "choices." + choice.player();
-        if (!store.update(yaml -> {
-            yaml.set(path + ".role", choice.role());
-            yaml.set(path + ".chosen-at", choice.chosenAt());
-            yaml.set(path + ".held-since", choice.heldSince());
-        })) {
-            return false;
-        }
-        choices.put(choice.player(), choice);
-        return true;
+    public boolean put(Choice choice) {
+        return document.change(choice.player().toString(), ignored -> choice);
     }
 
     /** Forgets a player's role. @return false, and nothing changed, when it could not be saved */
-    public synchronized boolean clear(UUID player) {
-        if (!writable()) {
-            return false;
-        }
-        if (choices.get(player) == null) {
+    public boolean clear(UUID player) {
+        if (document.readable() && of(player).isEmpty()) {
             return true;
         }
-        if (!store.update(yaml -> yaml.set("choices." + player, null))) {
-            return false;
-        }
-        choices.remove(player);
-        return true;
-    }
-
-    /** Whether the document can be written: one that could not be read is tried again, and refused until it can. */
-    private boolean writable() {
-        if (!readable) {
-            reading();
-        }
-        return readable;
+        return document.change(player.toString(), ignored -> null);
     }
 }

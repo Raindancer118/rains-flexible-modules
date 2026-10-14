@@ -32,7 +32,8 @@
         <!-- 0.16.1: typed name styles are read by RainsCore 1.126.0 TypedStyles (same words, shared with guilds). -->
         <!-- 0.17.0: RainsCore 2.0 network — the palette and presets are catalogue.yml, purchases and wing reservations are the network's documents (a purchase follows the player, a reservation holds on every server), all read again when another server writes. -->
         <!-- 0.18.0: network — the teleport look is read back from the player's data whenever it changes (a look chosen on another server now plays after arriving, no relog), and /cosmetics clear takes the particle off somebody on another server. -->
-        <plugin.version>0.18.0</plugin.version>
+        <!-- 0.18.1: its per-player store is Core's KeyedDocument (no change in behaviour). -->
+        <plugin.version>0.18.1</plugin.version>
     </properties>
 
     <dependencies>
