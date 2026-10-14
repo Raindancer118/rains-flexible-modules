@@ -73,9 +73,26 @@ jobs:
     # now resolves from packages.tstieh.de (see the root pom's <repositories>) rather than from a sibling
     # checkout built by hand, and Reposilite requires the same credentials to read a release as to
     # publish one. ci-deploy has both.
+    # A real PostgreSQL for the store tests, run a second time against it (RainsCore 2.0.0: a network keeps
+    # everything in one). TestPostgres fails rather than skips when CI is set.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: rains
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       REPOSILITE_USERNAME: ci-deploy
       REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
+      RAINS_TEST_POSTGRES: localhost:5432/postgres
+      RAINS_TEST_POSTGRES_USER: postgres
+      RAINS_TEST_POSTGRES_PASSWORD: rains
 
     steps:
       - name: Check out
@@ -96,6 +113,18 @@ jobs:
           server-id: packages-releases
           server-username: REPOSILITE_USERNAME
           server-password: REPOSILITE_PASSWORD
+
+      # setup-java writes one server block; the snapshots repository needs the same credentials too.
+      - name: Credentials for the snapshots repository
+        run: |
+          cat > ~/.m2/settings.xml <<'XML'
+          <settings>
+            <servers>
+              <server><id>packages-releases</id><username>${env.REPOSILITE_USERNAME}</username><password>${env.REPOSILITE_PASSWORD}</password></server>
+              <server><id>packages-snapshots</id><username>${env.REPOSILITE_USERNAME}</username><password>${env.REPOSILITE_PASSWORD}</password></server>
+            </servers>
+          </settings>
+          XML
 
       # `install` rather than `verify`, and that is not a preference. The standalone projects shade the
       # module jars out of the local repository, so a plain `verify` can shade whatever an earlier build
@@ -446,6 +475,18 @@ jobs:
           server-username: REPOSILITE_USERNAME
           server-password: REPOSILITE_PASSWORD
 
+      # setup-java writes one server block; the snapshots repository needs the same credentials too.
+      - name: Credentials for the snapshots repository
+        run: |
+          cat > ~/.m2/settings.xml <<'XML'
+          <settings>
+            <servers>
+              <server><id>packages-releases</id><username>${env.REPOSILITE_USERNAME}</username><password>${env.REPOSILITE_PASSWORD}</password></server>
+              <server><id>packages-snapshots</id><username>${env.REPOSILITE_USERNAME}</username><password>${env.REPOSILITE_PASSWORD}</password></server>
+            </servers>
+          </settings>
+          XML
+
       # Paper, the vanilla server and client jars and the game's assets: fetched once, then cached.
       - name: Cache what the game needs
         uses: actions/cache@v4
@@ -513,6 +554,18 @@ jobs:
           server-id: packages-releases
           server-username: REPOSILITE_USERNAME
           server-password: REPOSILITE_PASSWORD
+
+      # setup-java writes one server block; the snapshots repository needs the same credentials too.
+      - name: Credentials for the snapshots repository
+        run: |
+          cat > ~/.m2/settings.xml <<'XML'
+          <settings>
+            <servers>
+              <server><id>packages-releases</id><username>${env.REPOSILITE_USERNAME}</username><password>${env.REPOSILITE_PASSWORD}</password></server>
+              <server><id>packages-snapshots</id><username>${env.REPOSILITE_USERNAME}</username><password>${env.REPOSILITE_PASSWORD}</password></server>
+            </servers>
+          </settings>
+          XML
 
       - name: Install the reactor
         run: mvn --batch-mode --no-transfer-progress -q clean install -DskipTests
