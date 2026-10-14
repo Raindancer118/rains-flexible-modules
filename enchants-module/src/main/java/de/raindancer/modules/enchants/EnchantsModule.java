@@ -44,11 +44,13 @@ public final class EnchantsModule implements FlexModule {
 
     /** Worn effects are looked at every this-many ticks; an armour change is answered at once. */
     private static final int NIGHT_VISION_EVERY = 10;
+    /** Ticks between two puffs of the shard world's haze. */
+    private static final int HAZE_EVERY = 10;
 
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.8.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -106,6 +108,7 @@ public final class EnchantsModule implements FlexModule {
         EnchantsCommands.ready(new EnchantsServices(context.plugin().getServer(), context.core().messages(), shardMobs));
 
         int[] beat = {0};
+        java.util.random.RandomGenerator hazeDice = new java.util.SplittableRandom();
         var timer = Scheduling.globalTimer(context.plugin(), 1, 1, task -> {
             int now = beat[0]++;
             boolean checkNightVision = now % NIGHT_VISION_EVERY == 0;
@@ -118,6 +121,9 @@ public final class EnchantsModule implements FlexModule {
                     elytra.tick(player);
                     if (checkNightVision) {
                         wornEffects.sync(player);
+                    }
+                    if (now % HAZE_EVERY == 0) {
+                        shardWorlds.haze(player, hazeDice);
                     }
                 });
             }

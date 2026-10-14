@@ -111,8 +111,13 @@ public record EnchantsSettings(
         @In("enchants/shards") @Title("Thunderstorms, percent of the time") @Range(min = 0, max = 100)
         @Describe("How much of the time the shard world lies under a thunderstorm; rolled anew every five minutes.")
         @Key("shard-world-thunder-percent")
-        int shardWorldThunderPercent) {
+        int shardWorldThunderPercent,
+
+        @In("enchants/shards") @Title("Haze specks") @Range(min = 0, max = 100)
+        @Describe("Dark red specks drifting around each player in the shard world, every half second; 0 for none.")
+        @Key("shard-world-haze")
+        int shardWorldHaze) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12);
 }

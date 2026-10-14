@@ -83,6 +83,23 @@ public final class ShardWorldService {
         world.getWorldBorder().setSize(config.shardWorldRadius() * 2.0);
     }
 
+    private static final double HAZE_RADIUS = 12.0;
+    private static final org.bukkit.Particle.DustOptions HAZE = new org.bukkit.Particle.DustOptions(
+            org.bukkit.Color.fromRGB(de.raindancer.modules.enchants.rules.ShardHaze.COLOUR), 1.4f);
+
+    /** The haze around one player in the shard world, shown to them alone. On the player's thread. */
+    public void haze(org.bukkit.entity.Player player, java.util.random.RandomGenerator random) {
+        if (!isShardWorld(player.getWorld())) {
+            return;
+        }
+        org.bukkit.Location at = player.getLocation();
+        for (double[] speck : de.raindancer.modules.enchants.rules.ShardHaze.specks(random,
+                settings.get().shardWorldHaze(), HAZE_RADIUS)) {
+            player.spawnParticle(org.bukkit.Particle.DUST, at.getX() + speck[0], at.getY() + speck[1],
+                    at.getZ() + speck[2], 1, 0, 0, 0, 0, HAZE);
+        }
+    }
+
     public boolean isShardWorld(World world) {
         EnchantsSettings config = settings.get();
         return world != null && config.shardWorldEnabled() && world.getName().equals(config.shardWorld());
