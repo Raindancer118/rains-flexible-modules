@@ -268,6 +268,24 @@ class AdminModeServiceTest {
     }
 
     @Test
+    @DisplayName("what a join needs is read while they connect, off the server's thread: the join itself reads nothing")
+    void readBeforeTheJoin() {
+        when(loadouts.capture(player)).thenReturn(SURVIVAL);
+        service.toggle(player);
+        LoadoutStore watched = org.mockito.Mockito.spy(store);
+        AdminModeService afterRestart = new AdminModeService(watched, loadouts, messages, actionBars, vanish, powers,
+                (who, place) -> movedTo.add(place), EssentialsSettings.DEFAULTS, land);
+
+        afterRestart.prepare(id);
+        org.mockito.Mockito.clearInvocations(watched);
+        afterRestart.joined(player);
+
+        assertThat(afterRestart.isInAdminMode(id)).isTrue();
+        org.mockito.Mockito.verify(watched, org.mockito.Mockito.never()).readable(id);
+        org.mockito.Mockito.verify(watched, org.mockito.Mockito.never()).has(id, AdminModeService.SURVIVAL);
+    }
+
+    @Test
     @DisplayName("somebody who lost the permission while away is taken out of admin mode as they join")
     void lostPermissionWhileAway() {
         when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW);

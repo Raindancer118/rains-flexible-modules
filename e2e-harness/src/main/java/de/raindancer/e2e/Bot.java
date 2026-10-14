@@ -367,6 +367,14 @@ public final class Bot {
         return open != null && open.isConnected() && joined;
     }
 
+    private final java.util.Map<String, List<org.geysermc.mcprotocollib.protocol.data.game.RegistryEntry>> registries =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The entries of a registry the server sent while configuring ("minecraft:enchantment"); empty if none came. */
+    public List<org.geysermc.mcprotocollib.protocol.data.game.RegistryEntry> registry(String key) {
+        return registries.getOrDefault(key, List.of());
+    }
+
     public String disconnectReason() {
         return disconnectReason;
     }
@@ -375,6 +383,10 @@ public final class Bot {
 
     private void handle(Session from, Packet packet) {
         MinecraftProtocol protocol = (MinecraftProtocol) from.getPacketProtocol();
+        // Sent while configuring, before the game: what a translating proxy (Geyser) has to be able to read.
+        if (packet instanceof org.geysermc.mcprotocollib.protocol.packet.configuration.clientbound.ClientboundRegistryDataPacket data) {
+            registries.put(data.getRegistry().asString(), List.copyOf(data.getEntries()));
+        }
         if (protocol.getInboundState() != ProtocolState.GAME) {
             return;
         }

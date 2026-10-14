@@ -31,6 +31,14 @@ public final class EssentialsSessionListener implements IEssentialsListener {
         this.services = services;
     }
 
+    /** What a join needs from the database is read here, on the login thread, not on the one running the world. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onPreLogin(org.bukkit.event.player.AsyncPlayerPreLoginEvent event) {
+        if (event.getLoginResult() == org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            services.adminMode().prepare(event.getUniqueId());
+        }
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();

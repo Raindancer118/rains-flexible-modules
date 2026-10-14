@@ -132,9 +132,24 @@ public final class AdminModeService implements IEssentialsService {
      * A broken file cannot say which side they wear, so they count as in admin mode and stay there until it is
      * fixed: coming out would make whatever they hold their survival inventory.
      */
-    private boolean brokenFile(Player player) {
+    /** What a join needs from the database, read before it: whether their file reads, and whether they were in it. */
+    private record Prepared(boolean readable, boolean inAdminMode) {
+    }
+
+    private final java.util.Map<UUID, Prepared> prepared = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Reads what {@link #joined} needs while the player is still connecting — on the login thread, not the one running
+     * the world, where the database round trip would cost every join a piece of a tick.
+     */
+    public void prepare(UUID id) {
+        boolean readable = store.readable(id);
+        prepared.put(id, new Prepared(readable, readable && store.has(id, SURVIVAL)));
+    }
+
+    private boolean brokenFile(Player player, boolean readable) {
         UUID id = player.getUniqueId();
-        if (store.readable(id)) {
+        if (readable) {
             return false;
         }
         inAdminMode.add(id);
@@ -151,7 +166,7 @@ public final class AdminModeService implements IEssentialsService {
 
     public boolean enter(Player player) {
         UUID id = player.getUniqueId();
-        if (brokenFile(player)) {
+        if (brokenFile(player, store.readable(id))) {
             return false;
         }
         if (isInAdminMode(id)) {
@@ -190,7 +205,7 @@ public final class AdminModeService implements IEssentialsService {
     public boolean leave(Player player) {
         UUID id = player.getUniqueId();
         bypassing.remove(id);
-        if (brokenFile(player)) {
+        if (brokenFile(player, store.readable(id))) {
             return false;
         }
         Loadout survival = store.load(id, SURVIVAL).orElse(null);
@@ -229,11 +244,17 @@ public final class AdminModeService implements IEssentialsService {
     /** Picks up admin mode left on from before a quit or a restart. */
     public void joined(Player player) {
         UUID id = player.getUniqueId();
-        if (brokenFile(player)) {
+        // Read at login; only a join nobody prepared (a reload with players on) reads here.
+        Prepared ready = prepared.remove(id);
+        if (ready == null) {
+            prepare(id);
+            ready = prepared.remove(id);
+        }
+        if (brokenFile(player, ready.readable())) {
             showBar(id);
             return;
         }
-        if (!store.has(id, SURVIVAL)) {
+        if (!ready.inAdminMode()) {
             inAdminMode.remove(id);
             return;
         }
