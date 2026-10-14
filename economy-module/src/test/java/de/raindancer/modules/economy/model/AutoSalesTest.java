@@ -46,4 +46,15 @@ class AutoSalesTest {
         assertThat(sales.drain(ADA)).isEmpty();
         assertThat(sales.owed(BO)).isEqualTo(new Money(2));
     }
+
+    @Test
+    @DisplayName("what everybody is still owed counts against the server's budget too")
+    void owedByAll() {
+        AutoSales sales = new AutoSales();
+        sales.add(ADA, Material.COAL, 1, new Money(2));
+        sales.add(BO, Material.COAL, 1, new Money(3));
+        assertThat(sales.owedByAll()).isEqualTo(new Money(5));
+        sales.drain(ADA);
+        assertThat(sales.owedByAll()).isEqualTo(new Money(3));
+    }
 }

@@ -37,6 +37,14 @@ public final class AutoSales {
         return batch == null ? Money.ZERO : batch.total();
     }
 
+    public synchronized Money owedByAll() {
+        Money total = Money.ZERO;
+        for (Batch batch : owed.values()) {
+            total = total.plus(batch.total());
+        }
+        return total;
+    }
+
     public synchronized Map<UUID, Batch> drain() {
         Map<UUID, Batch> all = Map.copyOf(owed);
         owed.clear();

@@ -8,6 +8,8 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.world.protection.Land;
+import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.enchants.EnchantAdvancements;
 import de.raindancer.modules.enchants.model.ChestLink;
 import org.bukkit.Bukkit;
@@ -16,6 +18,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.block.ShulkerBox;
 import org.bukkit.entity.Item;
@@ -35,6 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Chest Link: a tool linked to a chest sends what it mines there, wherever the chest is. Drops are gathered
  * for a moment and sent together, so a vein is one delivery and not one per block. What does not arrive —
  * a full chest, a broken one, one on another server — comes to the player instead; nothing is lost.
+ *
+ * <p>The link lives on the item, and an item's data can be forged (a creative inventory writes any) or handed
+ * on, so the link proves nothing: every delivery asks again, on the chest's own thread, whether it is still
+ * a chest, barrel or shulker box and whether the player mining may open it there.
  */
 public final class ChestLinkService {
 
@@ -45,22 +52,29 @@ public final class ChestLinkService {
     }
 
     private final Plugin plugin;
+    private final Land land;
     private final EnchantAdvancements advancements;
     private final Messages messages;
     private final Effects effects;
     private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
     private final Map<UUID, Long> hinted = new ConcurrentHashMap<>();
 
-    public ChestLinkService(Plugin plugin, EnchantAdvancements advancements, Messages messages, Effects effects) {
+    public ChestLinkService(Plugin plugin, Land land, EnchantAdvancements advancements, Messages messages,
+                            Effects effects) {
         this.plugin = plugin;
+        this.land = land;
         this.advancements = advancements;
         this.messages = messages;
         this.effects = effects;
     }
 
-    private static boolean linkable(Block block) {
-        var state = block.getState(false);
+    private static boolean linkable(BlockState state) {
         return state instanceof Chest || state instanceof Barrel || state instanceof ShulkerBox;
+    }
+
+    /** Whether this player may put things into a container here, by whatever claims the ground. */
+    private boolean mayFill(UUID player, Location at) {
+        return land.areaAt(at).map(area -> area.may(player, LandAction.CONTAINERS)).orElse(true);
     }
 
     /**
@@ -71,10 +85,11 @@ public final class ChestLinkService {
      */
     public boolean link(Player player, Block block, boolean allowed) {
         ItemStack tool = player.getInventory().getItemInMainHand();
-        if (!player.isSneaking() || CustomEnchantments.levelOn(tool, RainsEnchants.CHEST_LINK) < 1 || !linkable(block)) {
+        if (!player.isSneaking() || CustomEnchantments.levelOn(tool, RainsEnchants.CHEST_LINK) < 1
+                || !linkable(block.getState(false))) {
             return false;
         }
-        if (!allowed) {
+        if (!allowed || !mayFill(player.getUniqueId(), block.getLocation())) {
             messages.send(player, "enchants.link-denied");
             effects.play(player.getUniqueId(), Cues.NO);
             return true;
@@ -134,7 +149,8 @@ public final class ChestLinkService {
             return;
         }
         Location chest = new Location(world, batch.link().x(), batch.link().y(), batch.link().z());
-        ContainerDelivery.deliver(plugin, chest, batch.items()).thenAccept(rest -> {
+        ContainerDelivery.deliver(plugin, chest, batch.items(),
+                state -> linkable(state) && mayFill(player, chest)).thenAccept(rest -> {
             if (rest.isEmpty()) {
                 Player online = Bukkit.getPlayer(player);
                 if (online != null) {

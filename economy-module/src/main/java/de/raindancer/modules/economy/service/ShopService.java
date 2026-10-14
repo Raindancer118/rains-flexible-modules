@@ -394,6 +394,11 @@ public final class ShopService implements IEconomyService {
 
     /** Why the shop will not pay {@code total} more to this player today, if it will not: a message key and what is left. */
     Optional<Map.Entry<String, Money>> overBudget(Player player, Money total) {
+        return overBudget(player, total, Money.ZERO);
+    }
+
+    /** @param pendingByAll sold but not yet paid, by everybody — it counts against the server's budget as if paid */
+    private Optional<Map.Entry<String, Money>> overBudget(Player player, Money total, Money pendingByAll) {
         de.raindancer.modules.economy.SupplySettings live = supplied();
         if (!live.sellBudgets()) {
             return Optional.empty();
@@ -408,7 +413,7 @@ public final class ShopService implements IEconomyService {
         }
         Money all = de.raindancer.modules.economy.SupplySettings.money(live.sellBudgetServer(), currency);
         if (all.isPositive()) {
-            Money left = all.minus(economy.book().todayByAll(SELL_SOURCE)).max(Money.ZERO);
+            Money left = all.minus(economy.book().todayByAll(SELL_SOURCE)).minus(pendingByAll).max(Money.ZERO);
             if (total.isMoreThan(left)) {
                 return Optional.of(Map.entry("economy.shop.budget-server", left));
             }
@@ -1137,11 +1142,15 @@ public final class ShopService implements IEconomyService {
                 continue;
             }
             Optional<Money> worth = priceFor(id, stack.getType()).sellFor(stack.getAmount());
+            Money mine = autoSales.owed(id);
+            Money others = autoSales.owedByAll().minus(mine);
             if (worth.isEmpty() || !worth.get().isPositive()
-                    || overBudget(player, autoSales.owed(id).plus(worth.get())).isPresent()) {
+                    || overBudget(player, mine.plus(worth.get()), others).isPresent()) {
                 continue;
             }
             autoSales.add(id, stack.getType(), stack.getAmount(), worth.get());
+            // Booked now, not at the payout: the next drop must already see the lower price.
+            recordSold(id, Map.of(stack.getType(), stack.getAmount()));
             soldEach[i] = true;
         }
         return soldEach;
@@ -1168,7 +1177,6 @@ public final class ShopService implements IEconomyService {
                 : batch.items() + " items (auto sell)";
         EconomyResult result = economy.move(player, batch.total(), TransactionKind.SELL, what, SELL_SOURCE);
         if (result.succeeded()) {
-            recordSold(player, batch.counts());
             return;
         }
         Player online = server.getPlayer(player);

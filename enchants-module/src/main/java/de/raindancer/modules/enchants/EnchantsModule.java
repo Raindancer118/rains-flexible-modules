@@ -82,7 +82,7 @@ public final class EnchantsModule implements FlexModule {
         tools.learnRecipes();
         // Data packs may add furnace recipes after the plugins are enabled.
         Scheduling.globalLater(context.plugin(), 1, tools::learnRecipes);
-        links = new ChestLinkService(context.plugin(), advancements, context.core().messages(),
+        links = new ChestLinkService(context.plugin(), context.core().land(), advancements, context.core().messages(),
                 context.core().effects());
 
         context.listener(new AirListener(air, wornEffects));
