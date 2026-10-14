@@ -1,0 +1,9 @@
+# This module's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
+healthbars:
+  only-a-player: "<red>Health bars are for players to see."
+  usage: "<gray>/healthbars <dark_gray>— switches them · <gray>/healthbars on|off|status · /healthbars style hearts|bar"
+  switched-on: "<green>You see health bars now: under players' names and over hurt mobs."
+  switched-off: "<yellow>Health bars are hidden for you. <gray>/healthbars brings them back."
+  status-on: "<gray>You see health bars."
+  status-off: "<gray>Health bars are hidden for you."
+  style: "<gray>Health bars look like this for you now: <example>"

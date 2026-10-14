@@ -1,0 +1,24 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'Health under players names and over hurt mobs; /healthbars switches them for yourself.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Every bar follows its wearer on the wearer's own thread, and is shown per viewer on the viewer's.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

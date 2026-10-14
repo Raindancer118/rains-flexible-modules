@@ -1,0 +1,3 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+healthbars:
+  switched-off: "<yellow>Health bars hidden."
