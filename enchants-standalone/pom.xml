@@ -34,7 +34,8 @@
         <!-- 0.11.0: Thor — an axe or mace thrown like Mjölnir (lightning, flies back; the weapon never leaves the inventory), a trident calls a storm where it lands; the shard world's rain spares its endermen; shards-per-hour 0 is no limit; a hunting creature no longer fails on a target gone to another world. -->
         <!-- 0.12.0: the Crystal Wither — built like a wither, of amethyst blocks, in the shard world; a wither of the Crystal kind. -->
         <!-- 0.12.1: the Crystal Wither rises only if whoever placed the last skull may break every block of the build (security review). -->
-        <plugin.version>0.12.1</plugin.version>
+        <!-- 0.13.0: Volley — a thrown trident brings two (I) or four (II) more, fanned out like Multishot; the copies cannot be picked up, never come back and are gone soon after landing. -->
+        <plugin.version>0.13.0</plugin.version>
     </properties>
 
     <dependencies>

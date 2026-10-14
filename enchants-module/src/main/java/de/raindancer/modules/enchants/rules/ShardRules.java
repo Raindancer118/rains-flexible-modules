@@ -22,7 +22,7 @@ public final class ShardRules {
             WEIGHTS.put(key, COMMON);
         }
         for (String key : new String[]{RainsEnchants.VEINMINER, RainsEnchants.EXCAVATOR, RainsEnchants.CHEST_LINK,
-                RainsEnchants.AUTO_SELL, RainsEnchants.BOOST}) {
+                RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.VOLLEY}) {
             WEIGHTS.put(key, UNCOMMON);
         }
         for (String key : new String[]{RainsEnchants.FLIGHT, RainsEnchants.LAUNCH, RainsEnchants.SOULBOUND,

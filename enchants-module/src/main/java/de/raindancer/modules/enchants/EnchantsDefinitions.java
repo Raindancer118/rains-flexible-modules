@@ -49,6 +49,8 @@ public final class EnchantsDefinitions {
                 EnchantDef.builder(RainsEnchants.HEAT_SEEKING).name("<red>Heat-seeking").maxLevel(3)
                         .gear(Gear.RANGED).anvilCost(8).build(),
                 EnchantDef.builder(RainsEnchants.THOR).name("<yellow>Thor").maxLevel(3)
-                        .gear(Gear.THUNDER).anvilCost(8).build());
+                        .gear(Gear.THUNDER).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.VOLLEY).name("<aqua>Volley").maxLevel(2)
+                        .gear(Gear.TRIDENT).anvilCost(6).build());
     }
 }

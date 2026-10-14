@@ -94,6 +94,8 @@ public final class EnchantAdvancements {
                 "Hit something with a heat-seeking shot", AdvancementFrame.TASK, 1);
         child("thor", "root", Material.LIGHTNING_ROD, "Worthy",
                 "Throw a hammer into something, or call a storm with a trident", AdvancementFrame.TASK, 1);
+        child("volley", "root", Material.TRIDENT, "Trident Storm",
+                "Throw a volley of tridents", AdvancementFrame.TASK, 1);
         child("shardlands", "root", Material.CRYING_OBSIDIAN, "Into the Dark",
                 "Step through a portal into the shard world", AdvancementFrame.TASK, 1);
         child("first_shard", "shardlands", Material.ECHO_SHARD, "Shard Hunter",
