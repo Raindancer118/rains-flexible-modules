@@ -46,6 +46,7 @@ guilds:
   bank:
     deposited-told: "<gray><white><player></white> paid <white><amount></white> into the bank."
     withdrawn-told: "<gray><white><player></white> took <white><amount></white> out of the bank."
+    paid-for-told: "<gray>The bank paid <white><amount></white>: <white><reason></white>."
     share: "<green>Your share of <guild><green>'s bank: <white><amount></white>."
   home:
     set-told: "<gray><white><player></white> moved the guild home to <white><where></white>."

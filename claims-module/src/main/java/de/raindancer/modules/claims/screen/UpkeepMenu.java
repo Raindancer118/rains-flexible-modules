@@ -74,6 +74,10 @@ public final class UpkeepMenu extends ClaimScreen {
                 bill.add("<gold>" + (own ? "You pay " : "They pay ") + trim(parts.payPercent())
                         + "% of that (operator or discount)");
             }
+            upkeep.guildShares(me).forEach((group, share) -> bill.add("<aqua>"
+                    + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(de.raindancer.core.social.team.Groups.group(group)
+                            .map(de.raindancer.core.social.team.Groups.Group::name).orElse(group))
+                    + "</aqua><gray> pays <white>" + Fees.format(Fees.quote(SOURCE, share)) + "</white> of it"));
             bill.add("");
             bill.add("<white>Next bill: " + Fees.format(upkeep.quotedBillFor(me)));
         }

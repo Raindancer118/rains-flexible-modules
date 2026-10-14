@@ -40,6 +40,7 @@ public final class Claim {
     private final Set<UUID> owners = new java.util.concurrent.CopyOnWriteArraySet<>();
     /** The group (a guild) this claim belongs to as well — {@code guild:<id>} — or null. */
     private volatile String group;
+    private volatile boolean groupPaysUpkeep;
     /** What every member of that group may do here; officers also manage. */
     private final EnumSet<LandAction> groupPermissions = defaultGroupPermissions();
     private final Map<UUID, ClaimMember> members = new ConcurrentHashMap<>();
@@ -307,7 +308,22 @@ public final class Claim {
 
     /** Gives the claim to a group as well (null takes it away again); its owners keep it. */
     public void setGroup(String id) {
-        this.group = id == null || id.isBlank() ? null : id;
+        String now = id == null || id.isBlank() ? null : id;
+        if (!java.util.Objects.equals(now, group)) {
+            // The guild agreed to pay for this claim, not whichever guild has it next.
+            groupPaysUpkeep = false;
+        }
+        this.group = now;
+        markDirty();
+    }
+
+    /** Whether the claim's guild pays its upkeep from the guild's bank — never without a guild. */
+    public boolean groupPaysUpkeep() {
+        return groupPaysUpkeep && group != null;
+    }
+
+    public void groupPaysUpkeep(boolean pays) {
+        this.groupPaysUpkeep = pays && group != null;
         markDirty();
     }
 

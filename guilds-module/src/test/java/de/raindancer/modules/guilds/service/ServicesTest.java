@@ -367,6 +367,25 @@ class ServicesTest {
         }
 
         @Test
+        @DisplayName("as a treasury the bank pays what the guild agreed to (a claim's upkeep), all or nothing")
+        void treasury() {
+            found(ALICE, "Elves", "ELF");
+            economy.give(ALICE, 1000);
+            bank.deposit(ALICE, Money.of(1000));
+            var treasury = bank.treasury(guilds);
+            String id = guilds.groupOf(guild(ALICE)).orElseThrow().id();
+
+            assertThat(treasury.withdraw(id, Money.of(300), "Claim upkeep")).hasValue(true);
+            assertThat(guild(ALICE).bank()).isEqualTo(700);
+            assertThat(treasury.withdraw(id, Money.of(701), "Claim upkeep")).hasValue(false);
+            assertThat(guild(ALICE).bank()).isEqualTo(700);
+            assertThat(treasury.balance(id)).hasValue(Money.of(700));
+            assertThat(treasury.withdraw("guild:nobody:1", Money.of(1), "Claim upkeep")).as("not ours").isEmpty();
+            assertThat(treasury.withdraw(id.substring(0, id.lastIndexOf(':')) + ":1", Money.of(1), "x"))
+                    .as("a guild of the same name founded again is not the one that agreed").isEmpty();
+        }
+
+        @Test
         @DisplayName("when paying the player fails, the guild gets its money back")
         void failedPayout() {
             found(ALICE, "Elves", "ELF");

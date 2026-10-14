@@ -38,6 +38,11 @@ import java.util.function.Predicate;
  * Everything about one owner happens under that owner's lock, and the next due time is written to disk
  * <em>before</em> the money is asked for. A crash in between loses one bill; it can never charge twice.
  *
+ * <h2>A guild may pay</h2>
+ * A claim given to a guild can have the guild pay its upkeep from the guild's bank ({@link Claim#groupPaysUpkeep}).
+ * The owner's bill stays what it would be — still counted over all their land — and the guild pays the part its
+ * claims add. A guild that cannot pay leaves its part to the owner.
+ *
  * <h2>Nothing is ever deleted</h2>
  * Unpaid upkeep becomes a debt. It blocks making and growing claims, and — only when the server chose a number
  * of days — stops a claim protecting until it is paid. The claim itself stays.
@@ -141,11 +146,15 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
 
     /** The next bill and what it is made of. */
     public Parts partsFor(UUID owner) {
+        return partsFor(owner, claim -> true);
+    }
+
+    private Parts partsFor(UUID owner, Predicate<Claim> counted) {
         ClaimSettings now = settings;
         List<Integer> sizes = new ArrayList<>();
         int chunks = 0;
         for (Claim claim : claims.all()) {
-            if (owner.equals(claim.primaryOwner())) {
+            if (owner.equals(claim.primaryOwner()) && counted.test(claim)) {
                 int covered = claim.shape().coveredChunkKeys().size();
                 sizes.add(Math.max(1, covered));
                 chunks += covered;
@@ -157,6 +166,35 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
                 : 100.0D;
         Money total = UpkeepBill.discounted(land.plus(perClaim), percent);
         return new Parts(chunks, sizes.size(), land, perClaim, percent, total);
+    }
+
+    /**
+     * What the guilds pay of this owner's bill, by guild, before the price level: together the part their claims
+     * add to the bill, split between several guilds by their chunks. Empty when no guild pays for any.
+     */
+    public Map<String, Money> guildShares(UUID owner) {
+        Map<String, Integer> chunksOf = new java.util.TreeMap<>();
+        for (Claim claim : claims.all()) {
+            if (owner.equals(claim.primaryOwner()) && claim.groupPaysUpkeep()) {
+                chunksOf.merge(claim.group().orElseThrow(), claim.shape().coveredChunkKeys().size(), Integer::sum);
+            }
+        }
+        Map<String, Money> shares = new java.util.LinkedHashMap<>();
+        if (chunksOf.isEmpty()) {
+            return shares;
+        }
+        long guilds = billFor(owner).minor() - partsFor(owner, claim -> !claim.groupPaysUpkeep()).total().minor();
+        long allChunks = Math.max(1, chunksOf.values().stream().mapToLong(Integer::longValue).sum());
+        long left = Math.max(0L, guilds);
+        int index = 0;
+        for (Map.Entry<String, Integer> each : chunksOf.entrySet()) {
+            long share = ++index == chunksOf.size() ? left : Math.max(0L, guilds) * each.getValue() / allChunks;
+            left -= share;
+            if (share > 0) {
+                shares.put(each.getKey(), Money.of(share));
+            }
+        }
+        return shares;
     }
 
     /** The bill as it would actually be charged, after the economy's price level. */
@@ -291,16 +329,43 @@ public final class UpkeepService implements IClaimService, DebtKeeper {
                 return new Billing(owner, Outcome.NOT_DUE, Money.ZERO);
             }
             put(owner, new UpkeepAccount(now + period, account.owed(), account.since()));
-            EconomyResult result = Fees.charge(owner, bill, REASON, SOURCE);
-            if (result.succeeded()) {
-                return new Billing(owner, Outcome.PAID, result.amount());
+            Map<String, Money> shares = guildShares(owner);
+            Money ownPart = bill;
+            for (Money share : shares.values()) {
+                ownPart = ownPart.minus(share);
             }
-            if (result.outcome() == EconomyResult.Outcome.UNAVAILABLE) {
-                // No economy (yet) or it is down: ask again next time rather than turning it into a debt.
-                put(owner, account);
-                return new Billing(owner, Outcome.UNAVAILABLE, Money.ZERO);
+            Money paid = Money.ZERO;
+            Money missed = Money.ZERO;
+            if (ownPart.isPositive()) {
+                EconomyResult result = Fees.charge(owner, ownPart, REASON, SOURCE);
+                if (result.outcome() == EconomyResult.Outcome.UNAVAILABLE) {
+                    // No economy (yet) or it is down: ask again next time rather than turning it into a debt.
+                    // Nobody has been charged yet, the guilds are asked only after this.
+                    put(owner, account);
+                    return new Billing(owner, Outcome.UNAVAILABLE, Money.ZERO);
+                }
+                if (result.succeeded()) {
+                    paid = paid.plus(result.amount());
+                } else {
+                    missed = missed.plus(Fees.quote(SOURCE, ownPart));
+                }
             }
-            Money missed = Fees.quote(SOURCE, bill);
+            for (Map.Entry<String, Money> share : shares.entrySet()) {
+                Money quoted = Fees.quote(SOURCE, share.getValue());
+                if (de.raindancer.core.social.team.Groups.pay(share.getKey(), quoted, REASON)) {
+                    paid = paid.plus(quoted);
+                    continue;
+                }
+                EconomyResult fallback = Fees.charge(owner, share.getValue(), REASON, SOURCE);
+                if (fallback.succeeded()) {
+                    paid = paid.plus(fallback.amount());
+                } else {
+                    missed = missed.plus(quoted);
+                }
+            }
+            if (!missed.isPositive()) {
+                return new Billing(owner, Outcome.PAID, paid);
+            }
             long since = account.since() > 0 ? account.since() : now;
             put(owner, new UpkeepAccount(now + period, Math.addExact(account.owed(), missed.minor()), since));
             return new Billing(owner, Outcome.ARREARS, missed);

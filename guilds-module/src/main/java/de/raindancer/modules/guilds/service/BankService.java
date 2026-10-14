@@ -215,6 +215,47 @@ public final class BankService implements IGuildsService {
     }
 
     /**
+     * The bank as Core's treasury for the guild's groups: pays what the guild's officers agreed to (a claim's upkeep)
+     * straight from the bank, all or nothing, written in the guild's log. Nobody's daily limit applies — no member
+     * takes it.
+     */
+    public de.raindancer.core.social.team.Groups.Treasury treasury(GuildService guilds) {
+        return new de.raindancer.core.social.team.Groups.Treasury() {
+            @Override
+            public Optional<Boolean> withdraw(String groupId, Money amount, String reason) {
+                Optional<Guild> guild = guilds.guildByGroupId(groupId);
+                if (guild.isEmpty()) {
+                    return Optional.empty();
+                }
+                if (!settings.bankEnabled() || amount == null || !amount.isPositive()) {
+                    return Optional.of(false);
+                }
+                AtomicReference<Boolean> enough = new AtomicReference<>(false);
+                GuildOutcome taken = book.update(guild.get().id(), now -> {
+                    if (amount.minor() > now.bank()) {
+                        return now;
+                    }
+                    enough.set(true);
+                    return now.withBank(now.bank() - amount.minor());
+                });
+                if (!taken.isSuccess() || !enough.get()) {
+                    return Optional.of(false);
+                }
+                book.log(GuildEvent.of(guild.get().id().value(), clock.getAsLong(), GuildEvent.Kind.WITHDRAWAL, null,
+                        null, amount.minor(), reason == null ? "" : reason));
+                notify.holding(guild.get(), GuildPermission.VIEW_LOG, "guilds.bank.paid-for-told",
+                        "amount", format(amount.minor()), "reason", reason == null ? "" : reason);
+                return Optional.of(true);
+            }
+
+            @Override
+            public Optional<Money> balance(String groupId) {
+                return guilds.guildByGroupId(groupId).map(guild -> Money.of(Math.max(0, guild.bank())));
+            }
+        };
+    }
+
+    /**
      * Pays a guild's whole bank out to its members, as the settings say, before it is disbanded. Whatever could
      * not be paid stays in the bank and the answer is {@link GuildOutcome#ECONOMY_DOWN}: the guild is then not
      * disbanded, so nobody's money disappears with it.

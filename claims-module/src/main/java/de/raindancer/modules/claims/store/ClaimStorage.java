@@ -168,6 +168,7 @@ public final class ClaimStorage {
         claim.createdAt(yaml.getLong("created-at", System.currentTimeMillis()));
         // A guild's claim — absent on every file written before groups existed, which is "no group".
         claim.setGroup(yaml.getString("group", null));
+        claim.groupPaysUpkeep(yaml.getBoolean("group-pays-upkeep", false));
         if (yaml.isList("group-permissions")) {
             claim.groupPermissions().clear();
             for (String raw : yaml.getStringList("group-permissions")) {
@@ -446,6 +447,7 @@ public final class ClaimStorage {
         claim.publicPermissions().forEach(permission -> publicPermissions.add(permission.key()));
         yaml.set("public-permissions", publicPermissions);
         yaml.set("group", claim.group().orElse(null));
+        yaml.set("group-pays-upkeep", claim.groupPaysUpkeep() ? true : null);
         List<String> groupPermissions = new ArrayList<>();
         claim.groupPermissions().forEach(permission -> groupPermissions.add(permission.key()));
         yaml.set("group-permissions", claim.group().isPresent() ? groupPermissions : null);

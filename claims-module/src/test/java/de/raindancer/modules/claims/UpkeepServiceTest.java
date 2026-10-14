@@ -52,6 +52,7 @@ class UpkeepServiceTest {
     void reset() {
         Economies.clear();
         Debts.clear();
+        de.raindancer.core.social.team.Groups.clear();
     }
 
     /** A balance book that records every call it gets, with its source. */
@@ -484,5 +485,137 @@ class UpkeepServiceTest {
         assertThat(service.totals().bills()).isEqualTo(Money.of(4000));
         assertThat(service.totals().owed()).isEqualTo(Money.of(3000));
         assertThat(service.totals().owners()).isEqualTo(2);
+    }
+
+    /** A guild bank holding {@code minor} for "guild:elves", recording what it paid. */
+    private List<Long> guildBank(long minor) {
+        long[] held = {minor};
+        List<Long> paid = new ArrayList<>();
+        de.raindancer.core.social.team.Groups.registerTreasury("test", new de.raindancer.core.social.team.Groups.Treasury() {
+            @Override
+            public java.util.Optional<Boolean> withdraw(String groupId, Money amount, String reason) {
+                if (!groupId.equals("guild:elves")) {
+                    return java.util.Optional.empty();
+                }
+                if (held[0] < amount.minor()) {
+                    return java.util.Optional.of(false);
+                }
+                held[0] -= amount.minor();
+                paid.add(amount.minor());
+                return java.util.Optional.of(true);
+            }
+
+            @Override
+            public java.util.Optional<Money> balance(String groupId) {
+                return groupId.equals("guild:elves") ? java.util.Optional.of(Money.of(held[0])) : java.util.Optional.empty();
+            }
+        });
+        return paid;
+    }
+
+    private Claim guildPaid(int x, int chunksWide) {
+        Claim claim = claim(OWNER, x, chunksWide);
+        claim.setGroup("guild:elves");
+        claim.groupPaysUpkeep(true);
+        return claim;
+    }
+
+    @Test
+    @DisplayName("a claim the guild pays for: the guild's bank pays its share, the owner the rest — the same total")
+    void guildPaysItsShare() {
+        claim(OWNER, 0, 1);
+        guildPaid(4096, 2);
+        List<Long> guild = guildBank(10_000);
+        bank.balances.put(OWNER, 10_000L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+
+        service.billEveryoneNow();
+
+        assertThat(guild).containsExactly(2000L);
+        assertThat(bank.calls).containsExactly("withdraw 1000 claims.upkeep DONE");
+        assertThat(service.guildShares(OWNER)).containsEntry("guild:elves", Money.of(2000));
+        assertThat(service.owed(OWNER)).isEqualTo(Money.ZERO);
+    }
+
+    @Test
+    @DisplayName("an empty guild bank: its share falls back to the owner, who owes it if they cannot pay either")
+    void guildCannotPay() {
+        claim(OWNER, 0, 1);
+        guildPaid(4096, 2);
+        List<Long> guild = guildBank(500);
+        bank.balances.put(OWNER, 1_500L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+
+        service.billEveryoneNow();
+
+        assertThat(guild).isEmpty();
+        assertThat(bank.calls).containsExactly("withdraw 1000 claims.upkeep DONE", "withdraw 2000 claims.upkeep NOT_ENOUGH");
+        assertThat(service.owed(OWNER)).isEqualTo(Money.of(2000));
+    }
+
+    @Test
+    @DisplayName("the guild pays its share even when the owner cannot pay theirs; only the owner's part is owed")
+    void ownerBrokeGuildPays() {
+        claim(OWNER, 0, 1);
+        guildPaid(4096, 1);
+        List<Long> guild = guildBank(10_000);
+        UpkeepService service = service(upkeep("10", 0, 0));
+
+        assertThat(service.billEveryoneNow()).extracting(UpkeepService.Billing::outcome)
+                .containsExactly(UpkeepService.Outcome.ARREARS);
+
+        assertThat(guild).containsExactly(1000L);
+        assertThat(service.owed(OWNER)).isEqualTo(Money.of(1000));
+    }
+
+    @Test
+    @DisplayName("all of an owner's land is the guild's: nothing is asked of the owner at all")
+    void allGuildLand() {
+        guildPaid(0, 1);
+        List<Long> guild = guildBank(10_000);
+        UpkeepService service = service(upkeep("10", 0, 0));
+
+        assertThat(service.billEveryoneNow()).extracting(UpkeepService.Billing::outcome)
+                .containsExactly(UpkeepService.Outcome.PAID);
+
+        assertThat(guild).containsExactly(1000L);
+        assertThat(bank.calls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("opt-in only: a guild's claim without the switch, or the switch without a guild, is the owner's bill")
+    void optIn() {
+        Claim guildOnly = claim(OWNER, 0, 1);
+        guildOnly.setGroup("guild:elves");
+        Claim switchOnly = claim(OWNER, 4096, 1);
+        switchOnly.groupPaysUpkeep(true);
+        List<Long> guild = guildBank(10_000);
+        bank.balances.put(OWNER, 10_000L);
+        UpkeepService service = service(upkeep("10", 0, 0));
+
+        service.billEveryoneNow();
+
+        assertThat(switchOnly.groupPaysUpkeep()).isFalse();
+        assertThat(guild).isEmpty();
+        assertThat(bank.calls).containsExactly("withdraw 2000 claims.upkeep DONE");
+    }
+
+    @Test
+    @DisplayName("taking the claim back from the guild ends the guild paying for it")
+    void takingBackEndsIt() {
+        Claim claim = guildPaid(0, 1);
+        claim.setGroup(null);
+        claim.setGroup("guild:elves");
+        assertThat(claim.groupPaysUpkeep()).isFalse();
+    }
+
+    @Test
+    @DisplayName("the switch is saved with the claim and read back")
+    void switchIsSaved() {
+        Claim claim = guildPaid(0, 1);
+        Claim read = de.raindancer.modules.claims.store.ClaimStorage.fromYaml(
+                de.raindancer.modules.claims.store.ClaimStorage.describe(claim), "test");
+        assertThat(read.groupPaysUpkeep()).isTrue();
+        assertThat(read.group()).hasValue("guild:elves");
     }
 }

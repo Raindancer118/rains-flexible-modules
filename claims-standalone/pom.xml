@@ -58,7 +58,8 @@
         <!-- 2.11.0: a claim can belong to a group (a guild) as well — /claim guild [tag|off]: its leader owns it, its officers manage it, its members build, asked live so leaving ends it (RainsCore 1.131 Groups). -->
         <!-- 2.11.1: a guild leader manages a guild claim but does not own it (no delete/transfer/hand-on); guild managers cannot make claim admins (security review). -->
         <!-- 2.12.0: claims, no-claim zones and feature policies are documents in Core's database (per server) instead of files; 1.x files are brought in on first read (RainsCore 2.0). -->
-        <plugin.version>2.12.0</plugin.version>
+        <!-- 2.13.0: a guild can pay a claim's upkeep from its bank (/claim guild pays [off], opt-in per claim, said by its leader or an officer); the owner's bill stays counted over all their land, the guild pays its claims' part, an empty guild bank leaves it to the owner. -->
+        <plugin.version>2.13.0</plugin.version>
     </properties>
 
     <dependencies>

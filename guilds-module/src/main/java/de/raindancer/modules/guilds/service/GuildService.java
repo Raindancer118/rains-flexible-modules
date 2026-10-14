@@ -836,6 +836,11 @@ public final class GuildService implements IGuildsService {
     }
 
     public Optional<de.raindancer.core.social.team.Groups.Group> groupById(String id) {
+        return guildByGroupId(id).flatMap(this::groupOf);
+    }
+
+    /** The guild behind a Core group id — only the very guild it was given for, not one refounded under its name. */
+    public Optional<Guild> guildByGroupId(String id) {
         if (id == null || !id.startsWith("guild:")) {
             return Optional.empty();
         }
@@ -843,8 +848,7 @@ public final class GuildService implements IGuildsService {
         if (at <= "guild:".length() - 1) {
             return Optional.empty();
         }
-        return book.guild(id.substring("guild:".length(), at)).filter(guild -> groupId(guild).equals(id))
-                .flatMap(this::groupOf);
+        return book.guild(id.substring("guild:".length(), at)).filter(guild -> groupId(guild).equals(id));
     }
 
     private static String groupId(Guild guild) {

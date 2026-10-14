@@ -174,6 +174,10 @@ public final class ClaimCommand implements IClaimCommand {
             if (parts.discounted()) {
                 messages.send(player, "upkeep.discounted", "percent", trim(parts.payPercent()));
             }
+            upkeep.guildShares(me).forEach((group, share) -> messages.send(player, "upkeep.guild-pays",
+                    "group", de.raindancer.core.social.team.Groups.group(group)
+                            .map(de.raindancer.core.social.team.Groups.Group::name).orElse(group),
+                    "amount", Fees.format(Fees.quote("claims.upkeep", share))));
         }
         if (owing.isPositive()) {
             messages.send(player, "upkeep.owed", "owed", Fees.format(owing));
@@ -272,9 +276,14 @@ public final class ClaimCommand implements IClaimCommand {
     /**
      * {@code /claim guild [tag]} gives the claim underfoot to a guild the owner manages — its leader owns it too, its
      * officers manage it, its members are trusted, all for as long as they are in it; {@code /claim guild off} takes
-     * it back. The owners keep the claim either way.
+     * it back. The owners keep the claim either way. {@code /claim guild pays [off]}: the guild pays the claim's
+     * upkeep from its bank — said by one of its leaders or officers, since it is the guild's money.
      */
     private void group(ClaimServices claims, Player player, String[] args) {
+        if (args.length > 1 && args[1].equalsIgnoreCase("pays")) {
+            guildPays(claims, player, !(args.length > 2 && args[2].equalsIgnoreCase("off")));
+            return;
+        }
         Optional<Claim> maybe = ownedHere(claims, player);
         if (maybe.isEmpty()) {
             return;
@@ -309,6 +318,31 @@ public final class ClaimCommand implements IClaimCommand {
         claim.setGroup(group.id());
         claims.claimService().saveAsync(claim);
         claims.messages().send(player, "claim.group.given", "claim", claim.name(), "group", group.name(), "tag", group.tag());
+    }
+
+    /** The guild's officers decide, owner or not; the claim's owner may only end it. */
+    private void guildPays(ClaimServices claims, Player player, boolean pays) {
+        Optional<Claim> standing = claims.claimAround(player);
+        if (standing.isEmpty()) {
+            claims.messages().send(player, "claim.none-here");
+            return;
+        }
+        Claim claim = standing.get();
+        Optional<de.raindancer.core.social.team.Groups.Group> group =
+                claim.group().flatMap(de.raindancer.core.social.team.Groups::group);
+        if (group.isEmpty()) {
+            claims.messages().send(player, "claim.group.none-set");
+            return;
+        }
+        boolean mayEnd = !pays && claims.rights().isOwnerOrServerAdmin(claim, player);
+        if (!group.get().isManager(player.getUniqueId()) && !mayEnd) {
+            claims.messages().send(player, "claim.group.pays-not-yours", "group", group.get().name());
+            return;
+        }
+        claim.groupPaysUpkeep(pays);
+        claims.claimService().saveAsync(claim);
+        claims.messages().send(player, pays ? "claim.group.pays" : "claim.group.pays-off",
+                "claim", claim.name(), "group", group.get().name());
     }
 
     /**
@@ -756,6 +790,12 @@ public final class ClaimCommand implements IClaimCommand {
         if (args.length == 2 && (args[0].equalsIgnoreCase("warp") || args[0].equalsIgnoreCase("home"))) {
             String option = args[0].equalsIgnoreCase("warp") ? "remove" : "clear";
             return option.startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of(option) : List.of();
+        }
+        if (args[0].equalsIgnoreCase("guild") && (args.length == 2 || args.length == 3 && args[1].equalsIgnoreCase("pays"))) {
+            String prefix = args[args.length - 1].toLowerCase(Locale.ROOT);
+            List<String> sub = new ArrayList<>(args.length == 2 ? List.of("off", "pays") : List.of("off"));
+            sub.removeIf(word -> !word.startsWith(prefix));
+            return sub;
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("owner")) {
             return nameSuggestions(source, args[2]);
