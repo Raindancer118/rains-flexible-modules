@@ -50,7 +50,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.14.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.15.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 

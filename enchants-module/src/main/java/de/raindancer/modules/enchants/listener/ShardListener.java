@@ -96,6 +96,36 @@ public final class ShardListener implements IEnchantsListener {
         }
     }
 
+    /** A creeper in the shard world blows up far bigger than anywhere else. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlast(org.bukkit.event.entity.ExplosionPrimeEvent event) {
+        if (event.getEntity() instanceof org.bukkit.entity.Creeper creeper && worlds.isShardWorld(creeper.getWorld())) {
+            event.setRadius(de.raindancer.modules.enchants.rules.ShardBlast.radius(event.getRadius(),
+                    ShardMobService.tierOf(creeper)));
+        }
+    }
+
+    /** A shard creature hits harder the higher its kind: whatever it deals, itself or by what it shot. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHurt(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        org.bukkit.entity.Entity source = event.getDamager();
+        if (source instanceof org.bukkit.entity.Projectile projectile
+                && projectile.getShooter() instanceof org.bukkit.entity.Entity shooter) {
+            source = shooter;
+        }
+        if (source instanceof org.bukkit.entity.Mob mob) {
+            ShardMobService.tierOf(mob).ifPresent(tier -> event.setDamage(event.getDamage() * tier.damageFactor()));
+        }
+    }
+
+    /** After every other plugin had its say: what the hit does to a tyrant, or with a tyrant's arrow. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHurtDone(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof org.bukkit.entity.LivingEntity victim && worlds.isShardWorld(victim.getWorld())) {
+            mobs.hurt(victim, event.getFinalDamage(), event.getDamager());
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onKill(EntityDeathEvent event) {
         Player killer = event.getEntity().getKiller();

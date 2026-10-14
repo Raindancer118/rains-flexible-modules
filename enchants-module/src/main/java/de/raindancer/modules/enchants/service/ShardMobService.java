@@ -62,6 +62,12 @@ public final class ShardMobService {
 
     /** A creature of the shard world came into memory (spawned, or its chunk loaded): the neutral ones start hunting. */
     public void loaded(LivingEntity entity) {
+        if (entity instanceof org.bukkit.entity.AbstractSkeleton skeleton && tierOf(skeleton).orElse(null) == ShardTier.TYRANT
+                && worlds.isShardWorld(skeleton.getWorld()) && gunners.add(skeleton.getUniqueId())) {
+            int[] fight = {0};
+            Scheduling.entityTimer(plugin, skeleton, 1, 1, task -> minigun(skeleton, fight),
+                    () -> gunners.remove(skeleton.getUniqueId()));
+        }
         if (entity instanceof Mob mob && tierOf(mob).isPresent() && worlds.isShardWorld(mob.getWorld())
                 && ShardSpawnRule.of(mob.getType()) == ShardSpawnRule.ENRAGED && hunting.add(mob.getUniqueId())) {
             Scheduling.entityTimer(plugin, mob, 20, 20, task -> hunt(mob), () -> hunting.remove(mob.getUniqueId()));
@@ -111,6 +117,75 @@ public final class ShardMobService {
     /** Whether this is a Crystal Wither risen from its build — not a wither from a command or an egg. */
     public static boolean isCrystalWither(org.bukkit.entity.Entity entity) {
         return entity instanceof org.bukkit.entity.Wither && entity.getPersistentDataContainer().has(CRYSTAL_WITHER);
+    }
+
+    private final java.util.Set<java.util.UUID> gunners = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final org.bukkit.NamespacedKey CALLED = new org.bukkit.NamespacedKey("rainsenchants", "tyrant_called");
+    /** How far a skeleton tyrant fires, and how hard one arrow hits before its kind's multiplier. */
+    private static final double MINIGUN_RANGE = 32;
+    private static final double MINIGUN_ARROW_DAMAGE = 0.4;
+    private static final double MINIGUN_SPEED = 2.6;
+    private static final double MINIGUN_SPREAD = 0.06;
+
+    /** One tick of a skeleton tyrant's fight: bursts of arrows at the player it is after, while it can see them. */
+    private void minigun(org.bukkit.entity.AbstractSkeleton skeleton, int[] fight) {
+        if (!(skeleton.getTarget() instanceof Player target) || !huntable(target)
+                || !stillChasing(target.getLocation(), skeleton.getLocation(), MINIGUN_RANGE)
+                || !skeleton.hasLineOfSight(target)) {
+            fight[0] = 0;
+            return;
+        }
+        if (de.raindancer.modules.enchants.rules.Tyrant.fires(fight[0]++)) {
+            org.bukkit.util.Vector aim = target.getEyeLocation().subtract(0, 0.3, 0).toVector()
+                    .subtract(skeleton.getEyeLocation().toVector()).normalize();
+            java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+            aim.add(new org.bukkit.util.Vector(random.nextGaussian(), random.nextGaussian(), random.nextGaussian())
+                    .multiply(MINIGUN_SPREAD));
+            org.bukkit.entity.Arrow arrow = skeleton.launchProjectile(org.bukkit.entity.Arrow.class,
+                    aim.normalize().multiply(MINIGUN_SPEED));
+            arrow.setDamage(MINIGUN_ARROW_DAMAGE);
+            arrow.setPickupStatus(org.bukkit.entity.AbstractArrow.PickupStatus.DISALLOWED);
+            skeleton.getWorld().playSound(skeleton.getLocation(), org.bukkit.Sound.ENTITY_ARROW_SHOOT, 0.6f, 1.8f);
+        }
+    }
+
+    /**
+     * Something hit a creature: a zombie tyrant taken below half its health calls for help, once — zombies of its own
+     * kind beside it, Shardborn, after whoever hit it. Also: a skeleton tyrant's arrow leaves no moment of invulnerability,
+     * or the minigun's every other arrow would bounce off.
+     */
+    public void hurt(LivingEntity victim, double damage, org.bukkit.entity.Entity source) {
+        if (source instanceof org.bukkit.entity.AbstractArrow arrow
+                && arrow.getShooter() instanceof org.bukkit.entity.AbstractSkeleton gunner
+                && tierOf(gunner).orElse(null) == ShardTier.TYRANT) {
+            Scheduling.entityLater(plugin, victim, 1L, () -> victim.setNoDamageTicks(0));
+        }
+        if (!(victim instanceof org.bukkit.entity.Zombie tyrant) || tierOf(tyrant).orElse(null) != ShardTier.TYRANT) {
+            return;
+        }
+        org.bukkit.attribute.AttributeInstance most = tyrant.getAttribute(Attribute.MAX_HEALTH);
+        double max = most == null ? tyrant.getHealth() : most.getValue();
+        boolean called = tyrant.getPersistentDataContainer().has(CALLED);
+        if (!de.raindancer.modules.enchants.rules.Tyrant.callsForHelp(tyrant.getHealth(), tyrant.getHealth() - damage,
+                max, called)) {
+            return;
+        }
+        tyrant.getPersistentDataContainer().set(CALLED, PersistentDataType.BYTE, (byte) 1);
+        LivingEntity attacker = source instanceof org.bukkit.entity.Projectile projectile
+                && projectile.getShooter() instanceof LivingEntity shooter ? shooter
+                : source instanceof LivingEntity living ? living : null;
+        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        for (int i = 0; i < de.raindancer.modules.enchants.rules.Tyrant.REINFORCEMENTS; i++) {
+            org.bukkit.Location at = tyrant.getLocation().add(random.nextDouble(-2, 2), 0, random.nextDouble(-2, 2));
+            org.bukkit.entity.Entity made = tyrant.getWorld().spawn(at, tyrant.getType().getEntityClass());
+            if (made instanceof org.bukkit.entity.Zombie helper) {
+                giveKind(helper, ShardTier.SHARDBORN);
+                if (attacker instanceof Player player && huntable(player)) {
+                    helper.setTarget(player);
+                }
+            }
+        }
+        tyrant.getWorld().playSound(tyrant.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_VILLAGER_CURE, 1f, 0.5f);
     }
 
     /** Keeps an always-angry creature on the nearest player who can be hurt, angry the way its kind gets angry. */
@@ -168,7 +243,8 @@ public final class ShardMobService {
         mob.setRemoveWhenFarAway(true);
         multiply(mob, Attribute.MAX_HEALTH, tier.healthFactor() - 1);
         add(mob, Attribute.ATTACK_DAMAGE, tier.extraDamage());
-        multiply(mob, Attribute.MOVEMENT_SPEED, tier.speedFactor() - 1);
+        boolean babyZombie = mob instanceof org.bukkit.entity.Zombie zombie && !zombie.isAdult();
+        multiply(mob, Attribute.MOVEMENT_SPEED, tier.speedFactor(babyZombie) - 1);
         add(mob, Attribute.ARMOR, tier.armour());
         AttributeInstance health = mob.getAttribute(Attribute.MAX_HEALTH);
         if (health != null) {

@@ -79,8 +79,18 @@ public enum ShardTier {
         return healthFactor;
     }
 
+    /** What all its damage is multiplied by — melee, arrows, explosions: 30 % more each kind up. */
+    public double damageFactor() {
+        return Math.pow(1.3, ordinal());
+    }
+
     public double extraDamage() {
         return extraDamage;
+    }
+
+    /** Its speed, for a baby zombie or anything else: a baby zombie tyrant is 20 % faster still. */
+    public double speedFactor(boolean babyZombie) {
+        return this == TYRANT && babyZombie ? speedFactor() * 1.2 : speedFactor();
     }
 
     public double speedFactor() {
