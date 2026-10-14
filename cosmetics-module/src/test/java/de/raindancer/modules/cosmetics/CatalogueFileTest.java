@@ -24,13 +24,13 @@ class CatalogueFileTest {
     Path folder;
 
     private Path config() {
-        return folder.resolve("config.yml");
+        return folder.resolve("catalogue.yml");
     }
 
     @Test
     @DisplayName("a fresh file gets the shipped palette and presets written into it")
     void freshFileGetsDefaults() throws IOException {
-        CatalogueFile file = new CatalogueFile(config());
+        CatalogueFile file = CatalogueFile.in(folder);
         Catalogue loaded = file.load(problem -> { });
 
         assertThat(loaded.palette()).hasSizeGreaterThanOrEqualTo(16);
@@ -61,7 +61,7 @@ class CatalogueFileTest {
                     colours: []
                 """);
         List<String> problems = new ArrayList<>();
-        Catalogue loaded = new CatalogueFile(config()).load(problems::add);
+        Catalogue loaded = CatalogueFile.in(folder).load(problems::add);
 
         assertThat(loaded.palette()).hasSize(1);
         assertThat(loaded.palette().getFirst().colour()).isEqualTo(TextColor.fromHexString("#87ceeb"));
@@ -80,7 +80,7 @@ class CatalogueFileTest {
     @DisplayName("an owner who emptied both lists meant it")
     void emptyIsEmpty() throws IOException {
         Files.writeString(config(), "palette: {}\npresets: {}\n");
-        Catalogue loaded = new CatalogueFile(config()).load(problem -> { });
+        Catalogue loaded = CatalogueFile.in(folder).load(problem -> { });
         assertThat(loaded.palette()).isEmpty();
         assertThat(loaded.presets()).isEmpty();
     }
@@ -100,7 +100,7 @@ class CatalogueFileTest {
     @DisplayName("the shipped catalogue is plenty, every preset in it loads, and no two share a name")
     void shippedCatalogueIsSound() {
         List<String> problems = new ArrayList<>();
-        Catalogue loaded = new CatalogueFile(config()).load(problems::add);
+        Catalogue loaded = CatalogueFile.in(folder).load(problems::add);
         assertThat(problems).isEmpty();
         assertThat(loaded.presets()).hasSizeGreaterThanOrEqualTo(50);
         assertThat(loaded.presets()).extracting(preset -> preset.title().toLowerCase())
@@ -122,7 +122,7 @@ class CatalogueFileTest {
                     title: Ocean
                     colours: ['#2193b0', '#6dd5ed']
                 """);
-        Catalogue loaded = new CatalogueFile(config()).load(problem -> { });
+        Catalogue loaded = CatalogueFile.in(folder).load(problem -> { });
 
         assertThat(loaded.preset("creeper")).as("a new one arrived").isPresent();
         assertThat(loaded.preset("lava")).as("0.4.0's flowing ones never reached older files; now they do").isPresent();
@@ -140,13 +140,49 @@ class CatalogueFileTest {
                     title: Ocean
                     colours: ['#2193b0', '#6dd5ed']
                 """);
-        new CatalogueFile(config()).load(problem -> { });
+        CatalogueFile.in(folder).load(problem -> { });
         String upgraded = Files.readString(config());
         Files.writeString(config(), upgraded.replaceAll("(?m)^  creeper:\\n(    .*\\n)+", ""));
         assertThat(Files.readString(config())).doesNotContain("creeper:");
 
-        Catalogue again = new CatalogueFile(config()).load(problem -> { });
+        Catalogue again = CatalogueFile.in(folder).load(problem -> { });
         assertThat(again.preset("creeper")).isEmpty();
         assertThat(again.preset("emerald")).isPresent();
+    }
+
+    @Test
+    @DisplayName("a 1.x config.yml that holds the palette hands it over, and is left as it is")
+    void theOldConfigIsTakenOverAndNotTouched() throws IOException {
+        Path old = folder.resolve("config.yml");
+        Files.writeString(old, """
+                some-setting: true
+                palette:
+                  sky: '#87ceeb'
+                presets:
+                  dusk:
+                    title: Dusk
+                    colours: ['#0b486b', '#f56217']
+                """);
+        String before = Files.readString(old);
+
+        Catalogue loaded = CatalogueFile.in(folder).load(problem -> { });
+
+        assertThat(loaded.colourNamed("sky")).isPresent();
+        assertThat(loaded.preset("dusk")).isPresent();
+        assertThat(Files.readString(config())).contains("sky").contains("dusk");
+        assertThat(Files.readString(old)).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("an old config.yml that cannot be read is no reason to write the shipped catalogue over the owner's")
+    void anUnreadableOldConfigWritesNothing() throws IOException {
+        Files.writeString(folder.resolve("config.yml"), "palette: [ not: yaml");
+        List<String> problems = new ArrayList<>();
+
+        Catalogue loaded = CatalogueFile.in(folder).load(problems::add);
+
+        assertThat(Files.exists(config())).isFalse();
+        assertThat(problems).isNotEmpty();
+        assertThat(loaded.palette()).as("the shipped one is used for this boot").isNotEmpty();
     }
 }

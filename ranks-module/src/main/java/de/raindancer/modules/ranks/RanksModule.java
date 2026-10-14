@@ -24,7 +24,7 @@ public final class RanksModule implements FlexModule {
 
     public static final String BADGE_OWNER = "ranks";
 
-    private static final ModuleInfo INFO = ModuleInfo.of("ranks", "Ranks", "0.4.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("ranks", "Ranks", "0.5.0")
             .describedAs("Ranks like [OWNER], [DEV] or [ADMIN] in front of a name — in chat, above the head and in the tablist, switchable for the server and by every player")
             .by("Raindancer118");
 
@@ -44,14 +44,16 @@ public final class RanksModule implements FlexModule {
             context.log().info("{} permission(s) registered.", registered);
         }
 
-        RankCatalogue catalogue = new RankCatalogue(new YamlStore(context.dataFolder().resolve("ranks.yml")),
+        RankCatalogue catalogue = new RankCatalogue(YamlStore.network(context.dataFolder().resolve("ranks.yml")),
                 () -> RanksModule.class.getResourceAsStream("ranks.yml"),
-                new YamlStore(context.dataFolder().resolve("custom-ranks.yml")));
+                YamlStore.network(context.dataFolder().resolve("custom-ranks.yml")));
         int ranks = catalogue.reload();
+        context.closeWith(catalogue.watch());
         catalogue.problems().forEach(problem -> context.log().warn("ranks.yml: {}", problem));
         catalogue.merged().forEach(change -> context.log().info("ranks.yml: {} from the shipped ranks.", change));
-        HolderBook holders = new HolderBook(new YamlStore(context.dataFolder().resolve("holders.yml")));
+        HolderBook holders = new HolderBook(YamlStore.network(context.dataFolder().resolve("holders.yml")));
         holders.load();
+        context.closeWith(holders.watch());
         if (!holders.readable()) {
             context.log().error("holders.yml could not be read. No rank can be given or changed until it is "
                     + "fixed — saving now would replace everybody's ranks.");
@@ -59,12 +61,6 @@ public final class RanksModule implements FlexModule {
 
         RankService service = new RankService(catalogue, holders, settings.current());
         settings.onChange(service::settings);
-
-        // The network has one set of ranks: a following server copies the other's files and reads them again.
-        context.core().syncFile("RainsRanks/ranks.yml", catalogue::reload);
-        context.core().syncFile("RainsRanks/custom-ranks.yml", catalogue::reload);
-        context.core().syncFile("RainsRanks/holders.yml", holders::load);
-        context.core().syncFile("RainsRanks/config.yml", settings::load);
 
         NameBadges.registerPlaced(BADGE_OWNER, service::badge);
         context.closeWith(() -> NameBadges.unregister(BADGE_OWNER));

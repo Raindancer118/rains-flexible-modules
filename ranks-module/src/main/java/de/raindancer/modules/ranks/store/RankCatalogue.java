@@ -2,6 +2,7 @@ package de.raindancer.modules.ranks.store;
 
 import de.raindancer.core.data.store.ShippedEntries;
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.core.ui.text.Text;
 import de.raindancer.modules.ranks.model.Rank;
 import net.kyori.adventure.text.Component;
@@ -25,6 +26,10 @@ import java.util.regex.Pattern;
  * The ranks there are: {@code ranks.yml}, which the owner edits by hand — written out the first time, after that a
  * newer version's ranks are merged in without undoing the owner's edits — and on top of it {@code custom-ranks.yml},
  * what staff made, changed or deleted in game. The overlay keeps the owner's file (and its comments) untouched.
+ *
+ * <p>Both are documents of the network ({@code YamlStore.network}): the ranks are the same on every server, and a
+ * change on one is read by the others through {@link #watch()}. A game change is an {@link YamlStore#update} of the
+ * overlay as it is now, so two servers' changes to different ranks lose nothing of each other's.
  */
 public final class RankCatalogue {
 
@@ -51,20 +56,41 @@ public final class RankCatalogue {
         this.custom = custom;
     }
 
-    /** Reads the file again. @return how many ranks it holds */
-    public int reload() {
-        lastMerge = ShippedEntries.bringUp(store.file(), shipped, "ranks", Set.of());
-        List<String> found = new ArrayList<>(store.problems());
-        Map<String, Rank> read = new LinkedHashMap<>(parse(store.read(), found));
+    /**
+     * Reads the documents again. One that cannot be read leaves the ranks held as they are: not read is not
+     * "there are no ranks". @return how many ranks there are
+     */
+    public synchronized int reload() {
+        lastMerge = ShippedEntries.bringUp(store, shipped, "ranks", Set.of());
+        List<String> found = new ArrayList<>();
+        Optional<YamlConfiguration> main = store.readIfReadable();
+        Optional<YamlConfiguration> overlay = custom == null ? Optional.of(new YamlConfiguration()) : custom.readIfReadable();
+        if (main.isEmpty() || overlay.isEmpty()) {
+            store.problems().forEach(found::add);
+            if (custom != null) {
+                custom.problems().forEach(problem -> found.add("custom-ranks.yml: " + problem));
+            }
+            problems = List.copyOf(found);
+            return ranks.size();
+        }
+        Map<String, Rank> read = new LinkedHashMap<>(parse(main.get(), found));
         if (custom != null) {
-            YamlConfiguration overlay = custom.read();
-            custom.problems().forEach(problem -> found.add("custom-ranks.yml: " + problem));
-            parse(overlay, found).forEach(read::put);
-            overlay.getStringList("deleted").forEach(read::remove);
+            parse(overlay.get(), found).forEach(read::put);
+            overlay.get().getStringList("deleted").forEach(read::remove);
         }
         ranks = Map.copyOf(read);
         problems = List.copyOf(found);
         return ranks.size();
+    }
+
+    /** Reads again when another server writes either document. Close to stop. */
+    public NetworkBus.Subscription watch() {
+        NetworkBus.Subscription mine = store.onChange(this::reload);
+        NetworkBus.Subscription overlay = custom == null ? () -> { } : custom.onChange(this::reload);
+        return () -> {
+            mine.close();
+            overlay.close();
+        };
     }
 
     /** Makes or replaces a rank in game. @return false when it could not be saved, or there is no overlay */

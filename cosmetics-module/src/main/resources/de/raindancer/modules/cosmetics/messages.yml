@@ -60,6 +60,7 @@ cosmetics:
     release-not-reserved: "<gray>Nobody has reserved the wings you wear."
     released-all: "<green>Freed <white><count></white> wing reservation(s) of <white><owner></white>."
     release-not-yours: "<red>That reservation is <white><owner></white>'s to give up, not yours."
+    not-saved: "<red>That could not be saved, so nothing changed. Try again in a moment."
   particle:
     set: "<green>You are wearing <white><particle></white> now."
     cleared: "<green>No more sparkles. Very understated."

@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.16.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.17.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -48,9 +48,6 @@ public final class CosmeticsModule implements FlexModule {
     public void enable(ModuleContext context) {
         LogChannel log = context.log();
         Server server = context.plugin().getServer();
-        SettingsStore<CosmeticsSettings> settings =
-                context.settings(CosmeticsSettings.class, CosmeticsSettings.DEFAULTS);
-
         // Beside this class, not at the root: Core's own messages.yml is on the classpath too.
         context.core().messages().defineFrom(
                 CosmeticsModule.class.getResourceAsStream("messages.yml"),
@@ -58,8 +55,15 @@ public final class CosmeticsModule implements FlexModule {
         // The same lines said plainly, for a server whose Message tone is SERIOUS.
         context.core().messages().seriousFrom(CosmeticsModule.class.getResourceAsStream("messages-serious.yml"));
 
-        CatalogueFile catalogue = new CatalogueFile(context.dataFolder().resolve("config.yml"));
+        // Before the settings are bound, which take a 1.x config.yml over: the palette may still be in it.
+        CatalogueFile catalogue = CatalogueFile.in(context.dataFolder());
         Catalogue loaded = catalogue.load(warning -> log.warn("{}", warning));
+        // A preset another server added needs its permission node here too.
+        context.closeWith(catalogue.watch(warning -> log.warn("{}", warning),
+                fresh -> PermissionNodes.register(server, PermissionNodes.declaredFor(fresh.presets()))));
+
+        SettingsStore<CosmeticsSettings> settings =
+                context.settings(CosmeticsSettings.class, CosmeticsSettings.DEFAULTS);
 
         int registered = PermissionNodes.register(server, PermissionNodes.declared())
                 + PermissionNodes.register(server, PermissionNodes.declaredFor(loaded.presets()));
@@ -74,8 +78,9 @@ public final class CosmeticsModule implements FlexModule {
         // Kept apart from config.yml: these are players' own, not settings an admin edits.
         de.raindancer.modules.cosmetics.store.WingReservations reservations =
                 new de.raindancer.modules.cosmetics.store.WingReservations(
-                        context.dataFolder().resolve("wing-reservations.yml"));
+                        de.raindancer.core.data.store.YamlStore.network(context.dataFolder().resolve("wing-reservations.yml")));
         reservations.load();
+        context.closeWith(reservations.watch());
         ParticleService particles = new ParticleService(context.plugin(), server, context.core().vanish(),
                 context.core().messages(), settings.current(), reservations);
         particles.start();
@@ -94,8 +99,9 @@ public final class CosmeticsModule implements FlexModule {
             Scheduling.entity(context.plugin(), online, () -> teleports.load(online));
         }
         de.raindancer.modules.cosmetics.store.UnlockBook unlockBook = new de.raindancer.modules.cosmetics.store.UnlockBook(
-                new de.raindancer.core.data.store.YamlStore(context.dataFolder().resolve("unlocks.yml")));
+                de.raindancer.core.data.store.YamlStore.network(context.dataFolder().resolve("unlocks.yml")));
         unlockBook.load();
+        context.closeWith(unlockBook.watch());
         if (!unlockBook.readable()) {
             log.error("unlocks.yml could not be read. Nobody can buy a cosmetic until it is fixed — "
                     + "saving now would replace everybody's purchases.");

@@ -30,7 +30,8 @@
              the rainscosmetics data is carried over, nothing is taken off on join, and they are chosen there. Needs
              RainsCore 1.120.0. -->
         <!-- 0.16.1: typed name styles are read by RainsCore 1.126.0 TypedStyles (same words, shared with guilds). -->
-        <plugin.version>0.16.1</plugin.version>
+        <!-- 0.17.0: RainsCore 2.0 network — the palette and presets are catalogue.yml, purchases and wing reservations are the network's documents (a purchase follows the player, a reservation holds on every server), all read again when another server writes. -->
+        <plugin.version>0.17.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -30,8 +30,8 @@ import java.util.List;
  * and that is the whole point of the arrangement.
  *
  * <h2>What enabling actually does</h2>
- * Reads the palette out of {@code config.yml} — writing the shipped one in if the file has never had one
- * — and registers three listeners: the crafting grid, the water cauldron and the mob name. Nothing is
+ * Reads the palette out of {@code palette.yml} — a document of the network, taken over from the old
+ * {@code config.yml} or written from the shipped tables the first time — and registers three listeners: the crafting grid, the water cauldron and the mob name. Nothing is
  * loaded into memory beyond that, because there is nothing to load: a styled name tag <em>is</em> the
  * record, held in its own persistent data, so a server that removes this module keeps every tag anybody
  * has dyed and gets them back the day it is installed again.
@@ -49,7 +49,7 @@ import java.util.List;
  */
 public final class NamesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("names", "Coloured names", "2.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("names", "Coloured names", "2.4.0")
             .describedAs("Dye a name tag, then craft it with an item to paint that item's name — "
                     + "gradients included")
             .by("Raindancer118");
@@ -74,6 +74,11 @@ public final class NamesModule implements FlexModule {
     public void enable(ModuleContext context) {
         log = context.log();
         Server server = context.plugin().getServer();
+        // First, before the settings are bound: a 1.x config.yml still holding the palette is read here, and
+        // the settings take that file over (and rewrite it as layers) as soon as they are asked for.
+        palette = PaletteFile.in(context.dataFolder());
+        palette.load(warning -> log.warn("{}", warning));
+        context.closeWith(palette.watch(warning -> log.warn("{}", warning)));
         settings = context.settings(NamesSettings.class, NamesSettings.DEFAULTS);
 
         // The module's own wording, offered as a floor below anything the owner has written. Not
@@ -98,11 +103,6 @@ public final class NamesModule implements FlexModule {
         if (registered > 0) {
             log.info("{} permission(s) registered.", registered);
         }
-
-        // The palette shares config.yml with the settings above. Safe in both directions: Core keeps
-        // the keys its schema does not know, and nothing here writes a key the schema owns.
-        palette = new PaletteFile(context.dataFolder().resolve("config.yml"));
-        palette.load(warning -> log.warn("{}", warning));
 
         crafting = new CraftService(context.plugin(), palette::current, settings.current());
         washing = new WashService(palette::current, settings.current());

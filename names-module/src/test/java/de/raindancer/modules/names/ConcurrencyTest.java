@@ -52,7 +52,7 @@ class ConcurrencyTest {
     @Test
     @DisplayName("a reader always sees one whole palette, never a mixture of two")
     void readingWhileItIsReplaced() throws Exception {
-        PaletteFile file = new PaletteFile(folder.resolve("config.yml"));
+        PaletteFile file = PaletteFile.in(folder);
         write(FIRST);
         file.load(warning -> {
         });
@@ -112,7 +112,7 @@ class ConcurrencyTest {
     @Test
     @DisplayName("a palette handed out earlier is not changed by a later reload")
     void aHeldPaletteIsFrozen() {
-        PaletteFile file = new PaletteFile(folder.resolve("config.yml"));
+        PaletteFile file = PaletteFile.in(folder);
         write(FIRST);
         Palette held = file.load(warning -> {
         });
@@ -133,7 +133,7 @@ class ConcurrencyTest {
         yaml.set("colours.RED_DYE", red);
         yaml.set("decorations.IRON_INGOT", "bold");
         try {
-            yaml.save(folder.resolve("config.yml").toFile());
+            yaml.save(folder.resolve("palette.yml").toFile());
         } catch (IOException cannot) {
             throw new AssertionError("could not write the fixture", cannot);
         }

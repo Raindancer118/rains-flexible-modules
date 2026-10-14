@@ -28,7 +28,8 @@
         <!-- 0.3.0: ranks, holders and settings follow the SMP over the network link (RainsCore 1.136.0 syncFile). -->
         <!-- 0.4.0: /rank manage — a menu to paint a rank's tag (the colour editor), change its text, title, weight and team, make and delete ranks. -->
         <!-- 0.4.1: every change in the manage menus asks for the admin permission again. -->
-        <plugin.version>0.4.1</plugin.version>
+        <!-- 0.5.0: RainsCore 2.0 network — ranks, custom ranks and holders are the network's documents, read again when another server writes; no more file syncing between servers. -->
+        <plugin.version>0.5.0</plugin.version>
     </properties>
 
     <dependencies>

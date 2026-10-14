@@ -343,6 +343,7 @@ public final class CosmeticsCommand implements ICosmeticsCommand {
             case RELEASED -> "cosmetics.wings.release-done";
             case NOT_RESERVED -> "cosmetics.wings.release-not-reserved";
             case NOT_YOURS -> "cosmetics.wings.release-not-yours";
+            case NOT_SAVED -> "cosmetics.wings.not-saved";
         };
         String owner = live.particles().reservations()
                 .holderOf(live.particles().wings().current(player))

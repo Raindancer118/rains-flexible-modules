@@ -20,9 +20,9 @@ class UnlockBookTest {
         UUID tom = UUID.randomUUID();
         UnlockBook book = new UnlockBook(new YamlStore(file));
         book.load();
-        assertThat(book.add(tom, "name.gradient")).isTrue();
-        assertThat(book.add(tom, "preset.sunset")).isTrue();
-        assertThat(book.add(tom, "preset.sunset")).as("twice is once").isTrue();
+        assertThat(book.add(tom, "name.gradient")).isEqualTo(UnlockBook.Added.ADDED);
+        assertThat(book.add(tom, "preset.sunset")).isEqualTo(UnlockBook.Added.ADDED);
+        assertThat(book.add(tom, "preset.sunset")).as("twice is once").isEqualTo(UnlockBook.Added.ALREADY);
 
         UnlockBook again = new UnlockBook(new YamlStore(file));
         again.load();
@@ -40,7 +40,7 @@ class UnlockBookTest {
         book.load();
 
         assertThat(book.readable()).isFalse();
-        assertThat(book.add(UUID.randomUUID(), "particles")).isFalse();
+        assertThat(book.add(UUID.randomUUID(), "particles")).isEqualTo(UnlockBook.Added.NOT_SAVED);
         assertThat(Files.readString(file)).contains("this: is: not yaml");
     }
 }

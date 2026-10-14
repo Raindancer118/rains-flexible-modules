@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class RolesModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.7.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("roles", "Roles", "0.8.0")
             .describedAs("Pick a role with /role — a cook, a builder, an explorer… — pay less in the shop for what it works with, and do it a little better in the game")
             .by("Raindancer118");
 
@@ -53,13 +53,15 @@ public final class RolesModule implements FlexModule {
             context.log().info("{} permission(s) registered.", registered);
         }
 
-        RoleCatalogue catalogue = new RoleCatalogue(new YamlStore(context.dataFolder().resolve("roles.yml")),
+        RoleCatalogue catalogue = new RoleCatalogue(YamlStore.network(context.dataFolder().resolve("roles.yml")),
                 () -> RolesModule.class.getResourceAsStream("roles.yml"));
         int roles = catalogue.reload();
+        context.closeWith(catalogue.watch());
         catalogue.problems().forEach(problem -> context.log().warn("roles.yml: {}", problem));
         catalogue.merged().forEach(change -> context.log().info("roles.yml: {} from the shipped roles.", change));
-        ChoiceBook choices = new ChoiceBook(new YamlStore(context.dataFolder().resolve("choices.yml")));
+        ChoiceBook choices = new ChoiceBook(YamlStore.network(context.dataFolder().resolve("choices.yml")));
         choices.load();
+        context.closeWith(choices.watch());
         if (!choices.readable()) {
             context.log().error("choices.yml could not be read. Nobody can change role until it is fixed — "
                     + "saving now would replace everybody's choices.");
@@ -68,8 +70,9 @@ public final class RolesModule implements FlexModule {
         RoleService service = new RoleService(context.plugin().getServer(), catalogue, choices,
                 context.core().messages(), System::currentTimeMillis, settings.current());
         settings.onChange(service::settings);
-        OwnedBook owned = new OwnedBook(new YamlStore(context.dataFolder().resolve("owned.yml")));
+        OwnedBook owned = new OwnedBook(YamlStore.network(context.dataFolder().resolve("owned.yml")));
         owned.load();
+        context.closeWith(owned.watch());
         if (!owned.readable()) {
             context.log().error("owned.yml could not be read. Nobody can buy or rent a role until it is fixed — "
                     + "saving now would replace everybody's purchases.");
@@ -89,6 +92,8 @@ public final class RolesModule implements FlexModule {
         AbilityListener abilities = new AbilityListener(services);
         context.listener(abilities);
         service.onChange(abilities::refresh);
+        // A role taken on another server changes what this one has to put on the player.
+        choices.changedElsewhere(players -> players.forEach(abilities::refresh));
         settings.onChange(changed -> context.plugin().getServer().getOnlinePlayers().forEach(abilities::refresh));
         context.closeWith(abilities::strip);
         // Ore a player put down brings no luck; Core remembers where ores are placed.

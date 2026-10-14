@@ -39,7 +39,7 @@ names:
     # naming: otherwise the manual is a heading with nothing under it and reads as broken.
     empty:
       - "<red>Nothing dyes a name tag on this server. Beige forever."
-      - "<gray>The colours, decorations and shades sections of config.yml are all empty."
+      - "<gray>The colours, decorations and shades sections of palette.yml are all empty."
 
   # What clicking an entry in the manual says. <item> is the item, <what> is what it does.
   reagent:

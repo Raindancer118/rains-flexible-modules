@@ -181,11 +181,21 @@ public final class UnlockService implements ICosmeticsService, Entitlements {
                 default -> Outcome.REFUSED;
             }, Money.ZERO);
         }
-        if (!book.add(player, key)) {
-            Fees.refund(player, paid.amount(), reason + " (not saved)", source);
-            return new Result(Outcome.NOT_SAVED, Money.ZERO);
+        switch (book.add(player, key)) {
+            case NOT_SAVED -> {
+                Fees.refund(player, paid.amount(), reason + " (not saved)", source);
+                return new Result(Outcome.NOT_SAVED, Money.ZERO);
+            }
+            case ALREADY -> {
+                // Bought on another server a moment ago: paid for once is enough.
+                Fees.refund(player, paid.amount(), reason + " (already yours)", source);
+                return new Result(Outcome.ALREADY_YOURS, Money.ZERO);
+            }
+            case ADDED -> {
+                return new Result(Outcome.DONE, paid.amount());
+            }
         }
-        return new Result(Outcome.DONE, paid.amount());
+        throw new IllegalStateException("unreachable");
     }
 
     /** Buys it for a player and tells them what came of it. @return whether it is theirs now */

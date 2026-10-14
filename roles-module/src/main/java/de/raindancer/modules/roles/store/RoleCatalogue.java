@@ -24,6 +24,9 @@ import java.util.regex.Pattern;
 /**
  * The roles there are, from {@code roles.yml}. The shipped file is written out the first time and never
  * again, so an owner's edits survive every update.
+ *
+ * <p>A document of the network ({@code YamlStore.network}): the owner edits the roles once for every server, and
+ * {@link #watch()} reads them again when that happens.
  */
 public final class RoleCatalogue {
 
@@ -47,12 +50,20 @@ public final class RoleCatalogue {
         this.shipped = shipped;
     }
 
-    /** Reads the file again. @return how many roles it holds */
-    public int reload() {
+    /**
+     * Reads the document again. One that cannot be read leaves the roles held as they are: not read is not
+     * "there are no roles". @return how many roles there are
+     */
+    public synchronized int reload() {
         // Written out once; after that, what a newer version ships is merged in without undoing the owner's edits.
-        lastMerge = de.raindancer.core.data.store.ShippedEntries.bringUp(store.file(), shipped, "roles", java.util.Set.of("abilities"));
-        roles = parse(store.read());
+        lastMerge = de.raindancer.core.data.store.ShippedEntries.bringUp(store, shipped, "roles", java.util.Set.of("abilities"));
+        store.readIfReadable().ifPresent(yaml -> roles = parse(yaml));
         return roles.size();
+    }
+
+    /** Reads again when another server writes the document. Close to stop. */
+    public de.raindancer.core.platform.network.NetworkBus.Subscription watch() {
+        return store.onChange(this::reload);
     }
 
     public List<Role> all() {

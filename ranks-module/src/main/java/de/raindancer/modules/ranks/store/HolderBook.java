@@ -1,11 +1,11 @@
 package de.raindancer.modules.ranks.store;
 
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.ranks.model.Holder;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -15,11 +15,16 @@ import java.util.function.UnaryOperator;
 
 /**
  * Who holds which rank and how they want it shown, in {@code holders.yml}. Read on every chat line and every
- * tablist and nametag pass, so held in memory and readable from any thread; written whole on a change, which is
- * rare.
+ * tablist and nametag pass, so held in memory and readable from any thread.
  *
- * <p>A file that could not be read is never written over: until somebody fixes it nothing can change, because
- * saving would replace everybody's ranks with only the new one.
+ * <h2>On a network</h2>
+ * One document for every server ({@code YamlStore.network}): a rank is the player's wherever they play. A change
+ * is made to the player as the document has them <em>now</em> and writes only that player, so two servers
+ * changing different players — or different parts of one — lose nothing of each other's. {@link #watch()}
+ * reloads when another server writes.
+ *
+ * <p>A document that could not be read is never written over, and a failed read keeps what is held: until it
+ * can be read nothing can change, because the change could not be applied to what is really there.
  */
 public final class HolderBook {
 
@@ -31,31 +36,43 @@ public final class HolderBook {
         this.store = store;
     }
 
+    /** Reads the document; a read that fails keeps what is held and refuses changes until one succeeds. */
     public synchronized void load() {
-        holders.clear();
-        YamlConfiguration yaml = store.read();
-        readable = store.problems().isEmpty();
-        ConfigurationSection all = yaml.getConfigurationSection("holders");
-        if (all == null) {
+        Optional<YamlConfiguration> read = store.readIfReadable();
+        if (read.isEmpty()) {
+            readable = false;
             return;
         }
-        for (String key : all.getKeys(false)) {
-            ConfigurationSection each = all.getConfigurationSection(key);
-            if (each == null) {
-                continue;
-            }
-            try {
-                UUID player = UUID.fromString(key);
-                Holder holder = new Holder(player, new LinkedHashSet<>(each.getStringList("ranks")),
-                        each.getString("wears", ""), each.getBoolean("show.chat", true),
-                        each.getBoolean("show.nametag", true), each.getBoolean("show.tablist", true));
-                if (!holder.isBlank()) {
-                    holders.put(player, holder);
+        readable = true;
+        Map<UUID, Holder> fresh = new java.util.HashMap<>();
+        ConfigurationSection all = read.get().getConfigurationSection("holders");
+        if (all != null) {
+            for (String key : all.getKeys(false)) {
+                try {
+                    UUID player = UUID.fromString(key);
+                    holderOf(player, all.getConfigurationSection(key)).ifPresent(holder -> fresh.put(player, holder));
+                } catch (IllegalArgumentException notAPlayer) {
+                    // Skipped; the rest still count.
                 }
-            } catch (IllegalArgumentException notAPlayer) {
-                // Skipped; the rest still count.
             }
         }
+        holders.keySet().retainAll(fresh.keySet());
+        holders.putAll(fresh);
+    }
+
+    /** Reloads when another server writes the document. Close to stop. */
+    public NetworkBus.Subscription watch() {
+        return store.onChange(this::load);
+    }
+
+    private static Optional<Holder> holderOf(UUID player, ConfigurationSection each) {
+        if (each == null) {
+            return Optional.empty();
+        }
+        Holder holder = new Holder(player, new LinkedHashSet<>(each.getStringList("ranks")),
+                each.getString("wears", ""), each.getBoolean("show.chat", true),
+                each.getBoolean("show.nametag", true), each.getBoolean("show.tablist", true));
+        return holder.isBlank() ? Optional.empty() : Optional.of(holder);
     }
 
     public boolean readable() {
@@ -77,38 +94,40 @@ public final class HolderBook {
 
     /** Changes one player. @return false, and nothing changed, when it could not be saved */
     public synchronized boolean change(UUID player, UnaryOperator<Holder> change) {
-        if (!readable || player == null) {
+        if (player == null) {
             return false;
         }
-        Holder before = holders.get(player);
-        Holder after = change.apply(before != null ? before : Holder.fresh(player));
-        put(player, after);
-        if (save()) {
-            return true;
+        if (!readable) {
+            load();
+            if (!readable) {
+                return false;
+            }
         }
-        put(player, before);
-        return false;
-    }
-
-    private void put(UUID player, Holder holder) {
-        if (holder == null || holder.isBlank()) {
+        String path = "holders." + player;
+        // Applied to the document's own picture of the player: another server may have changed them since this one read.
+        Holder[] after = new Holder[1];
+        boolean written = store.update(yaml -> {
+            Holder current = holderOf(player, yaml.getConfigurationSection(path)).orElseGet(() -> Holder.fresh(player));
+            Holder changed = change.apply(current);
+            after[0] = changed;
+            if (changed == null || changed.isBlank()) {
+                yaml.set(path, null);
+                return;
+            }
+            yaml.set(path + ".ranks", changed.ranks().stream().sorted().toList());
+            yaml.set(path + ".wears", changed.worn().isEmpty() ? null : changed.worn());
+            yaml.set(path + ".show.chat", changed.chat());
+            yaml.set(path + ".show.nametag", changed.nametag());
+            yaml.set(path + ".show.tablist", changed.tablist());
+        });
+        if (!written) {
+            return false;
+        }
+        if (after[0] == null || after[0].isBlank()) {
             holders.remove(player);
         } else {
-            holders.put(player, holder);
+            holders.put(player, after[0]);
         }
-    }
-
-    private boolean save() {
-        Map<UUID, Holder> snapshot = new HashMap<>(holders);
-        return store.write(yaml -> snapshot.values().forEach(holder -> {
-            String path = "holders." + holder.player();
-            yaml.set(path + ".ranks", holder.ranks().stream().sorted().toList());
-            if (!holder.worn().isEmpty()) {
-                yaml.set(path + ".wears", holder.worn());
-            }
-            yaml.set(path + ".show.chat", holder.chat());
-            yaml.set(path + ".show.nametag", holder.nametag());
-            yaml.set(path + ".show.tablist", holder.tablist());
-        }));
+        return true;
     }
 }

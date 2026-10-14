@@ -29,7 +29,7 @@ class WingReservationsTest {
     Path directory;
 
     private WingReservations open() {
-        WingReservations reservations = new WingReservations(directory.resolve("wing-reservations.yml"));
+        WingReservations reservations = new WingReservations(new de.raindancer.core.data.store.YamlStore(directory.resolve("wing-reservations.yml")));
         reservations.load();
         return reservations;
     }

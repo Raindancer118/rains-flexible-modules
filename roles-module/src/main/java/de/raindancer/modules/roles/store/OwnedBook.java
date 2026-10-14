@@ -1,6 +1,7 @@
 package de.raindancer.modules.roles.store;
 
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.roles.model.Ownership;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -14,8 +15,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Which roles a player bought or rents, in {@code owned.yml}. Held in memory and written whole on every change,
- * which is rare. Like {@link ChoiceBook}, a file that could not be read is never written over.
+ * Which roles a player bought or rents, in {@code owned.yml}. Held in memory. Like {@link ChoiceBook} it is a
+ * document of the network ({@code YamlStore.network}), a change writes only its own entry, {@link #watch()}
+ * reloads when another server writes, and a document that could not be read is never written over.
  */
 public final class OwnedBook {
 
@@ -27,11 +29,16 @@ public final class OwnedBook {
         this.store = store;
     }
 
+    /** Reads the document; a read that fails keeps what is held and refuses changes until one succeeds. */
     public synchronized void load() {
+        Optional<YamlConfiguration> read = store.readIfReadable();
+        if (read.isEmpty()) {
+            readable = false;
+            return;
+        }
+        readable = true;
         owned.clear();
-        YamlConfiguration yaml = store.read();
-        readable = store.problems().isEmpty();
-        ConfigurationSection all = yaml.getConfigurationSection("owned");
+        ConfigurationSection all = read.get().getConfigurationSection("owned");
         if (all == null) {
             return;
         }
@@ -58,6 +65,11 @@ public final class OwnedBook {
         }
     }
 
+    /** Reloads when another server writes the document. Close to stop. */
+    public NetworkBus.Subscription watch() {
+        return store.onChange(this::load);
+    }
+
     public boolean readable() {
         return readable;
     }
@@ -74,42 +86,41 @@ public final class OwnedBook {
 
     /** Records an ownership. @return false, and nothing changed, when it could not be saved */
     public synchronized boolean put(Ownership ownership) {
-        if (!readable) {
+        if (!writable()) {
             return false;
         }
-        Map<String, Ownership> mine = owned.computeIfAbsent(ownership.player(), ignored -> new LinkedHashMap<>());
-        Ownership before = mine.put(ownership.role(), ownership);
-        if (save()) {
-            return true;
+        String path = "owned." + ownership.player() + "." + ownership.role();
+        if (!store.update(yaml -> {
+            yaml.set(path + ".kind", ownership.kind().name().toLowerCase(Locale.ROOT));
+            yaml.set(path + ".due", ownership.dueAt());
+        })) {
+            return false;
         }
-        if (before == null) {
-            mine.remove(ownership.role());
-        } else {
-            mine.put(ownership.role(), before);
-        }
-        return false;
+        owned.computeIfAbsent(ownership.player(), ignored -> new LinkedHashMap<>()).put(ownership.role(), ownership);
+        return true;
     }
 
     /** Forgets one ownership. @return false, and nothing changed, when it could not be saved */
     public synchronized boolean remove(UUID player, String role) {
-        if (!readable) {
+        if (!writable()) {
             return false;
         }
         Map<String, Ownership> mine = owned.get(player);
-        Ownership before = mine == null ? null : mine.remove(role);
-        if (before == null || save()) {
+        if (mine == null || mine.get(role) == null) {
             return true;
         }
-        mine.put(role, before);
-        return false;
+        String path = "owned." + player + "." + role;
+        if (!store.update(yaml -> yaml.set(path, null))) {
+            return false;
+        }
+        mine.remove(role);
+        return true;
     }
 
-    private boolean save() {
-        List<Ownership> snapshot = owned.values().stream().flatMap(each -> each.values().stream()).toList();
-        return store.write(yaml -> snapshot.forEach(ownership -> {
-            String path = "owned." + ownership.player() + "." + ownership.role();
-            yaml.set(path + ".kind", ownership.kind().name().toLowerCase(Locale.ROOT));
-            yaml.set(path + ".due", ownership.dueAt());
-        }));
+    private boolean writable() {
+        if (!readable) {
+            load();
+        }
+        return readable;
     }
 }

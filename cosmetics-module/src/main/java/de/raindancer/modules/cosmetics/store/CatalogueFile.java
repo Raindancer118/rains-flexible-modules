@@ -1,6 +1,7 @@
 package de.raindancer.modules.cosmetics.store;
 
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.core.ui.choose.ColorSwatches;
 import de.raindancer.core.ui.text.NameStyle;
 import de.raindancer.modules.cosmetics.model.Catalogue;
@@ -20,24 +21,37 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The palette and the presets, in the same {@code config.yml} as the settings.
+ * The palette and the presets, in {@code catalogue.yml}.
  *
- * <p>Sharing the file is safe both ways: Core's {@code SettingsStore} keeps keys its schema does not
- * know, and this only writes when both sections are missing — once, while enabling, before anybody can
- * reach {@code /settings}. A reload only reads. Same arrangement as names-module's {@code PaletteFile}.
+ * <p>A document of the network ({@code YamlStore.network}): the owner edits the palette once for every server and
+ * {@link #watch} reads it again when that happens. It used to share {@code config.yml} with the settings; those are
+ * layered per server now, so the catalogue has its own document. The first time, the sections are taken over from the
+ * old {@code config.yml} (left as it is), or the shipped ones written — in one {@link YamlStore#update}, and only
+ * while the document has none, so the server that comes second changes nothing. A reload only reads.
  *
  * <p>Volatile because screens on region threads read it while {@code /cosmetics reload} replaces it.
  */
 public final class CatalogueFile {
 
+    private static final List<String> SECTIONS = List.of("palette", "presets", "offered");
+
     private final YamlStore store;
+    private final YamlStore legacy;
     private volatile Catalogue current = Catalogue.EMPTY;
 
-    public CatalogueFile(Path configFile) {
-        this.store = new YamlStore(configFile);
+    /** @param legacy the 1.x {@code config.yml} the catalogue may still be in, read once and never written; null for none */
+    public CatalogueFile(YamlStore store, YamlStore legacy) {
+        this.store = store;
+        this.legacy = legacy;
+    }
+
+    /** The module's folder: {@code catalogue.yml} of the network, with this server's {@code config.yml} as the old home. */
+    public static CatalogueFile in(Path folder) {
+        return new CatalogueFile(YamlStore.network(folder.resolve("catalogue.yml")), new YamlStore(folder.resolve("config.yml")));
     }
 
     public Catalogue current() {
@@ -49,28 +63,31 @@ public final class CatalogueFile {
     }
 
     /**
-     * Reads the file, writing the shipped palette and presets first if neither section is there.
+     * Reads the document, writing the shipped palette and presets first if neither section is there. A document
+     * that cannot be read leaves the catalogue in force as it is.
      *
      * @param warn a line that cannot be read is reported here and skipped; the rest still loads
      */
-    public Catalogue load(Consumer<String> warn) {
-        YamlConfiguration yaml = store.read();
-        for (String problem : store.problems()) {
-            warn.accept("the file " + problem);
+    public synchronized Catalogue load(Consumer<String> warn) {
+        Optional<YamlConfiguration> read = store.readIfReadable();
+        if (read.isEmpty()) {
+            for (String problem : store.problems()) {
+                warn.accept("the catalogue " + problem + ", so the one in force is kept");
+            }
+            return keepOrShipped();
         }
+        YamlConfiguration yaml = read.get();
         if (!yaml.contains("palette") && !yaml.contains("presets")) {
-            if (writeDefaults()) {
-                yaml = store.read();
-            } else {
+            if (!writeInitial(warn)) {
                 warn.accept("the palette could not be written to " + store.file()
                         + ", so this boot uses the shipped one");
-                current = new Catalogue(shippedPalette(), shippedPresets());
-                return current;
+                return keepOrShipped();
             }
+            yaml = store.readIfReadable().orElse(yaml);
         }
         if (needsUpgrade(yaml)) {
             if (store.update(CatalogueFile::upgrade)) {
-                yaml = store.read();
+                yaml = store.readIfReadable().orElse(yaml);
             } else {
                 warn.accept("the new presets and colours could not be added to " + store.file()
                         + "; the file is read as it is");
@@ -79,6 +96,59 @@ public final class CatalogueFile {
         current = new Catalogue(palette(yaml.getConfigurationSection("palette"), warn),
                 presets(yaml.getConfigurationSection("presets"), warn));
         return current;
+    }
+
+    /** Reads again when another server writes the catalogue, then tells {@code reloaded}. Close to stop. */
+    public NetworkBus.Subscription watch(Consumer<String> warn, Consumer<Catalogue> reloaded) {
+        return store.onChange(() -> reloaded.accept(load(warn)));
+    }
+
+    private Catalogue keepOrShipped() {
+        if (current == Catalogue.EMPTY) {
+            current = new Catalogue(shippedPalette(), shippedPresets());
+        }
+        return current;
+    }
+
+    /**
+     * Takes the catalogue over from the old {@code config.yml} when that has one, otherwise writes the shipped one.
+     * An old file that cannot be read writes nothing: the shipped catalogue would bury the owner's.
+     */
+    private boolean writeInitial(Consumer<String> warn) {
+        YamlConfiguration old = null;
+        if (legacy != null) {
+            Optional<YamlConfiguration> read = legacy.readIfReadable();
+            if (read.isEmpty()) {
+                legacy.problems().forEach(problem -> warn.accept("the old config.yml " + problem));
+                return false;
+            }
+            if (read.get().contains("palette") || read.get().contains("presets")) {
+                old = read.get();
+            }
+        }
+        YamlConfiguration taken = old;
+        return store.update(yaml -> {
+            if (yaml.contains("palette") || yaml.contains("presets")) {
+                return;   // another server was first
+            }
+            if (taken == null) {
+                defaults(yaml);
+                return;
+            }
+            for (String section : SECTIONS) {
+                ConfigurationSection from = taken.getConfigurationSection(section);
+                if (from == null) {
+                    continue;
+                }
+                yaml.createSection(section);   // an owner who emptied a list meant it
+                for (String path : from.getKeys(true)) {
+                    if (!from.isConfigurationSection(path)) {
+                        yaml.set(section + "." + path, from.get(path));
+                    }
+                }
+                yaml.setComments(section, taken.getComments(section));
+            }
+        });
     }
 
     // ------------------------------------------------------------------ newer versions' additions
@@ -387,24 +457,22 @@ public final class CatalogueFile {
         }
     }
 
-    private boolean writeDefaults() {
-        return store.update(yaml -> {
-            shippedPaletteEntries().forEach((key, hex) -> yaml.set("palette." + key, hex));
-            yaml.setComments("palette", List.of("",
-                    "--- The colours players pick from ---",
-                    "A name and a hex code (#f38baa) or a chat colour name (dark_red). The name is what",
-                    "the picker and /cosmetics name set call it; a name ending in a dye's name shows",
-                    "that dye. Colours outside this list need rainscosmetics.name.any-colour."));
-            writePresets(yaml);
-            remember(yaml);
-            yaml.setComments("presets", List.of("",
-                    "--- Ready-made styles ---",
-                    "colours: 1 to 8 stops, left to right. decorations: bold, italic, underlined,",
-                    "strikethrough, obfuscated. animated: true lets the gradient flow along the name.",
-                    "A preset needs no other permission to wear;",
-                    "restricted: true means only holders of rainscosmetics.preset.<id> may.",
-                    "price: 500 makes one preset cost that, bought once in /cosmetics; 0 keeps it free."));
-        });
+    private static void defaults(YamlConfiguration yaml) {
+        shippedPaletteEntries().forEach((key, hex) -> yaml.set("palette." + key, hex));
+        yaml.setComments("palette", List.of("",
+                "--- The colours players pick from ---",
+                "A name and a hex code (#f38baa) or a chat colour name (dark_red). The name is what",
+                "the picker and /cosmetics name set call it; a name ending in a dye's name shows",
+                "that dye. Colours outside this list need rainscosmetics.name.any-colour."));
+        writePresets(yaml);
+        remember(yaml);
+        yaml.setComments("presets", List.of("",
+                "--- Ready-made styles ---",
+                "colours: 1 to 8 stops, left to right. decorations: bold, italic, underlined,",
+                "strikethrough, obfuscated. animated: true lets the gradient flow along the name.",
+                "A preset needs no other permission to wear;",
+                "restricted: true means only holders of rainscosmetics.preset.<id> may.",
+                "price: 500 makes one preset cost that, bought once in /cosmetics; 0 keeps it free."));
     }
 
     public List<String> problems() {

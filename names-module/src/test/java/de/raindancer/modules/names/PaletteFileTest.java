@@ -38,7 +38,7 @@ class PaletteFileTest {
     Path folder;
 
     private PaletteFile fileIn(Path where) {
-        return new PaletteFile(where.resolve("config.yml"));
+        return PaletteFile.in(where);
     }
 
     @Test
@@ -49,7 +49,7 @@ class PaletteFileTest {
 
         Palette loaded = file.load(warnings::add);
 
-        assertThat(Files.exists(folder.resolve("config.yml")))
+        assertThat(Files.exists(folder.resolve("palette.yml")))
                 .as("nothing was written, so the owner has no file to edit")
                 .isTrue();
         assertThat(warnings).isEmpty();
@@ -63,9 +63,9 @@ class PaletteFileTest {
     void theWrittenFormIsTheReadableForm() throws IOException {
         fileIn(folder).load(warning -> {
         });
-        String written = Files.readString(folder.resolve("config.yml"), StandardCharsets.UTF_8);
+        String written = Files.readString(folder.resolve("palette.yml"), StandardCharsets.UTF_8);
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(
-                folder.resolve("config.yml").toFile());
+                folder.resolve("palette.yml").toFile());
 
         // Quoted, because #f38baa unquoted is a YAML comment and the value would come back empty.
         assertThat(yaml.getString("colours.PINK_DYE")).isEqualToIgnoringCase("#f38baa");
@@ -78,7 +78,7 @@ class PaletteFileTest {
     @Test
     @DisplayName("a file that already has a palette is left exactly as it is")
     void anOwnersPaletteIsNeverOverwritten() {
-        Path config = folder.resolve("config.yml");
+        Path config = folder.resolve("palette.yml");
         YamlConfiguration mine = new YamlConfiguration();
         mine.set("colours.RED_DYE", "#ff0000");
         try {
@@ -106,10 +106,10 @@ class PaletteFileTest {
         });
         assertThat(file.current().reagentFor(Material.RED_DYE)).isNotNull();
 
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(folder.resolve("config.yml").toFile());
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(folder.resolve("palette.yml").toFile());
         yaml.set("colours.RED_DYE", null);
         try {
-            yaml.save(folder.resolve("config.yml").toFile());
+            yaml.save(folder.resolve("palette.yml").toFile());
         } catch (IOException cannot) {
             throw new AssertionError("could not rewrite the file", cannot);
         }
@@ -123,26 +123,38 @@ class PaletteFileTest {
     }
 
     @Test
-    @DisplayName("the settings living in the same file are not disturbed by writing the palette")
-    void theSettingsKeysSurvive() {
+    @DisplayName("a 1.x config.yml that holds the palette hands it over, and is left as it is")
+    void theOldConfigIsTakenOverAndNotTouched() throws IOException {
         Path config = folder.resolve("config.yml");
-        YamlConfiguration settings = new YamlConfiguration();
-        settings.set("max-gradient-stops", 3);
-        settings.set("wash-in-cauldron", false);
-        try {
-            settings.save(config.toFile());
-        } catch (IOException cannot) {
-            throw new AssertionError("could not write the fixture", cannot);
-        }
+        YamlConfiguration old = new YamlConfiguration();
+        old.set("max-gradient-stops", 3);
+        old.set("colours.RED_DYE", "#ff0000");
+        old.save(config.toFile());
+        String before = Files.readString(config);
 
-        fileIn(folder).load(warning -> {
+        Palette loaded = fileIn(folder).load(warning -> {
         });
 
-        YamlConfiguration after = YamlConfiguration.loadConfiguration(config.toFile());
-        assertThat(after.getInt("max-gradient-stops")).isEqualTo(3);
-        assertThat(after.getBoolean("wash-in-cauldron")).isFalse();
-        assertThat(after.isConfigurationSection("colours"))
-                .as("a file with settings but no palette is one this has to fill in")
-                .isTrue();
+        assertThat(((Reagent.Colour) loaded.reagentFor(Material.RED_DYE)).colour().asHexString())
+                .isEqualToIgnoringCase("#ff0000");
+        assertThat(loaded.reagentFor(Material.BLUE_DYE))
+                .as("the owner's cut-down palette was replaced by the shipped one")
+                .isNull();
+        assertThat(YamlConfiguration.loadConfiguration(folder.resolve("palette.yml").toFile())
+                .getString("colours.RED_DYE")).isEqualToIgnoringCase("#ff0000");
+        assertThat(Files.readString(config)).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("an old config.yml that cannot be read is no reason to write the shipped palette over the owner's")
+    void anUnreadableOldConfigWritesNothing() throws IOException {
+        Files.writeString(folder.resolve("config.yml"), "colours: [ not: yaml");
+        List<String> warnings = new ArrayList<>();
+
+        Palette loaded = fileIn(folder).load(warnings::add);
+
+        assertThat(Files.exists(folder.resolve("palette.yml"))).isFalse();
+        assertThat(warnings).isNotEmpty();
+        assertThat(loaded.reagents()).isEqualTo(Palette.defaults().reagents());
     }
 }

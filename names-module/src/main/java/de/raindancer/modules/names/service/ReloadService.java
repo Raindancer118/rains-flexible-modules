@@ -7,13 +7,12 @@ import de.raindancer.modules.names.store.Palette;
 import de.raindancer.modules.names.store.PaletteFile;
 
 /**
- * Re-reading {@code config.yml} — both halves of it, in the right order.
+ * Re-reading the settings and {@code palette.yml}, in the right order.
  *
  * <h2>Why both halves, always</h2>
- * The settings and the palette live in one file and are read by two different things: Core's
- * {@link SettingsStore} owns the keys it declared, and {@link PaletteFile} owns the three sections it
- * does not. A reload that did one and not the other would answer "reloaded" to somebody who had just
- * edited the other one — which is the sort of thing that gets reported as "the config does not work",
+ * The settings and the palette are read by two different things: Core's {@link SettingsStore} owns
+ * {@code config.yml}, and {@link PaletteFile} owns {@code palette.yml}. A reload that did one and not
+ * the other would answer "reloaded" to somebody who had just edited the other one — which is the sort of thing that gets reported as "the config does not work",
  * and is exactly what {@code /namestyle reload} is for.
  *
  * <p>The settings first, because a shorter ceiling has to be in force before the palette it applies to
@@ -52,6 +51,6 @@ public final class ReloadService implements INamesService {
 
     @Override
     public String describe() {
-        return "re-reads the settings and the palette from config.yml";
+        return "re-reads the settings from config.yml and the palette from palette.yml";
     }
 }

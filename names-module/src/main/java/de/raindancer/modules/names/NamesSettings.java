@@ -21,8 +21,8 @@ import org.bukkit.Material;
  * <h2>What is deliberately not here</h2>
  * The palette — which item dyes, which toggles a decoration, and which shades. Three maps of unbounded
  * length are not four record components, and a server that adds an item should not have to edit Java. It
- * lives in the same {@code config.yml}, read by {@code store.Palette}; see {@code store.PaletteFile} for
- * why the two can share a file without either overwriting the other.
+ * lives in {@code palette.yml}, a document of the network read by {@code store.Palette}; see
+ * {@code store.PaletteFile} for why it is not in {@code config.yml} with the settings.
  *
  * <h2>Why the keys keep their old paths</h2>
  * Every {@link Key} below is the path the standalone plugin has always used, so a server upgrading from
