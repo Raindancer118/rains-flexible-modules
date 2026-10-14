@@ -13,6 +13,21 @@ public final class Tyrant {
     private Tyrant() {
     }
 
+    /** Whether a kind has the tyrant's powers: the tyrant, and the overlord above it. */
+    public static boolean powers(ShardTier tier) {
+        return tier != null && tier.ordinal() >= ShardTier.TYRANT.ordinal();
+    }
+
+    /** How many a zombie tyrant calls: four, an overlord six. */
+    public static int helpers(ShardTier tier) {
+        return tier == ShardTier.OVERLORD ? 6 : REINFORCEMENTS;
+    }
+
+    /** The kind of those it calls: Shardborn for a tyrant, Crystal for an overlord. */
+    public static ShardTier helperKind(ShardTier tier) {
+        return tier == ShardTier.OVERLORD ? ShardTier.CRYSTAL : ShardTier.SHARDBORN;
+    }
+
     /** Whether this hit — health {@code before} to {@code after} of {@code max} — is the one that calls for help. */
     public static boolean callsForHelp(double before, double after, double max, boolean calledAlready) {
         return !calledAlready && before >= max / 2 && after < max / 2;

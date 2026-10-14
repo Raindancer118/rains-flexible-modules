@@ -38,7 +38,8 @@
         <!-- 0.14.0: a Crystal Wither killed by a player drops forty to sixty shards, rare ones likelier, outside the hourly limit. -->
         <!-- 0.15.0: shard creatures hit 30 % harder each kind up (melee, arrows, blasts); shard world creepers blow up twice as big and more (at most 12); zombie tyrants call four zombies below half health, once; skeleton tyrants fire in minigun bursts; baby zombie tyrants run 20 % faster. -->
         <!-- 0.16.0: every shard drop is 30–50 % bigger. -->
-        <plugin.version>0.16.0</plugin.version>
+        <!-- 0.17.0: the Shard Overlord, a kind above the tyrant (1 in 100): eight times the health, 2.86 times the damage, 10–14 shards; its zombies call six Crystal ones, its skeletons fire the minigun. -->
+        <plugin.version>0.17.0</plugin.version>
     </properties>
 
     <dependencies>

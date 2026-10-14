@@ -23,6 +23,7 @@ class ShardTierTest {
         assertThat(seen.get(ShardTier.SHARDBORN)).isBetween(13_300, 14_700);
         assertThat(seen.get(ShardTier.CRYSTAL)).isBetween(4_500, 5_500);
         assertThat(seen.get(ShardTier.TYRANT)).isBetween(800, 1_200);
+        assertThat(seen.get(ShardTier.OVERLORD)).as("rarer still: one in a hundred").isBetween(350, 650);
     }
 
     @Test
@@ -49,6 +50,7 @@ class ShardTierTest {
     @DisplayName("a tier is read back by its key; anything else is the weakest")
     void byKey() {
         assertThat(ShardTier.of("tyrant")).isEqualTo(ShardTier.TYRANT);
+        assertThat(ShardTier.of("overlord")).isEqualTo(ShardTier.OVERLORD);
         assertThat(ShardTier.of(null)).isEqualTo(ShardTier.SHADOWED);
         assertThat(ShardTier.of("nonsense")).isEqualTo(ShardTier.SHADOWED);
     }

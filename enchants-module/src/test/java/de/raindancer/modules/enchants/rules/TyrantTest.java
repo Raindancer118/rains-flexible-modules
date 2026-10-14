@@ -38,4 +38,17 @@ class TyrantTest {
         assertThat(ShardTier.TYRANT.speedFactor(false)).isEqualTo(ShardTier.TYRANT.speedFactor());
         assertThat(ShardTier.CRYSTAL.speedFactor(true)).isEqualTo(ShardTier.CRYSTAL.speedFactor());
     }
+
+    @Test
+    @DisplayName("the overlord has the tyrant's powers, stronger: six Crystal zombies to the tyrant's four Shardborn")
+    void overlord() {
+        assertThat(Tyrant.powers(ShardTier.TYRANT)).isTrue();
+        assertThat(Tyrant.powers(ShardTier.OVERLORD)).isTrue();
+        assertThat(Tyrant.powers(ShardTier.CRYSTAL)).isFalse();
+        assertThat(Tyrant.helpers(ShardTier.TYRANT)).isEqualTo(4);
+        assertThat(Tyrant.helpers(ShardTier.OVERLORD)).isEqualTo(6);
+        assertThat(Tyrant.helperKind(ShardTier.TYRANT)).isEqualTo(ShardTier.SHARDBORN);
+        assertThat(Tyrant.helperKind(ShardTier.OVERLORD)).isEqualTo(ShardTier.CRYSTAL);
+        assertThat(ShardTier.OVERLORD.speedFactor(true)).isGreaterThan(ShardTier.OVERLORD.speedFactor());
+    }
 }

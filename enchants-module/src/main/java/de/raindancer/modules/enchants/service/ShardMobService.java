@@ -62,7 +62,7 @@ public final class ShardMobService {
 
     /** A creature of the shard world came into memory (spawned, or its chunk loaded): the neutral ones start hunting. */
     public void loaded(LivingEntity entity) {
-        if (entity instanceof org.bukkit.entity.AbstractSkeleton skeleton && tierOf(skeleton).orElse(null) == ShardTier.TYRANT
+        if (entity instanceof org.bukkit.entity.AbstractSkeleton skeleton && de.raindancer.modules.enchants.rules.Tyrant.powers(tierOf(skeleton).orElse(null))
                 && worlds.isShardWorld(skeleton.getWorld()) && gunners.add(skeleton.getUniqueId())) {
             int[] fight = {0};
             Scheduling.entityTimer(plugin, skeleton, 1, 1, task -> minigun(skeleton, fight),
@@ -157,10 +157,11 @@ public final class ShardMobService {
     public void hurt(LivingEntity victim, double damage, org.bukkit.entity.Entity source) {
         if (source instanceof org.bukkit.entity.AbstractArrow arrow
                 && arrow.getShooter() instanceof org.bukkit.entity.AbstractSkeleton gunner
-                && tierOf(gunner).orElse(null) == ShardTier.TYRANT) {
+                && de.raindancer.modules.enchants.rules.Tyrant.powers(tierOf(gunner).orElse(null))) {
             Scheduling.entityLater(plugin, victim, 1L, () -> victim.setNoDamageTicks(0));
         }
-        if (!(victim instanceof org.bukkit.entity.Zombie tyrant) || tierOf(tyrant).orElse(null) != ShardTier.TYRANT) {
+        if (!(victim instanceof org.bukkit.entity.Zombie tyrant)
+                || !de.raindancer.modules.enchants.rules.Tyrant.powers(tierOf(tyrant).orElse(null))) {
             return;
         }
         org.bukkit.attribute.AttributeInstance most = tyrant.getAttribute(Attribute.MAX_HEALTH);
@@ -175,11 +176,12 @@ public final class ShardMobService {
                 && projectile.getShooter() instanceof LivingEntity shooter ? shooter
                 : source instanceof LivingEntity living ? living : null;
         java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
-        for (int i = 0; i < de.raindancer.modules.enchants.rules.Tyrant.REINFORCEMENTS; i++) {
+        ShardTier kind = tierOf(tyrant).orElseThrow();
+        for (int i = 0; i < de.raindancer.modules.enchants.rules.Tyrant.helpers(kind); i++) {
             org.bukkit.Location at = tyrant.getLocation().add(random.nextDouble(-2, 2), 0, random.nextDouble(-2, 2));
             org.bukkit.entity.Entity made = tyrant.getWorld().spawn(at, tyrant.getType().getEntityClass());
             if (made instanceof org.bukkit.entity.Zombie helper) {
-                giveKind(helper, ShardTier.SHARDBORN);
+                giveKind(helper, de.raindancer.modules.enchants.rules.Tyrant.helperKind(kind));
                 if (attacker instanceof Player player && huntable(player)) {
                     helper.setTarget(player);
                 }
@@ -250,7 +252,7 @@ public final class ShardMobService {
         if (health != null) {
             mob.setHealth(health.getValue());
         }
-        if (tier == ShardTier.TYRANT) {
+        if (de.raindancer.modules.enchants.rules.Tyrant.powers(tier)) {
             mob.setGlowing(true);
         }
         loaded(mob);
