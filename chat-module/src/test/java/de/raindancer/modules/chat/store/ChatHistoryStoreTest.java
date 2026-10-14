@@ -23,7 +23,7 @@ class ChatHistoryStoreTest {
     @BeforeEach
     void setUp() throws IOException {
         Files.createDirectories(dataFolder);
-        store = new ChatHistoryStore(dataFolder);
+        store = new ChatHistoryStore(dataFolder, () -> 10_000L);
     }
 
     @AfterEach
@@ -98,11 +98,31 @@ class ChatHistoryStoreTest {
 
         assertThat(store.flush()).isTrue();
 
-        ChatHistoryStore reloaded = new ChatHistoryStore(dataFolder);
+        ChatHistoryStore reloaded = new ChatHistoryStore(dataFolder, () -> 10_000L);
         reloaded.load();
 
         assertThat(reloaded.lastLines(10)).extracting(ChatHistoryStore.Line::text)
                 .containsExactly("hello there");
         assertThat(reloaded.lastQuit(tom)).contains(2_000L);
+    }
+
+    @Test
+    @DisplayName("lines and quits older than the retention are dropped when written, newer ones stay")
+    void retentionDropsOldOnFlush() {
+        long day = 86_400_000L;
+        long now = 1_000 * day;
+        ChatHistoryStore aging = new ChatHistoryStore(dataFolder, () -> now);
+        UUID tom = UUID.randomUUID();
+        aging.retention(10);
+        aging.record(tom, "Tom", "old", now - 11 * day);
+        aging.record(tom, "Tom", "fresh", now - 9 * day);
+        aging.markQuit(tom, now - 11 * day);
+
+        assertThat(aging.flush()).isTrue();
+
+        ChatHistoryStore reloaded = new ChatHistoryStore(dataFolder, () -> now);
+        reloaded.load();
+        assertThat(reloaded.lastLines(10)).extracting(ChatHistoryStore.Line::text).containsExactly("fresh");
+        assertThat(reloaded.lastQuit(tom)).isEmpty();
     }
 }

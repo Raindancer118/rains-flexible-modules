@@ -73,7 +73,8 @@
           channels stay put, a mute on either server hides the muted player there. Needs RainsCore 1.115.0. -->
         <!-- 1.16.0: the chat colour and decorations follow a player over the network link (RainsCore 1.135.0 shareProfile), so the hub and arena show what was chosen on the SMP. -->
         <!-- 1.17.0: the whole chat config (format, filters, mentions, network chat) follows the SMP over the link (RainsCore 1.136.0 syncFile). -->
-        <plugin.version>1.17.0</plugin.version>
+        <!-- 1.18.0 (RainsCore 2.0 network edition): public chat reaches every server of a network over the bus; history, chat colours and mentions are network documents (history kept 365 days by default, max 730); panel-feed lives in the database; shareProfile/syncFile gone. -->
+        <plugin.version>1.18.0</plugin.version>
     </properties>
 
     <dependencies>

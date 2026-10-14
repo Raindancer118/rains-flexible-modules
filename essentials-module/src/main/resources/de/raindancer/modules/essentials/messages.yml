@@ -65,6 +65,7 @@ essentials:
     selector-like: "<red>A nickname starting with <white>@</white> would make every command think you meant @a and friends. Try it without."
     command-like: "<red>A nickname cannot start with <white>/</white> — the server would read it as a command."
     nick-taken: "<red>Somebody already goes by <white><detail></white>. Two of them would make every <white>/msg</white> ambiguous, so pick another."
+    not-saved: "<red>Your nickname could not be saved just now. Try again in a moment."
     # Staff setting and clearing somebody else's.
     not-others: "<red>Other people's nicknames are staff business. You may change your own."
     set-other: "<green><white><player></white> is now known as <nickname>."

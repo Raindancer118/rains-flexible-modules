@@ -39,8 +39,7 @@ public final class MsgCommand implements IEssentialsCommand {
         }
         String text = String.join(" ", List.of(args).subList(1, args.length));
         if (live.server().getPlayerExact(args[0]) == null) {
-            java.util.Optional<String> there = live.core().playersElsewhere().stream()
-                    .filter(name -> name.equalsIgnoreCase(args[0])).findFirst();
+            java.util.Optional<String> there = live.messaging().findElsewhere(args[0], live.core()::playersElsewhere);
             if (there.isPresent()) {
                 live.messaging().sendAcross(from, there.get(), text);
                 return;
@@ -61,7 +60,7 @@ public final class MsgCommand implements IEssentialsCommand {
             String typed = args.length == 1 ? args[0] : "";
             List<String> here = Players.suggest(live.server(), source.getSender(), typed, live.core().vanish());
             List<String> all = new java.util.ArrayList<>(here);
-            live.core().playersElsewhere().stream()
+            live.messaging().playersElsewhere(live.core()::playersElsewhere).stream()
                     .filter(name -> name.toLowerCase(java.util.Locale.ROOT).startsWith(typed.toLowerCase(java.util.Locale.ROOT)))
                     .filter(name -> !all.contains(name)).sorted().forEach(all::add);
             return all;

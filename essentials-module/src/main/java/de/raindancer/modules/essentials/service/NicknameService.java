@@ -165,8 +165,20 @@ public final class NicknameService implements IEssentialsService {
             }
             return false;
         }
-        store.setNickname(target.getUniqueId(), nickname.raw());
-        store.flush();
+        // Claimed against the shared store in one step, not just checked: a server that has not heard of
+        // somebody else's nickname yet cannot hand out the same one.
+        switch (store.claimNickname(target.getUniqueId(), nickname.raw())) {
+            case TAKEN -> {
+                messages.send(actor, NicknameRule.NICK_TAKEN, "detail", nickname.plain());
+                return false;
+            }
+            case UNAVAILABLE -> {
+                messages.send(actor, "essentials.nick.not-saved");
+                return false;
+            }
+            case GRANTED -> {
+            }
+        }
         directory.remember(target.getUniqueId(), nickname.plain());
         Player online = target instanceof Player here ? here : target.getPlayer();
         if (online != null) {

@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.24.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.25.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -105,14 +105,29 @@ public final class EssentialsModule implements FlexModule {
         context.closeWith(() -> de.raindancer.core.social.presence.Away.unwatch(away));
         MessagingService messaging = new MessagingService(store, context.core().messages(),
                 context.chat(), context.core().vanish(), settings.current());
-        context.core().link().ifPresent(link -> {
-            messaging.connect(link, server::getPlayerExact);
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
+            // On a network the link stands down: players are found and messaged over the network's own calls.
+            messaging.connectNetwork(MessagingService.Directory.of(context.core().networkPlayers().get()),
+                    context.core().networkCalls().get(), server::getPlayerExact);
             context.closeWith(messaging::disconnect);
-        });
+        } else {
+            context.core().link().ifPresent(link -> {
+                messaging.connect(link, server::getPlayerExact);
+                context.closeWith(messaging::disconnect);
+            });
+        }
         NicknameService nicknames = new NicknameService(store, blocklist,
                 context.core().identities(), context.core().nicknames(), context.core().messages(),
                 context.chat(), server, context.core().punishments(), context.core().audit(),
                 (who, task) -> Scheduling.onOwner(context.plugin(), who, task), settings.current());
+        // Nicknames and ignores are the player's on every server: reloaded when another writes them, and a
+        // nickname somebody else changed is redrawn on whoever is online here.
+        var storeWatch = store.watch(() -> {
+            for (org.bukkit.entity.Player online : server.getOnlinePlayers()) {
+                Scheduling.entity(context.plugin(), online, () -> nicknames.apply(online));
+            }
+        });
+        context.closeWith(storeWatch::close);
         // Nicknames set before Core had a directory become resolvable by every command from here on.
         int synced = nicknames.syncDirectory();
         EnchantService enchanting = new EnchantService(context.core().messages(), context.core().audit(),

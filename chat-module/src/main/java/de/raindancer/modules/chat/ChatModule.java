@@ -39,9 +39,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final String STYLE_PART = "chat:style";
-
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.17.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.18.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -86,15 +84,17 @@ public final class ChatModule implements FlexModule {
 
         styles = new ChatStyleStore(context.dataFolder());
         styles.load();
+        // A colour is the player's on every server: the store is one network document, reloaded when another writes it.
+        var stylesWatch = styles.watch();
+        context.closeWith(stylesWatch::close);
         ChatStyleService styleService = new ChatStyleService(styles);
-        // One chat colour on every server of the network: the one that keeps it answers, a following one shows it.
-        context.core().shareProfile(STYLE_PART, styles::export, styles::adopt);
-        context.closeWith(() -> context.core().unshareProfile(STYLE_PART));
 
         FormatService format = new FormatService(context.chat(), context.core().identities(),
                 styleService, settings.current());
         inbox = new de.raindancer.modules.chat.store.MentionInbox(context.dataFolder());
         inbox.load();
+        var inboxWatch = inbox.watch();
+        context.closeWith(inboxWatch::close);
         MentionService mentions = new MentionService(server, context.core().vanish(),
                 context.core().messages(), settings.current(), inbox);
         var inboxSaving = de.raindancer.core.platform.util.Scheduling.asyncTimer(context.plugin(), 60, 60,
@@ -108,6 +108,8 @@ public final class ChatModule implements FlexModule {
 
         history = new ChatHistoryStore(context.dataFolder());
         history.load();
+        var historyWatch = history.watch();
+        context.closeWith(historyWatch::close);
         ChatHistoryService chatHistory = new ChatHistoryService(history, settings.current());
 
         de.raindancer.modules.chat.service.PollService polls = new de.raindancer.modules.chat.service.PollService(
@@ -151,7 +153,8 @@ public final class ChatModule implements FlexModule {
         });
 
         var networkSettings = context.settings(NetworkChatSettings.class, NetworkChatSettings.DEFAULTS);
-        network = new de.raindancer.modules.chat.service.NetworkChatService(core::link,
+        network = new de.raindancer.modules.chat.service.NetworkChatService(core::link, core.bus(),
+                () -> core.network().isNetwork(),
                 who -> core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
                 server::sendMessage,
                 (tag, line) -> context.chat().mm(context.core().messages().raw("chat.network.line"),
@@ -159,11 +162,6 @@ public final class ChatModule implements FlexModule {
                         de.raindancer.core.ui.chat.Chat.formatted("line", line)),
                 networkSettings.current());
         networkSettings.onChange(network::settings);
-        // The whole chat config — format, filters, mentions, network chat — is the SMP's on every server of the network.
-        context.core().syncFile("RainsChat/config.yml", () -> {
-            settings.load();
-            networkSettings.load();
-        });
         network.listen();
         context.closeWith(network::stop);
 

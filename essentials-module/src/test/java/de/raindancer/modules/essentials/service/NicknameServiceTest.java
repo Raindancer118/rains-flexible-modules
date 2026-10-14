@@ -48,7 +48,7 @@ import static org.mockito.Mockito.when;
  */
 class NicknameServiceTest {
 
-    private final EssentialsStore store = new EssentialsStore(Path.of("target", "test-nick-service"));
+    private final EssentialsStore store = new EssentialsStore(Path.of("target", "test-nick-service", UUID.randomUUID().toString()));
     private final Identities identities = mock(Identities.class);
     private final Messages messages = mock(Messages.class);
     private final Chat chat = mock(Chat.class);
@@ -460,6 +460,21 @@ class NicknameServiceTest {
             boolean set = service.set(admin(PermissionNodes.NICK_OTHERS), target, "Foxy");
 
             assertThat(set).isFalse();
+            verify(messages).send(any(CommandSender.class), eq("essentials.nick.nick-taken"), any(Object[].class));
+        }
+
+        @Test
+        @DisplayName("a nickname that is in the shared store but not yet in Core's directory is refused too")
+        void nicknameOwnedOnAnotherServer(@TempDir Path folder) {
+            NicknameService service = serviceWith(blocklistOf(folder, "{}"));
+            OfflinePlayer target = offline("Tom");
+            store.setNickname(UUID.randomUUID(), "<gold>Foxy</gold>");
+            store.flush();
+
+            boolean set = service.set(admin(PermissionNodes.NICK_OTHERS), target, "foxy");
+
+            assertThat(set).isFalse();
+            assertThat(store.nicknameOf(target.getUniqueId())).isEmpty();
             verify(messages).send(any(CommandSender.class), eq("essentials.nick.nick-taken"), any(Object[].class));
         }
 

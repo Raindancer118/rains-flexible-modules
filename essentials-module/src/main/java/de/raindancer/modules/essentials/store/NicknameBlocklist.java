@@ -1,7 +1,9 @@
 package de.raindancer.modules.essentials.store;
 
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.essentials.rules.NicknameRule;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -9,15 +11,14 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -32,10 +33,11 @@ import java.util.function.Supplier;
  * {@code enabled} switch and its own {@link NicknameRule.BlockMatch}, meant to be opened in a text
  * editor.
  *
- * <h2>Why it is read once rather than watched</h2>
- * It is not a setting a server flips at runtime the way AFK's timeout is — it is closer to
- * {@code permissions.yml}: something an owner edits and restarts for. Loaded once, when the module
- * enables, the same as {@link EssentialsStore}.
+ * <h2>One list for the network</h2>
+ * It is a document of the network ({@code YamlStore.network}), kept as the text it is so the owner's comments
+ * and line format survive: the owner edits it once, in game, and every server reloads it when it changes
+ * ({@link #watch()}). An edit is applied to the list as it is now, not as this server last read it. A list
+ * that cannot be read or parsed leaves the one held as it is — never an empty blocklist.
  */
 public final class NicknameBlocklist {
 
@@ -46,68 +48,74 @@ public final class NicknameBlocklist {
                            Set<String> names) {
     }
 
-    private final Path file;
+    private final YamlStore store;
     private final Supplier<InputStream> defaultResource;
 
     private volatile Map<String, Category> categories = Map.of();
     /**
-     * The file's own leading comment block, captured at load and written back on every save — the
+     * The document's own leading comment block, captured at load and written back on every save — the
      * one piece of hand-written explanation worth keeping through an in-game edit, even though a
-     * rewritten YAML file cannot keep comments anywhere else in it.
+     * rewritten YAML document cannot keep comments anywhere else in it.
      */
     private volatile String header = "";
 
     public NicknameBlocklist(Path file, Supplier<InputStream> defaultResource) {
-        this.file = file;
+        this(YamlStore.network(file), defaultResource);
+    }
+
+    public NicknameBlocklist(YamlStore store, Supplier<InputStream> defaultResource) {
+        this.store = store;
         this.defaultResource = defaultResource;
     }
 
     /**
-     * Writes the bundled starting file if nothing is there yet, then reads whatever is on disk —
-     * the owner's own edits included, in full, whether or not they still resemble what shipped.
+     * Seeds the bundled starting list if nothing is there yet, then reads whatever is there — the owner's own
+     * edits included, in full, whether or not they still resemble what shipped.
+     *
+     * @return false when it could not be read or parsed; what is held stays
      */
-    public void load() {
-        if (!Files.exists(file)) {
-            copyDefault();
+    public synchronized boolean load() {
+        Optional<String> text = store.readText();
+        if (text.isEmpty()) {
+            seed();
+            text = store.readText();
         }
-        categories = read();
-    }
-
-    private void copyDefault() {
-        try (InputStream bundled = defaultResource.get()) {
-            if (bundled == null) {
-                log.error("The bundled blocklist.yml is missing from the jar; no blocklist file "
-                        + "has been written and nothing is blocked until one exists at {}.", file);
-                return;
-            }
-            Path parent = file.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.copy(bundled, file, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException failure) {
-            log.error(failure, "Could not write the starting blocklist to {}; nothing is blocked "
-                    + "until one exists there.", file);
+        if (text.isEmpty()) {
+            log.error("The blocklist could not be read; what is held stays in force until it can be.");
+            return false;
         }
-    }
-
-    private Map<String, Category> read() {
-        String text;
-        try {
-            text = Files.readString(file, StandardCharsets.UTF_8);
-        } catch (IOException unreadable) {
-            log.error(unreadable, "Could not read {}; nothing is blocked until it can be.", file);
-            return Map.of();
-        }
-        header = leadingComment(text);
         YamlConfiguration yaml = new YamlConfiguration();
         try {
-            yaml.loadFromString(text);
+            yaml.loadFromString(text.get());
         } catch (org.bukkit.configuration.InvalidConfigurationException broken) {
-            log.error(broken, "{} does not parse as YAML; nothing is blocked until it does.", file);
-            return Map.of();
+            log.error(broken, "The blocklist does not parse as YAML; what is held stays in force until it does.");
+            return false;
         }
+        header = leadingComment(text.get());
+        categories = parse(yaml);
+        return true;
+    }
 
+    /** Writes the bundled list when there is no document — never over one, which another server may have just seeded. */
+    private void seed() {
+        try (InputStream bundled = defaultResource.get()) {
+            if (bundled == null) {
+                log.error("The bundled blocklist.yml is missing from the jar; no blocklist has been written "
+                        + "and nothing is blocked until one exists.");
+                return;
+            }
+            store.writeTextIfAbsent(new String(bundled.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (IOException failure) {
+            log.error(failure, "Could not write the starting blocklist; nothing is blocked until one exists.");
+        }
+    }
+
+    /** Reloads when another server writes the list. Close to stop. */
+    public NetworkBus.Subscription watch() {
+        return store.onChange(this::load);
+    }
+
+    private static Map<String, Category> parse(YamlConfiguration yaml) {
         Map<String, Category> found = new LinkedHashMap<>();
         for (String id : yaml.getKeys(false)) {
             ConfigurationSection section = yaml.getConfigurationSection(id);
@@ -128,7 +136,7 @@ public final class NicknameBlocklist {
         return found;
     }
 
-    /** Every {@code #}-commented or blank line the file opens with, kept verbatim. */
+    /** Every {@code #}-commented or blank line the document opens with, kept verbatim. */
     private static String leadingComment(String text) {
         StringBuilder header = new StringBuilder();
         for (String line : text.split("\n", -1)) {
@@ -149,7 +157,7 @@ public final class NicknameBlocklist {
         if ("report".equalsIgnoreCase(text)) {
             return NicknameRule.BlockMatch.REPORTED;
         }
-        log.warn("blocklist.yml: section '{}' has action '{}', which is neither 'report' nor "
+        log.warn("blocklist: section '{}' has action '{}', which is neither 'report' nor "
                 + "'ban' — treating it as 'report'.", categoryId, text);
         return NicknameRule.BlockMatch.REPORTED;
     }
@@ -194,18 +202,12 @@ public final class NicknameBlocklist {
     // ---------------------------------------------------------------------------- editing, in-game
 
     /**
-     * Switches one section on or off, and writes the change straight to disk.
+     * Switches one section on or off, and writes the change at once.
      *
      * @return whether there was such a section to switch
      */
     public boolean setEnabled(String categoryId, boolean enabled) {
-        Category current = categories.get(categoryId);
-        if (current == null) {
-            return false;
-        }
-        replace(new Category(current.id(), enabled, current.action(), current.names()));
-        save();
-        return true;
+        return edit(categoryId, current -> new Category(current.id(), enabled, current.action(), current.names()));
     }
 
     /**
@@ -214,48 +216,63 @@ public final class NicknameBlocklist {
      * @return whether this changed anything — false for a blank name or one already there
      */
     public boolean addName(String categoryId, String name) {
-        Category current = categories.get(categoryId);
-        if (current == null || name == null || name.isBlank()) {
+        if (name == null || name.isBlank()) {
             return false;
         }
         String lowered = name.trim().toLowerCase(Locale.ROOT);
-        if (current.names().contains(lowered)) {
-            return false;
-        }
-        Set<String> names = new LinkedHashSet<>(current.names());
-        names.add(lowered);
-        replace(new Category(current.id(), current.enabled(), current.action(), names));
-        save();
-        return true;
+        return edit(categoryId, current -> {
+            if (current.names().contains(lowered)) {
+                return null;
+            }
+            Set<String> names = new LinkedHashSet<>(current.names());
+            names.add(lowered);
+            return new Category(current.id(), current.enabled(), current.action(), names);
+        });
     }
 
     /** @return whether the name was there to remove */
     public boolean removeName(String categoryId, String name) {
-        Category current = categories.get(categoryId);
-        if (current == null || name == null) {
+        if (name == null) {
             return false;
         }
         String lowered = name.trim().toLowerCase(Locale.ROOT);
-        if (!current.names().contains(lowered)) {
+        return edit(categoryId, current -> {
+            if (!current.names().contains(lowered)) {
+                return null;
+            }
+            Set<String> names = new LinkedHashSet<>(current.names());
+            names.remove(lowered);
+            return new Category(current.id(), current.enabled(), current.action(), names);
+        });
+    }
+
+    /**
+     * Applies one change to the list as it is in the document now and writes it back.
+     *
+     * @param change the section changed, or null for "nothing to do"
+     */
+    private synchronized boolean edit(String categoryId, java.util.function.UnaryOperator<Category> change) {
+        // The freshest list first: another server's edit since this one last read must not be undone by this one.
+        load();
+        Category current = categories.get(categoryId);
+        if (current == null) {
             return false;
         }
-        Set<String> names = new LinkedHashSet<>(current.names());
-        names.remove(lowered);
-        replace(new Category(current.id(), current.enabled(), current.action(), names));
+        Category updated = change.apply(current);
+        if (updated == null) {
+            return false;
+        }
+        Map<String, Category> next = new LinkedHashMap<>(categories);
+        next.put(updated.id(), updated);
+        categories = next;
         save();
         return true;
     }
 
-    private void replace(Category updated) {
-        Map<String, Category> next = new LinkedHashMap<>(categories);
-        next.put(updated.id(), updated);
-        categories = next;
-    }
-
     /**
-     * Writes every section back to {@link #file}, with the header comment this file opened with
-     * still above them — the one piece of hand-written explanation worth carrying through an
-     * in-game edit, even though nothing else about the file's own formatting survives a rewrite.
+     * Writes every section back, with the header comment the document opened with still above them — the
+     * one piece of hand-written explanation worth carrying through an in-game edit, even though nothing else
+     * about its formatting survives a rewrite.
      */
     private void save() {
         YamlConfiguration yaml = new YamlConfiguration();
@@ -266,16 +283,8 @@ public final class NicknameBlocklist {
                     category.action() == NicknameRule.BlockMatch.BANNED ? "ban" : "report");
             yaml.set(path + ".names", new ArrayList<>(category.names()));
         }
-        String body = yaml.saveToString();
-        try {
-            Path parent = file.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.writeString(file, header + body, StandardCharsets.UTF_8);
-        } catch (IOException failure) {
-            log.error(failure, "Could not write {}; the change has not reached disk and will be "
-                    + "lost on the next restart.", file);
+        if (!store.writeText(header + yaml.saveToString())) {
+            log.error("Could not write the blocklist; the change is in force until the next restart and then lost.");
         }
     }
 }

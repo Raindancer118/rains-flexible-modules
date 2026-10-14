@@ -1,14 +1,15 @@
 package de.raindancer.modules.chat.store;
 
 import de.raindancer.core.data.store.YamlStore;
-import de.raindancer.core.platform.log.Log;
-import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.chat.model.ChatStyle;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,6 +31,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * this has run on for years keeps one entry per person who has ever touched it, not one per person
  * who has ever joined.
  *
+ * <h2>On a network</h2>
+ * One document for every server ({@code YamlStore.network}): a colour chosen anywhere is worn everywhere, and
+ * nothing is carried between servers. {@link #watch()} reloads when another server writes; a choice this
+ * server has not managed to write yet is kept across the reload, and a document that cannot be read leaves
+ * what is held alone and is never written over.
+ *
  * <h2>Thread safety</h2>
  * The map is concurrent because a style is read from the chat thread on every message and written
  * from whichever thread owns the picker's clicks. Persistence goes through {@link #load()} and
@@ -38,51 +45,63 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ChatStyleStore {
 
-    private static final LogChannel log = Log.of("chat");
 
     private final YamlStore store;
     private final Map<UUID, ChatStyle> styles = new ConcurrentHashMap<>();
+    /** Chosen here and not yet written (DEFAULT for "none"): kept when a reload replaces the rest. */
+    private final Map<UUID, ChatStyle> unwritten = new ConcurrentHashMap<>();
 
-    /** False stops any write, the same guard {@code TpaPrefsFile} uses for the same reason: a file
-     * that could not be parsed must never be overwritten by an in-memory map that started empty. */
+    /** False stops any write: a document that could not be read must never be overwritten by an
+     * in-memory map that started empty. It is tried again before the next write. */
     private volatile boolean readable = true;
 
     public ChatStyleStore(Path dataFolder) {
-        this.store = new YamlStore(dataFolder.resolve("chatstyles.yml"));
+        this(YamlStore.network(dataFolder.resolve("chatstyles.yml")));
     }
 
-    public void load() {
-        styles.clear();
-        readable = true;
-        if (!store.exists()) {
-            return;
-        }
-        ConfigurationSection players = store.read().getConfigurationSection("players");
-        if (!store.problems().isEmpty()) {
+    public ChatStyleStore(YamlStore store) {
+        this.store = store;
+    }
+
+    /** Reads the document; a read that fails keeps what is held and stops writes until one succeeds. */
+    public synchronized void load() {
+        Optional<YamlConfiguration> read = store.readIfReadable();
+        if (read.isEmpty()) {
             readable = false;
             return;
         }
-        if (players == null) {
-            return;
+        readable = true;
+        Map<UUID, ChatStyle> fresh = new java.util.HashMap<>();
+        ConfigurationSection players = read.get().getConfigurationSection("players");
+        if (players != null) {
+            for (String rawId : players.getKeys(false)) {
+                UUID who;
+                try {
+                    who = UUID.fromString(rawId);
+                } catch (IllegalArgumentException notAnId) {
+                    continue;   // one hand-edited line must not cost everybody else their style
+                }
+                ConfigurationSection theirs = players.getConfigurationSection(rawId);
+                if (theirs == null) {
+                    continue;
+                }
+                ChatStyle style = new ChatStyle(colorOf(theirs.getString("color")),
+                        theirs.getBoolean("bold"), theirs.getBoolean("italic"),
+                        theirs.getBoolean("underlined"), theirs.getBoolean("strikethrough"));
+                if (!style.isDefault()) {
+                    fresh.put(who, style);
+                }
+            }
         }
-        for (String rawId : players.getKeys(false)) {
-            UUID who;
-            try {
-                who = UUID.fromString(rawId);
-            } catch (IllegalArgumentException notAnId) {
-                continue;   // one hand-edited line must not cost everybody else their style
+        unwritten.forEach((who, style) -> {
+            if (style.isDefault()) {
+                fresh.remove(who);
+            } else {
+                fresh.put(who, style);
             }
-            ConfigurationSection theirs = players.getConfigurationSection(rawId);
-            if (theirs == null) {
-                continue;
-            }
-            ChatStyle read = new ChatStyle(colorOf(theirs.getString("color")),
-                    theirs.getBoolean("bold"), theirs.getBoolean("italic"),
-                    theirs.getBoolean("underlined"), theirs.getBoolean("strikethrough"));
-            if (!read.isDefault()) {
-                styles.put(who, read);
-            }
-        }
+        });
+        styles.keySet().retainAll(fresh.keySet());
+        styles.putAll(fresh);
     }
 
     /** What this player has chosen, or {@link ChatStyle#DEFAULT} if they never have. */
@@ -102,40 +121,22 @@ public final class ChatStyleStore {
         } else {
             styles.put(who, style);
         }
+        unwritten.put(who, style);
         save();
     }
 
-    /** This player's style as the link carries it; a player with none answers all-off, which the other side adopts as none. */
-    public Map<String, String> export(UUID who) {
-        ChatStyle style = of(who);
-        return Map.of(
-                "color", style.color() == null ? "" : NamedTextColor.NAMES.key(style.color()),
-                "bold", String.valueOf(style.bold()),
-                "italic", String.valueOf(style.italic()),
-                "underlined", String.valueOf(style.underlined()),
-                "strikethrough", String.valueOf(style.strikethrough()));
-    }
-
-    /** A style kept on the other server of the link, shown here: remembered in memory, never written to this server's file. */
-    public void adopt(UUID who, Map<String, String> exported) {
-        if (who == null) {
-            return;
-        }
-        ChatStyle style = new ChatStyle(colorOf(exported.get("color")), "true".equals(exported.get("bold")),
-                "true".equals(exported.get("italic")), "true".equals(exported.get("underlined")),
-                "true".equals(exported.get("strikethrough")));
-        if (style.isDefault()) {
-            styles.remove(who);
-        } else {
-            styles.put(who, style);
-        }
-    }
-
-    public boolean save() {
+    public synchronized boolean save() {
         if (!readable) {
-            return false;
+            load();
+            if (!readable) {
+                return false;
+            }
         }
-        return store.write(yaml -> styles.forEach((who, style) -> {
+        if (unwritten.isEmpty()) {
+            return true;
+        }
+        Map<UUID, ChatStyle> sent = Map.copyOf(unwritten);
+        boolean written = store.write(yaml -> styles.forEach((who, style) -> {
             String base = "players." + who;
             if (style.color() != null) {
                 yaml.set(base + ".color", NamedTextColor.NAMES.key(style.color()));
@@ -145,6 +146,22 @@ public final class ChatStyleStore {
             yaml.set(base + ".underlined", style.underlined());
             yaml.set(base + ".strikethrough", style.strikethrough());
         }));
+        if (written) {
+            sent.forEach(unwritten::remove);
+            // The write merged what other servers wrote; the next must start from that, not from before it.
+            load();
+        }
+        return written;
+    }
+
+    /** Reloads when another server writes the document, after writing what this one holds. Close to stop. */
+    public NetworkBus.Subscription watch() {
+        return store.onChange(() -> {
+            synchronized (this) {
+                save();
+                load();
+            }
+        });
     }
 
     public boolean isReadable() {

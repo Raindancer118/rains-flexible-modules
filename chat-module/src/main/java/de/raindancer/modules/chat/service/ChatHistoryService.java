@@ -35,6 +35,7 @@ public final class ChatHistoryService implements IChatService {
     public void settings(ChatSettings fresh) {
         this.settings = fresh;
         store.capacity(fresh.historyLimit());
+        store.retention(fresh.historyRetention());
     }
 
     /** Remembers a line that just went out, if history is switched on at all. */

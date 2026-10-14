@@ -9,23 +9,26 @@ import de.raindancer.core.data.settings.Topic;
 import org.bukkit.Material;
 
 /**
- * One public chat across two servers of a network, over Core's server link. A record of its own: the chat settings
- * are already long, and this is a separate decision an owner makes once per server.
+ * One public chat across the servers of a network — over the network's bus, so every server hears it — or, on a
+ * server not on one, across the two servers of Core's 1.x link. A record of its own: the chat settings are already
+ * long, and this is a separate decision.
  */
 @Settings(id = "chat-network", topics = {
         @Topic(path = "chat/network", title = "Network chat", icon = Material.ENDER_EYE),
 })
 public record NetworkChatSettings(
 
-        @In("chat/network") @Title("Share chat with the linked server")
-        @Describe("Public chat said here is shown on the server this one is linked to (link.yml in RainsCore), and "
-                + "theirs here. Private chats and channels stay where they are. A mute on this server also hides "
-                + "what the muted player says over there.")
+        @In("chat/network") @Title("Share chat with the other servers")
+        @Describe("Public chat said here is shown on every other server of the network, and theirs here (on a "
+                + "server of its own: on the server it is linked to, link.yml in RainsCore). Private chats and "
+                + "channels stay where they are. A mute on a server hides what the muted player says there, "
+                + "whichever server they said it on.")
         @Key("network.enabled")
         boolean enabled,
 
         @In("chat/network") @Title("This server's tag")
-        @Describe("Shown in front of every line from this server on the other one, e.g. SMP or Arena.")
+        @Describe("Shown in front of every line from this server on the others, e.g. SMP or Arena. Empty: the "
+                + "server's id on a network.")
         @Key("network.tag")
         String tag) {
 

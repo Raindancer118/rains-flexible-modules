@@ -29,7 +29,7 @@ class ChatHistoryServiceTest {
     @BeforeEach
     void setUp() throws IOException {
         Files.createDirectories(dataFolder);
-        store = new ChatHistoryStore(dataFolder);
+        store = new ChatHistoryStore(dataFolder, now::get);
     }
 
     @AfterEach

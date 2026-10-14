@@ -3,6 +3,7 @@ package de.raindancer.modules.essentials.store;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.essentials.model.HouseRule;
 import de.raindancer.modules.essentials.model.RulePreset;
 import org.bukkit.Material;
@@ -11,9 +12,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -26,44 +26,99 @@ import java.util.function.UnaryOperator;
 
 /**
  * The server's rules ({@code rules.yml}) and the presets they can be replaced with in one go
- * ({@code rule-presets.yml}). Both are plain files an owner may also edit by hand; every in-game change is
- * written at once.
+ * ({@code rule-presets.yml}). Both are documents of the network — the owner edits once, every server shows
+ * the same — and every in-game change is written at once; {@link #watch()} reloads when another server wrote.
  *
- * <p>A new server starts with the bundled presets and the rules of {@code defaultPreset}. Once
- * {@code rules.yml} exists it is never filled again — an owner who removed every rule meant it.
+ * <p>A new network starts with the bundled presets and the rules of {@code defaultPreset}, written only if
+ * nobody has yet: two servers starting for the first time at once end up with the same rules. Once
+ * {@code rules.yml} exists it is never filled again — an owner who removed every rule meant it. A document
+ * that cannot be read leaves the rules held as they are.
  */
 public final class RuleBook {
 
     private static final LogChannel log = Log.of("essentials");
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    private static final List<String> RULES_HEADER = List.of(
+            "The server's rules, in the order /rules shows them. Edit in game with /rules edit,",
+            "or here and restart. 'enabled: false' keeps a rule without showing it.",
+            "'punishments: warn, mute 1h, ban 3d, ban' is what the 1st, 2nd, ... offence costs.");
+
     private final YamlStore rulesFile;
-    private final Path presetsPath;
     private final YamlStore presetsFile;
     private final Supplier<InputStream> bundledPresets;
     private final String defaultPreset;
 
     private List<HouseRule> rules = List.of();
     private Map<String, RulePreset> presets = Map.of();
+    /** A change that could not be written yet: kept, and written before a reload replaces it. */
+    private boolean rulesUnwritten;
+    private boolean presetsUnwritten;
 
     public RuleBook(Path rulesPath, Path presetsPath, Supplier<InputStream> bundledPresets, String defaultPreset) {
-        this.rulesFile = new YamlStore(rulesPath);
-        this.presetsPath = presetsPath;
-        this.presetsFile = new YamlStore(presetsPath);
+        this(YamlStore.network(rulesPath), YamlStore.network(presetsPath), bundledPresets, defaultPreset);
+    }
+
+    public RuleBook(YamlStore rulesFile, YamlStore presetsFile, Supplier<InputStream> bundledPresets,
+                    String defaultPreset) {
+        this.rulesFile = rulesFile;
+        this.presetsFile = presetsFile;
         this.bundledPresets = bundledPresets;
         this.defaultPreset = defaultPreset;
     }
 
+    /** Reads rules and presets, seeding what is not there yet. Called when the module starts. */
     public synchronized void load() {
-        if (!Files.exists(presetsPath)) {
-            copyBundledPresets();
-        }
-        presets = readPresets(presetsFile.read());
-        if (rulesFile.exists()) {
-            rules = readRules(rulesFile.read().getMapList("rules"), true);
-        } else {
-            rules = preset(defaultPreset).map(preset -> fresh(preset.rules())).orElse(List.of());
+        read(true);
+    }
+
+    /** Reloads when another server writes either document, after writing what this one could not. Close to stop. */
+    public NetworkBus.Subscription watch() {
+        NetworkBus.Subscription ofRules = rulesFile.onChange(this::reload);
+        NetworkBus.Subscription ofPresets = presetsFile.onChange(this::reload);
+        return () -> {
+            ofRules.close();
+            ofPresets.close();
+        };
+    }
+
+    private synchronized void reload() {
+        if (rulesUnwritten) {
             saveRules();
+        }
+        if (presetsUnwritten) {
+            savePresets();
+        }
+        read(false);
+    }
+
+    private void read(boolean seeding) {
+        if (seeding && !presetsFile.exists()) {
+            seedPresets();
+        }
+        boolean presetsRead = false;
+        if (!presetsUnwritten) {
+            Optional<YamlConfiguration> found = presetsFile.readIfReadable();
+            if (found.isPresent()) {
+                presets = readPresets(found.get());
+                presetsRead = true;
+            } else {
+                log.warn("The rule presets could not be read; the ones held stay.");
+            }
+        }
+        if (seeding && !rulesFile.exists() && presetsRead) {
+            // Only if nobody has yet; whoever got there first, their rules are what is read back below.
+            YamlConfiguration starting = rulesDocument(preset(defaultPreset)
+                    .map(preset -> written(fresh(preset.rules()), true)).orElse(List.of()));
+            rulesFile.writeTextIfAbsent(starting.saveToString());
+        }
+        if (!rulesUnwritten) {
+            Optional<YamlConfiguration> found = rulesFile.readIfReadable();
+            if (found.isPresent()) {
+                rules = readRules(found.get().getMapList("rules"), true);
+            } else {
+                log.warn("The rules could not be read; the ones held stay.");
+            }
         }
     }
 
@@ -191,20 +246,17 @@ public final class RuleBook {
 
     // ------------------------------------------------------------------------------------------- disk
 
-    private void copyBundledPresets() {
+    /** Writes the bundled presets when there are none — never over presets another server just seeded. */
+    private void seedPresets() {
         try (InputStream bundled = bundledPresets.get()) {
             if (bundled == null) {
                 log.error("The bundled rule-presets.yml is missing from the jar; there are no presets until "
-                        + "one exists at {}.", presetsPath);
+                        + "one exists.");
                 return;
             }
-            Path parent = presetsPath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.copy(bundled, presetsPath, StandardCopyOption.REPLACE_EXISTING);
+            presetsFile.writeTextIfAbsent(new String(bundled.readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException failure) {
-            log.error(failure, "Could not write the starting rule presets to {}.", presetsPath);
+            log.error(failure, "Could not write the starting rule presets.");
         }
     }
 
@@ -318,16 +370,23 @@ public final class RuleBook {
         return entries;
     }
 
+    private static YamlConfiguration rulesDocument(List<Map<String, Object>> entries) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        fillRules(yaml, entries);
+        return yaml;
+    }
+
+    private static void fillRules(YamlConfiguration yaml, List<Map<String, Object>> entries) {
+        yaml.options().setHeader(RULES_HEADER);
+        yaml.set("rules", entries);
+    }
+
     private void saveRules() {
         List<Map<String, Object>> entries = written(rules, true);
-        if (!rulesFile.write(yaml -> {
-            yaml.options().setHeader(List.of(
-                    "The server's rules, in the order /rules shows them. Edit in game with /rules edit,",
-                    "or here and restart. 'enabled: false' keeps a rule without showing it.",
-                    "'punishments: warn, mute 1h, ban 3d, ban' is what the 1st, 2nd, ... offence costs."));
-            yaml.set("rules", entries);
-        })) {
-            log.error("Could not write {}; the change to the rules is lost on the next restart.", rulesFile.file());
+        rulesUnwritten = !rulesFile.write(yaml -> fillRules(yaml, entries));
+        if (rulesUnwritten) {
+            log.error("Could not write the rules; the change is kept and written again at the next change, "
+                    + "and lost if the server stops before.");
         }
     }
 
@@ -339,8 +398,10 @@ public final class RuleBook {
             }
             yaml.set(name + ".rules", written(preset.rules(), false));
         }));
+        presetsUnwritten = !saved;
         if (!saved) {
-            log.error("Could not write {}; the change to the presets is lost on the next restart.", presetsPath);
+            log.error("Could not write the rule presets; the change is kept and written again at the next "
+                    + "change, and lost if the server stops before.");
         }
         return saved;
     }

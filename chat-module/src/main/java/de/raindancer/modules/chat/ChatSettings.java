@@ -149,9 +149,34 @@ public record ChatSettings(
         @In("chat/ads") @Title("Ad format")
         @Describe("How an ad is laid out. <name> is the advertiser's coloured name, <message> what they wrote.")
         @Key("ads.format")
-        String adsFormat
+        String adsFormat,
+
+        @In("chat/history") @Title("Keep chat history for this many days") @Range(min = 1, max = 730)
+        @Describe("Lines older than this are deleted from the history, and so is when somebody was last seen "
+                + "leaving. What people said, beside their names, is personal data: under the GDPR it may be kept "
+                + "while there is a reason — catching up — and no longer. Say how long in your privacy notice.")
+        @Key("history-retention-days")
+        int historyRetentionDays
 
 ) {
+
+    /** The days a line is kept until an owner says otherwise. */
+    public static final int RETENTION_DAYS = 365;
+
+    /** Every setting from before the retention, with the default retention. */
+    public ChatSettings(String format, boolean clickToMessage, boolean linkifyUrls, NamedTextColor defaultMessageColor,
+                        NamedTextColor defaultNameColor, boolean bracketsAroundName, boolean mentionsEnabled,
+                        boolean capsFilterEnabled, int capsThresholdPercent, int capsMinLength,
+                        boolean repeatBlockEnabled, int messageCooldownSeconds, int defaultSlowmodeSeconds,
+                        boolean historyEnabled, int historyCapacity, boolean historyNotifyOnJoin,
+                        boolean pollsEnabled, int pollSeconds, boolean adsEnabled, String adsPrice,
+                        int adsCooldownSeconds, int adsMostLength, String adsFormat) {
+        this(format, clickToMessage, linkifyUrls, defaultMessageColor, defaultNameColor, bracketsAroundName,
+                mentionsEnabled, capsFilterEnabled, capsThresholdPercent, capsMinLength, repeatBlockEnabled,
+                messageCooldownSeconds, defaultSlowmodeSeconds, historyEnabled, historyCapacity,
+                historyNotifyOnJoin, pollsEnabled, pollSeconds, adsEnabled, adsPrice, adsCooldownSeconds,
+                adsMostLength, adsFormat, RETENTION_DAYS);
+    }
 
     /** The format an ad has until an owner writes one. */
     public static final String AD_FORMAT = "<gold>[Ad] <reset><name><gray>: <yellow><message>";
@@ -166,13 +191,13 @@ public record ChatSettings(
         this(format, clickToMessage, linkifyUrls, defaultMessageColor, defaultNameColor, bracketsAroundName,
                 mentionsEnabled, capsFilterEnabled, capsThresholdPercent, capsMinLength, repeatBlockEnabled,
                 messageCooldownSeconds, defaultSlowmodeSeconds, historyEnabled, historyCapacity,
-                historyNotifyOnJoin, pollsEnabled, pollSeconds, false, "0", 600, 120, AD_FORMAT);
+                historyNotifyOnJoin, pollsEnabled, pollSeconds, false, "0", 600, 120, AD_FORMAT, RETENTION_DAYS);
     }
 
     public static final ChatSettings DEFAULTS = new ChatSettings(
             "<name>: <message>", true, true, NamedTextColor.WHITE, NamedTextColor.WHITE, false,
             true, true, 70, 8, true, 0, 0, true, 200, true, true, 120,
-            false, "0", 600, 120, AD_FORMAT);
+            false, "0", 600, 120, AD_FORMAT, RETENTION_DAYS);
 
     /** Clamped, so a hand-built settings record cannot ask for an impossible threshold. */
     public int capsThreshold() {
@@ -197,6 +222,11 @@ public record ChatSettings(
     /** Clamped, so a hand-built settings record cannot ask for a capacity of zero or less. */
     public int historyLimit() {
         return Math.max(20, Math.min(1000, historyCapacity));
+    }
+
+    /** Clamped, so a hand-built settings record cannot keep chat for ever or for none. */
+    public int historyRetention() {
+        return Math.max(1, Math.min(730, historyRetentionDays));
     }
 
     public java.time.Duration pollLength() {
