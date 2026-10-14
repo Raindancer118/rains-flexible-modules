@@ -11,7 +11,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -45,8 +44,8 @@ public final class PackBook {
         if (!store.exists()) {
             try (InputStream in = shipped.get()) {
                 if (in != null) {
-                    Files.createDirectories(store.file().getParent());
-                    Files.writeString(store.file(), new String(in.readAllBytes(), StandardCharsets.UTF_8));
+                    // Only if there is still none: another writer may have put the owner's packs there meanwhile.
+                    store.writeTextIfAbsent(new String(in.readAllBytes(), StandardCharsets.UTF_8));
                 }
             } catch (IOException failed) {
                 // Read below as no packs; the shop simply shows none.

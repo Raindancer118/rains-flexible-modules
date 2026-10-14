@@ -20,7 +20,8 @@ import java.util.Base64;
  * The server's signature on its cash: an HMAC over value, form and serial with a key that never leaves
  * the server. A creative client can send any item it likes, and an item's data can say anything — but only
  * this server can write a seal that fits, so a coin worth a million that it never minted is recognised as
- * the forgery it is. The key lives in {@code cash.key}; deleting it invalidates every coin in circulation.
+ * the forgery it is. The key is the network's secret {@value #SECRET} (until 2.0 the file {@code cash.key}),
+ * so money minted on one server is good on every other; losing it invalidates every coin in circulation.
  */
 public final class CashSeal {
 
@@ -32,7 +33,25 @@ public final class CashSeal {
         this.key = key.clone();
     }
 
-    /** Reads the key, making one the first time. */
+    /** The name of the key among the network's secrets. */
+    public static final String SECRET = "economy-cash-seal";
+
+    /**
+     * The network's key, made the first time — or the 1.x {@code oldFile}'s, so money already minted stays good.
+     * Empty when the database cannot be reached.
+     */
+    public static java.util.Optional<CashSeal> fromSecrets(de.raindancer.core.data.store.Secrets secrets, Path oldFile) {
+        return secrets.bytes(SECRET, 32, oldFile, de.raindancer.core.data.store.Secrets.BASE64).map(CashSeal::new);
+    }
+
+    /** A key that lasts until the server stops — for when the database is out of reach. */
+    public static CashSeal temporary() {
+        byte[] fresh = new byte[32];
+        new SecureRandom().nextBytes(fresh);
+        return new CashSeal(fresh);
+    }
+
+    /** Reads the key from a file, making one the first time. (1.x; kept for its tests and for reading old files.) */
     public static CashSeal load(Path file) {
         try {
             if (Files.exists(file)) {

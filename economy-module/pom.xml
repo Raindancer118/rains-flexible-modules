@@ -35,6 +35,14 @@
             <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- RainsCore's testkit: the cash key is tested in the real database, on both dialects. -->
+        <dependency>
+            <groupId>de.raindancer</groupId>
+            <artifactId>RainsCore</artifactId>
+            <version>${rainscore.version}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
         <!-- The driver Paper ships, for tests only: the ledger is tested against real SQLite. -->
         <dependency>
             <groupId>org.xerial</groupId>

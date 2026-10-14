@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.37.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.38.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -153,36 +153,43 @@ public final class EconomyModule implements FlexModule {
         var buttons = context.core().buttons();
 
         PaymentService payments = new PaymentService(context.plugin(), economy, messages, effects, buttons, now);
-        if (!context.core().linkFollows()) {
-            // A /pay made in the arena: run here, under every rule a /pay here has.
+        // A /pay made on another server (the arena): run here, under every rule a /pay here has.
+        java.util.function.Function<java.util.Map<String, String>, java.util.Map<String, String>> payFromElsewhere = data -> {
+            java.util.concurrent.CompletableFuture<java.util.Map<String, String>> done =
+                    new java.util.concurrent.CompletableFuture<>();
+            de.raindancer.core.platform.util.Scheduling.global(context.plugin(), () -> {
+                try {
+                    done.complete(payments.payAcross(java.util.UUID.fromString(data.get("payer")),
+                            data.getOrDefault("payerName", "?"),
+                            server.getOfflinePlayer(java.util.UUID.fromString(data.get("target"))),
+                            de.raindancer.core.social.economy.Money.of(Long.parseLong(data.get("amount"))),
+                            "true".equals(data.get("confirmed"))));
+                } catch (RuntimeException garbled) {
+                    done.complete(java.util.Map.of());
+                }
+            });
+            try {
+                return done.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception slow) {
+                return java.util.Map.of();
+            }
+        };
+        if (context.core().network().isNetwork()) {
+            String self = context.core().network().serverId();
+            context.core().networkCalls().ifPresent(calls -> context.closeWith(calls.answer(
+                    de.raindancer.core.social.economy.LinkedEconomy.PAY, data -> context.core().networkRoles()
+                            .flatMap(roles -> roles.holder(de.raindancer.core.social.economy.NetworkEconomy.ROLE))
+                            .filter(self::equals).isPresent() ? payFromElsewhere.apply(data) : java.util.Map.of())::close));
+        } else if (!context.core().linkFollows()) {
             context.core().link().ifPresent(link -> {
-                link.on(de.raindancer.core.social.economy.LinkedEconomy.PAY, data -> {
-                    java.util.concurrent.CompletableFuture<java.util.Map<String, String>> done =
-                            new java.util.concurrent.CompletableFuture<>();
-                    de.raindancer.core.platform.util.Scheduling.global(context.plugin(), () -> {
-                        try {
-                            done.complete(payments.payAcross(java.util.UUID.fromString(data.get("payer")),
-                                    data.getOrDefault("payerName", "?"),
-                                    server.getOfflinePlayer(java.util.UUID.fromString(data.get("target"))),
-                                    de.raindancer.core.social.economy.Money.of(Long.parseLong(data.get("amount"))),
-                                    "true".equals(data.get("confirmed"))));
-                        } catch (RuntimeException garbled) {
-                            done.complete(java.util.Map.of());
-                        }
-                    });
-                    try {
-                        return done.get(5, java.util.concurrent.TimeUnit.SECONDS);
-                    } catch (Exception slow) {
-                        return java.util.Map.of();
-                    }
-                });
+                link.on(de.raindancer.core.social.economy.LinkedEconomy.PAY, payFromElsewhere::apply);
                 context.closeWith(() -> link.off(de.raindancer.core.social.economy.LinkedEconomy.PAY));
             });
         }
         BillService bills = new BillService(context.plugin(), server, economy, messages, effects, buttons,
                 System::currentTimeMillis, now);
         CashService cash = new CashService(server, economy, messages, effects, context.core().audit(),
-                de.raindancer.modules.economy.store.CashSeal.load(context.dataFolder().resolve("cash.key")), now);
+                cashSeal(context), now);
         ShopService shop = new ShopService(server, economy, prices, market, messages, effects, settings, now);
         RewardService rewards = new RewardService(economy, window, messages, now);
         IncomeService income = new IncomeService(context.plugin(), rewards, messages, System::currentTimeMillis, now);
@@ -378,12 +385,24 @@ public final class EconomyModule implements FlexModule {
         log.info("Potions: {} bottle(s) for sale or bought, one per potion type and form, brewed from their ingredients' "
                 + "prices, and the ominous bottles.", bottles);
         try {
-            var file = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(settings.file().toFile());
+            // The settings are in the database from 2.0.0 on and keep no unknown keys; the old lines are in the 1.x
+            // file, kept beside it once imported.
+            java.nio.file.Path old = settings.file().resolveSibling(settings.file().getFileName() + ".imported-2.0.0");
+            var file = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                    (java.nio.file.Files.isRegularFile(old) ? old : settings.file()).toFile());
             de.raindancer.modules.economy.store.LegacyEnchantSettings.notice(file::get,
                     enchantExamples(prices, economy.currency())).ifPresent(log::warn);
         } catch (RuntimeException unreadable) {
             log.warn("config.yml could not be read for old enchanted-book settings: {}", unreadable.getMessage());
         }
+    }
+
+    private de.raindancer.modules.economy.store.CashSeal cashSeal(ModuleContext context) {
+        return de.raindancer.modules.economy.store.CashSeal.fromSecrets(context.core().secrets(), context.dataFolder().resolve("cash.key")).orElseGet(() -> {
+            log.error("The cash key could not be read from the database. Cash minted until the next restart will not "
+                    + "be accepted after it; cash minted before is not accepted until then.");
+            return de.raindancer.modules.economy.store.CashSeal.temporary();
+        });
     }
 
     /** A few book prices for the log, so an owner sees what the shop asks. */

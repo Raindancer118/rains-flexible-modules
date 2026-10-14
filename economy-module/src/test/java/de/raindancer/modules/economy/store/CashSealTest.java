@@ -38,4 +38,24 @@ class CashSealTest {
         assertThat(CashSeal.load(folder.resolve("b.key")).verify(new CashPiece(Money.of(1), 1, Form.COIN, null, false,
                 foreign))).isFalse();
     }
+
+    @Test
+    @org.junit.jupiter.api.Tag("database")
+    @DisplayName("2.0: money minted with the old cash.key is still good once the key is the network's secret")
+    void oldMoneyStaysGood() {
+        Path file = folder.resolve("cash.key");
+        String note = CashSeal.load(file).seal(Money.of(500), Form.NOTE, "ABCD");
+        var database = de.raindancer.core.testkit.TestDatabases.open(folder.resolve("core.db"),
+                de.raindancer.core.data.sql.CoreSchema.CORE);
+        try {
+            var secrets = new de.raindancer.core.data.store.Secrets(database, System::currentTimeMillis);
+            CashSeal moved = CashSeal.fromSecrets(secrets, file).orElseThrow();
+            assertThat(moved.verify(new CashPiece(Money.of(500), 1, Form.NOTE, "ABCD", true, note))).isTrue();
+            assertThat(file).doesNotExist();
+            assertThat(CashSeal.fromSecrets(secrets, file).orElseThrow()
+                    .verify(new CashPiece(Money.of(500), 1, Form.NOTE, "ABCD", true, note))).as("after a restart").isTrue();
+        } finally {
+            database.close();
+        }
+    }
 }
