@@ -1,5 +1,6 @@
 package de.raindancer.modules.enchants.service;
 
+import de.raindancer.core.RainsCore;
 import de.raindancer.core.content.enchant.CustomEnchantments;
 import de.raindancer.core.content.enchant.RainsEnchants;
 import de.raindancer.core.ui.effect.Cues;
@@ -51,6 +52,29 @@ public final class AirService {
         this.advancements = advancements;
         this.effects = effects;
         this.messages = messages;
+    }
+
+    /** Lets the charge follow the player between servers, and re-reads it when it arrives after a join. */
+    public AutoCloseable follow(RainsCore core) {
+        core.sharePlayerData(AirStore.NAMESPACE);
+        return core.onSharedDataApplied((player, namespaces) -> {
+            if (namespaces.contains(AirStore.NAMESPACE)) {
+                refresh(player);
+            }
+        });
+    }
+
+    private void refresh(Player player) {
+        AirState state = states.get(player.getUniqueId());
+        AirState arrived = store.load(player);
+        if (state != null && arrived.budget.isKnown()) {
+            state.budget = arrived.budget;
+            state.flownMillis = arrived.flownMillis;
+        }
+    }
+
+    void adopt(Player player, AirState state) {
+        states.put(player.getUniqueId(), state);
     }
 
     public void tick(Player player) {

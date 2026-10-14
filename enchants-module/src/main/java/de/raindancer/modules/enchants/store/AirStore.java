@@ -13,8 +13,11 @@ import org.bukkit.persistence.PersistentDataType;
  */
 public final class AirStore {
 
-    private static final NamespacedKey CHARGE = new NamespacedKey("rainsenchants", "flight_ms");
-    private static final NamespacedKey FLOWN = new NamespacedKey("rainsenchants", "flown_ms");
+    /** Everything the module keeps on a player, and all of it follows them across the network. */
+    public static final String NAMESPACE = "rainsenchants";
+
+    private static final NamespacedKey CHARGE = new NamespacedKey(NAMESPACE, "flight_ms");
+    private static final NamespacedKey FLOWN = new NamespacedKey(NAMESPACE, "flown_ms");
 
     public AirState load(Player player) {
         AirState state = new AirState();

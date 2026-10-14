@@ -31,7 +31,7 @@ public final class EnchantsModule implements FlexModule {
     /** Night Vision is looked at every this-many ticks; an armour change is answered at once. */
     private static final int NIGHT_VISION_EVERY = 10;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.2.0")
             .describedAs("Veinminer, Night Vision, Flight and Double Jump as real enchantments, with advancements")
             .by("Raindancer118");
 
@@ -60,6 +60,7 @@ public final class EnchantsModule implements FlexModule {
         advancements.define();
         air = new AirService(new AirRule(), new AirStore(), settings::current, advancements,
                 context.core().effects(), context.core().messages());
+        context.closeWith(air.follow(context.core()));
         nightVision = new NightVisionService(advancements);
 
         context.listener(new AirListener(air, nightVision));

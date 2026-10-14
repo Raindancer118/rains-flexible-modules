@@ -24,7 +24,8 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsEnchants</plugin.name>
         <!-- 0.1.0: Veinminer, Night Vision, Flight and Double Jump as enchantments; advancements for them. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.2.0: the flight charge and flown time follow the player across the network. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>
