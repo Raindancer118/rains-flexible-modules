@@ -15,10 +15,29 @@ class EnchantsDefinitionsTest {
     }
 
     @Test
-    @DisplayName("the four enchantments are exactly the keys Core publishes for others to ask about")
+    @DisplayName("the enchantments are exactly the keys Core publishes for others to ask about")
     void keysMatchCore() {
         assertThat(EnchantsDefinitions.all()).extracting(EnchantDef::key).containsExactlyInAnyOrder(
-                RainsEnchants.VEINMINER, RainsEnchants.NIGHT_VISION, RainsEnchants.FLIGHT, RainsEnchants.DOUBLE_JUMP);
+                RainsEnchants.VEINMINER, RainsEnchants.NIGHT_VISION, RainsEnchants.FLIGHT, RainsEnchants.DOUBLE_JUMP,
+                RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.LAUNCH, RainsEnchants.SWIFTNESS,
+                RainsEnchants.HASTE, RainsEnchants.SOULBOUND, RainsEnchants.WISDOM, RainsEnchants.EXCAVATOR,
+                RainsEnchants.HARVESTER, RainsEnchants.SMELTING, RainsEnchants.TELEKINESIS, RainsEnchants.CHEST_LINK);
+    }
+
+    @Test
+    @DisplayName("the new ones go where they work, and the pairs that fight each other are kept apart")
+    void newOnes() {
+        assertThat(def(RainsEnchants.BOOST).gear()).isEqualTo(Gear.ELYTRA);
+        assertThat(def(RainsEnchants.LAUNCH).gear()).isEqualTo(Gear.ELYTRA);
+        assertThat(def(RainsEnchants.SWIFTNESS).gear()).isEqualTo(Gear.LEGGINGS);
+        assertThat(def(RainsEnchants.HARVESTER).gear()).isEqualTo(Gear.HOE);
+        assertThat(def(RainsEnchants.EXCAVATOR).gear()).isEqualTo(Gear.EXCAVATING_TOOLS);
+        assertThat(def(RainsEnchants.SOULBOUND).gear()).isEqualTo(Gear.ANY_GEAR);
+        assertThat(def(RainsEnchants.AUTO_SELL).gear()).isEqualTo(Gear.HAND_TOOLS);
+
+        assertThat(def(RainsEnchants.EXCAVATOR).exclusiveWith()).contains(RainsEnchants.VEINMINER);
+        assertThat(def(RainsEnchants.SMELTING).exclusiveWith()).contains("minecraft:silk_touch");
+        assertThat(def(RainsEnchants.TELEKINESIS).exclusiveWith()).contains(RainsEnchants.CHEST_LINK);
     }
 
     @Test

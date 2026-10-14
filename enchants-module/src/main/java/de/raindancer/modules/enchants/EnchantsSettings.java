@@ -36,7 +36,35 @@ public record EnchantsSettings(
         @In("enchants") @Title("Double Jump power, percent") @Range(min = 10, max = 300)
         @Describe("How hard Double Jump pushes: 100 is a little over two blocks of extra height.")
         @Key("double-jump-power-percent")
-        int doubleJumpPowerPercent) {
+        int doubleJumpPowerPercent,
 
-    public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100);
+        @In("enchants") @Title("Seconds for a Boost charge to come back") @Range(min = 5, max = 3600)
+        @Describe("An elytra with Boost holds one charge per level; each spent one comes back after this long, "
+                + "one at a time, flying or not.")
+        @Key("boost-recharge-seconds")
+        int boostRechargeSeconds,
+
+        @In("enchants") @Title("Boost speed, percent of a rocket") @Range(min = 50, max = 400)
+        @Describe("How fast a Boost pulls: 100 is a firework rocket, 150 half as fast again.")
+        @Key("boost-speed-percent")
+        int boostSpeedPercent,
+
+        @In("enchants") @Title("Launch speed, metres per second") @Range(min = 20, max = 300)
+        @Describe("How fast Launch throws the player forward once the elytra opens. The air slows a glider "
+                + "down quickly, and the faster this is the more chunks the server has to load at once.")
+        @Key("launch-speed")
+        int launchSpeed,
+
+        @In("enchants") @Title("Launch cooldown, seconds") @Range(min = 10, max = 86400)
+        @Describe("How long Launch I waits between launches; level II waits two thirds of it, III a third.")
+        @Key("launch-cooldown-seconds")
+        int launchCooldownSeconds,
+
+        @In("enchants") @Title("Wisdom, extra experience per level, percent") @Range(min = 1, max = 500)
+        @Describe("How much more experience mobs and blocks give per level of Wisdom: 50 makes Wisdom III "
+                + "two and a half times as much.")
+        @Key("wisdom-percent-per-level")
+        int wisdomPercentPerLevel) {
+
+    public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50);
 }

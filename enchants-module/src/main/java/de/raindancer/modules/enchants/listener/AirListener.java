@@ -1,7 +1,7 @@
 package de.raindancer.modules.enchants.listener;
 
 import de.raindancer.modules.enchants.service.AirService;
-import de.raindancer.modules.enchants.service.NightVisionService;
+import de.raindancer.modules.enchants.service.WornEffectService;
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,11 +15,11 @@ import java.util.UUID;
 public final class AirListener implements IEnchantsListener {
 
     private final AirService air;
-    private final NightVisionService nightVision;
+    private final WornEffectService wornEffects;
 
-    public AirListener(AirService air, NightVisionService nightVision) {
+    public AirListener(AirService air, WornEffectService wornEffects) {
         this.air = air;
-        this.nightVision = nightVision;
+        this.wornEffects = wornEffects;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -31,13 +31,13 @@ public final class AirListener implements IEnchantsListener {
 
     @EventHandler
     public void onArmour(PlayerArmorChangeEvent event) {
-        nightVision.sync(event.getPlayer());
+        wornEffects.sync(event.getPlayer());
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         air.join(event.getPlayer());
-        nightVision.sync(event.getPlayer());
+        wornEffects.sync(event.getPlayer());
     }
 
     @EventHandler

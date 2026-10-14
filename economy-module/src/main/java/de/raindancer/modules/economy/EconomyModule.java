@@ -87,7 +87,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.39.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.40.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -310,7 +310,14 @@ public final class EconomyModule implements FlexModule {
         context.listener(new de.raindancer.modules.economy.listener.SupplyListener(services));
         context.listener(new de.raindancer.modules.economy.listener.DealerListener(services));
         context.listener(new de.raindancer.modules.economy.listener.PackListener(services));
+        context.listener(new de.raindancer.modules.economy.listener.AutoSellListener(services));
         log.info("{} pack(s) for sale.", packCount);
+        // Auto Sell pays every two seconds; closed in reverse order, so the last payout runs before the book shuts.
+        var autoSales = Scheduling.globalTimer(context.plugin(), 40L, 40L, task -> shop.payAutoSales(context.plugin()));
+        if (autoSales != null) {
+            context.closeWith(autoSales::cancel);
+        }
+        context.closeWith(() -> shop.payAutoSales(context.plugin()));
         var rounds = Scheduling.globalTimer(context.plugin(), 2L, 2L, task -> {
             crash.tick();
             race.tick();

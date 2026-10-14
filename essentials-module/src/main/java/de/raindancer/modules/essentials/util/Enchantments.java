@@ -70,12 +70,31 @@ public final class Enchantments {
     }
 
     public static Optional<Enchantment> find(String typed) {
+        List<NamespacedKey> known = new ArrayList<>();
+        registry().forEach(enchantment -> known.add(enchantment.getKey()));
+        return resolve(typed, known).map(key -> registry().get(key));
+    }
+
+    /**
+     * Which key a typed name means: a namespaced one as it is, a bare one as vanilla's — or, with no vanilla
+     * enchantment by that name, the one plugin enchantment that has it ({@code telekinesis}). Two plugins
+     * sharing a name have to be told apart by namespace.
+     */
+    static Optional<NamespacedKey> resolve(String typed, java.util.Collection<NamespacedKey> known) {
         String key = normalise(typed);
         if (key.isEmpty()) {
             return Optional.empty();
         }
-        NamespacedKey wanted = key.contains(":") ? NamespacedKey.fromString(key) : NamespacedKey.minecraft(key);
-        return wanted == null ? Optional.empty() : Optional.ofNullable(registry().get(wanted));
+        if (key.contains(":")) {
+            NamespacedKey wanted = NamespacedKey.fromString(key);
+            return wanted != null && known.contains(wanted) ? Optional.of(wanted) : Optional.empty();
+        }
+        NamespacedKey vanilla = NamespacedKey.fromString(VANILLA + key);
+        if (vanilla != null && known.contains(vanilla)) {
+            return Optional.of(vanilla);
+        }
+        List<NamespacedKey> named = known.stream().filter(each -> each.getKey().equals(key)).toList();
+        return named.size() == 1 ? Optional.of(named.get(0)) : Optional.empty();
     }
 
     /** Every enchantment the server knows, by key. */

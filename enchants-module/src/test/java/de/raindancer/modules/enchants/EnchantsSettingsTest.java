@@ -17,5 +17,10 @@ class EnchantsSettingsTest {
         assertThat(defaults.flightRechargeSeconds()).isEqualTo(30);
         assertThat(defaults.landingGraceSeconds()).isEqualTo(8);
         assertThat(defaults.doubleJumpPowerPercent()).isEqualTo(100);
+        assertThat(defaults.boostRechargeSeconds()).isEqualTo(90);
+        assertThat(defaults.boostSpeedPercent()).isEqualTo(150);
+        assertThat(defaults.launchSpeed()).isEqualTo(200);
+        assertThat(defaults.launchCooldownSeconds()).isEqualTo(600);
+        assertThat(defaults.wisdomPercentPerLevel()).isEqualTo(50);
     }
 }

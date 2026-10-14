@@ -7,7 +7,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import de.raindancer.core.content.enchant.EnchantDef;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -54,7 +57,9 @@ class EnchantAdvancementsTest {
     @DisplayName("every advancement loads — a parent that does not exist would leave a whole branch out")
     void allLoad() {
         for (String id : new String[]{"root", "veinminer", "motherlode", "night_vision", "flight", "empty_tank",
-                "frequent_flyer", "double_jump", "triple_jump", "full_set"}) {
+                "frequent_flyer", "double_jump", "triple_jump", "full_set", "auto_sell", "boost", "burnout",
+                "launch", "ludicrous_speed", "swiftness", "haste", "soulbound", "wisdom", "excavator", "tunnel_vision",
+                "harvester", "bumper_crop", "smelting", "telekinesis", "chest_link"}) {
             assertThat(advancements.isLoaded("rainsenchants:" + id)).as(id).isTrue();
         }
     }
@@ -74,14 +79,70 @@ class EnchantAdvancementsTest {
     }
 
     @Test
-    @DisplayName("using all four completes the full set")
+    @DisplayName("using every one of them completes the full set, and one short does not")
     void fullSet() {
-        for (String key : new String[]{RainsEnchants.VEINMINER, RainsEnchants.NIGHT_VISION, RainsEnchants.FLIGHT,
-                RainsEnchants.DOUBLE_JUMP}) {
+        List<String> all = EnchantsDefinitions.all().stream().map(EnchantDef::key).toList();
+        for (String key : all.subList(1, all.size())) {
             enchants.used(ALICE, key);
         }
+        assertThat(advancements.has(ALICE, "rainsenchants:full_set")).isFalse();
+        assertThat(advancements.stepsDone(ALICE, "rainsenchants:full_set")).isEqualTo(all.size() - 1);
 
+        enchants.used(ALICE, all.get(0));
         assertThat(advancements.has(ALICE, "rainsenchants:full_set")).isTrue();
+    }
+
+    @Test
+    @DisplayName("an enchantment another module awards (Auto Sell, from the economy) still counts once recounted")
+    void awardedElsewhere() {
+        advancements.award(ALICE, "rainsenchants:auto_sell");
+        assertThat(advancements.stepsDone(ALICE, "rainsenchants:full_set")).isZero();
+
+        enchants.recount(ALICE);
+        assertThat(advancements.stepsDone(ALICE, "rainsenchants:full_set")).isEqualTo(1);
+        assertThat(advancements.has(ALICE, "rainsenchants:root")).isTrue();
+    }
+
+    @Test
+    @DisplayName("every enchantment has a first-use advancement")
+    void everyEnchantmentHasOne() {
+        for (EnchantDef def : EnchantsDefinitions.all()) {
+            enchants.used(ALICE, def.key());
+            assertThat(advancements.has(ALICE, def.key())).as(def.key()).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("a 5x5 field in one swing is a bumper crop; fewer is not")
+    void bumperCrop() {
+        enchants.harvested(ALICE, 24);
+        assertThat(advancements.has(ALICE, "rainsenchants:bumper_crop")).isFalse();
+        assertThat(advancements.has(ALICE, "rainsenchants:harvester")).isTrue();
+        enchants.harvested(ALICE, 25);
+        assertThat(advancements.has(ALICE, "rainsenchants:bumper_crop")).isTrue();
+    }
+
+    @Test
+    @DisplayName("tunnel vision counts excavated blocks in steps of fifty")
+    void tunnelVision() {
+        for (int i = 0; i < 149; i++) {
+            enchants.excavated(ALICE);
+        }
+        assertThat(advancements.stepsDone(ALICE, "rainsenchants:tunnel_vision")).isEqualTo(2);
+        enchants.excavated(ALICE);
+        assertThat(advancements.stepsDone(ALICE, "rainsenchants:tunnel_vision")).isEqualTo(3);
+        assertThat(advancements.has(ALICE, "rainsenchants:excavator")).isTrue();
+    }
+
+    @Test
+    @DisplayName("burning every boost in one flight, and a launch carrying a thousand blocks")
+    void elytraGoals() {
+        enchants.boostsEmptied(ALICE);
+        assertThat(advancements.has(ALICE, "rainsenchants:burnout")).isTrue();
+        enchants.launchCarried(ALICE, 999);
+        assertThat(advancements.has(ALICE, "rainsenchants:ludicrous_speed")).isFalse();
+        enchants.launchCarried(ALICE, 1000);
+        assertThat(advancements.has(ALICE, "rainsenchants:ludicrous_speed")).isTrue();
     }
 
     @Test

@@ -35,4 +35,18 @@ class EnchantmentsTest {
         assertThat(Enchantments.line("sharpness", 255)).isEqualTo("Sharpness 255");
         assertThat(Enchantments.line("minecraft:mending", 1)).isEqualTo("Mending 1");
     }
+
+    @Test
+    @DisplayName("a plugin's enchantment is found by its name alone, unless vanilla or two plugins share that name")
+    void bareName() {
+        java.util.List<org.bukkit.NamespacedKey> known = java.util.List.of(org.bukkit.NamespacedKey.minecraft("sharpness"),
+                new org.bukkit.NamespacedKey("rainsenchants", "telekinesis"), new org.bukkit.NamespacedKey("rainsenchants", "boost"),
+                new org.bukkit.NamespacedKey("other", "boost"), new org.bukkit.NamespacedKey("rainsenchants", "sharpness"));
+
+        assertThat(Enchantments.resolve("telekinesis", known)).contains(new org.bukkit.NamespacedKey("rainsenchants", "telekinesis"));
+        assertThat(Enchantments.resolve("sharpness", known)).as("vanilla first").contains(org.bukkit.NamespacedKey.minecraft("sharpness"));
+        assertThat(Enchantments.resolve("boost", known)).as("two plugins: say which").isEmpty();
+        assertThat(Enchantments.resolve("other:boost", known)).contains(new org.bukkit.NamespacedKey("other", "boost"));
+        assertThat(Enchantments.resolve("nothing", known)).isEmpty();
+    }
 }

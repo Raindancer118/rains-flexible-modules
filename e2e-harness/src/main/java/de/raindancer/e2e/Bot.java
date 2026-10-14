@@ -884,6 +884,13 @@ public final class Bot {
         return this;
     }
 
+    /** Opens the elytra — what pressing jump in mid-air sends; the server decides whether it may. */
+    public Bot startGliding() {
+        session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerCommandPacket(
+                ownEntityId, org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerState.START_ELYTRA_FLYING));
+        return this;
+    }
+
     /** Throws the held item away — the Q key. */
     public Bot dropHeld() {
         session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket(

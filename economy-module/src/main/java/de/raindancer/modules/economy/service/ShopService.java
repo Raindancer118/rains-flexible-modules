@@ -106,12 +106,15 @@ public final class ShopService implements IEconomyService {
         prices.recompute(this.settings, knownRecipes, spawnEggs(), enchantKinds(), potionTypes());
     }
 
-    /** Every enchantment the server knows, for the price book; none outside a running server. */
+    /** Every enchantment of the game itself, for the price book; none outside a running server. */
     static List<EnchantKind> enchantKinds() {
         try {
             List<EnchantKind> kinds = new ArrayList<>();
+            // Only the game's own: a plugin's enchantment (Rain's Flight, Auto Sell …) is handed out the way
+            // that plugin decides, never bought here.
             io.papermc.paper.registry.RegistryAccess.registryAccess()
-                    .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT)
+                    .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT).stream()
+                    .filter(enchantment -> enchantment.getKey().getNamespace().equals(org.bukkit.NamespacedKey.MINECRAFT))
                     .forEach(enchantment -> kinds.add(new EnchantKind(id(enchantment), enchantment.getMaxLevel(),
                             isTreasure(enchantment), enchantment.isCursed())));
             return kinds;
@@ -370,6 +373,7 @@ public final class ShopService implements IEconomyService {
 
     static final String SELL_SOURCE = de.raindancer.modules.economy.model.Sources.SELL;
     private final SaleMemory sold = new SaleMemory(System::currentTimeMillis);
+    private final de.raindancer.modules.economy.model.AutoSales autoSales = new de.raindancer.modules.economy.model.AutoSales();
 
     /** How much less selling this again pays: a stack's worth sold lately is one step down. Zero when switched off. */
     int soldAgainPercent(UUID player, Material material) {
@@ -1090,8 +1094,17 @@ public final class ShopService implements IEconomyService {
             Outcomes.tell(messages, effects, player, result, currency, "");
             return;
         }
+        recordSold(player.getUniqueId(), taken);
+        effects.play(player.getUniqueId(), Cues.EARNED);
+        messages.send(player, "economy.shop.sold", "count", String.valueOf(items), "what", what,
+                "amount", currency.render(total));
+    }
+
+    /** A sale moves the market and the seller's own "sold lately", whichever way it was made. */
+    private void recordSold(UUID player, Map<Material, Integer> taken) {
+        EconomySettings live = settings;
         if (supplied().diminishing() && supplied().diminishingPercent() > 0) {
-            taken.forEach((material, count) -> sold.sold(player.getUniqueId(), material.name(), count));
+            taken.forEach((material, count) -> sold.sold(player, material.name(), count));
         }
         if (live.dynamicPrices()) {
             taken.forEach((material, count) -> {
@@ -1101,9 +1114,71 @@ public final class ShopService implements IEconomyService {
                 }
             });
         }
-        effects.play(player.getUniqueId(), Cues.EARNED);
-        messages.send(player, "economy.shop.sold", "count", String.valueOf(items), "what", what,
-                "amount", currency.render(total));
+    }
+
+    // ---------------------------------------------------------------------------- auto sell
+
+    /**
+     * Sells what an Auto Sell tool broke or killed, as it falls: plain items the shop buys, at this player's
+     * price, within the day's budgets. The money is owed until {@link #payAutoSales}.
+     *
+     * @return true for each stack that was sold, in order; the caller takes those off the ground
+     */
+    public boolean[] autoSell(Player player, List<ItemStack> drops) {
+        boolean[] soldEach = new boolean[drops.size()];
+        EconomySettings live = settings;
+        if (!live.sellingEnabled()) {
+            return soldEach;
+        }
+        UUID id = player.getUniqueId();
+        for (int i = 0; i < drops.size(); i++) {
+            ItemStack stack = drops.get(i);
+            if (stack == null || !sellableStack(stack, stack.getType()) || !tag(stack.getType()).sellable()) {
+                continue;
+            }
+            Optional<Money> worth = priceFor(id, stack.getType()).sellFor(stack.getAmount());
+            if (worth.isEmpty() || !worth.get().isPositive()
+                    || overBudget(player, autoSales.owed(id).plus(worth.get())).isPresent()) {
+                continue;
+            }
+            autoSales.add(id, stack.getType(), stack.getAmount(), worth.get());
+            soldEach[i] = true;
+        }
+        return soldEach;
+    }
+
+    /**
+     * Pays out everything Auto Sell sold since the last time, one payment per player.
+     *
+     * @param plugin hands the items back on the player's own thread, should a payment fail
+     */
+    public void payAutoSales(org.bukkit.plugin.Plugin plugin) {
+        autoSales.drain().forEach((player, batch) -> payAutoSale(plugin, player, batch));
+    }
+
+    /** The same for one player — when they leave, so nothing waits on a player who is gone. */
+    public void payAutoSales(org.bukkit.plugin.Plugin plugin, UUID player) {
+        autoSales.drain(player).ifPresent(batch -> payAutoSale(plugin, player, batch));
+    }
+
+    private void payAutoSale(org.bukkit.plugin.Plugin plugin, UUID player,
+                             de.raindancer.modules.economy.model.AutoSales.Batch batch) {
+        String what = batch.counts().size() == 1
+                ? batch.items() + " × " + Catalogue.readable(batch.counts().keySet().iterator().next().name()) + " (auto sell)"
+                : batch.items() + " items (auto sell)";
+        EconomyResult result = economy.move(player, batch.total(), TransactionKind.SELL, what, SELL_SOURCE);
+        if (result.succeeded()) {
+            recordSold(player, batch.counts());
+            return;
+        }
+        Player online = server.getPlayer(player);
+        if (online == null) {
+            de.raindancer.core.platform.log.Log.of("economy").warn(
+                    "Auto Sell could not pay {} for {} and they are offline; the items are gone.", player, what);
+            return;
+        }
+        de.raindancer.core.platform.util.Scheduling.entity(plugin, online,
+                () -> batch.counts().forEach((material, count) -> giveBack(online, material, count)));
     }
 
     /** Takes up to this many plain items, last slots first, so the hotbar is emptied last. */

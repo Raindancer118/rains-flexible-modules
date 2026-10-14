@@ -11,7 +11,14 @@ import de.raindancer.modules.enchants.listener.AirListener;
 import de.raindancer.modules.enchants.listener.VeinAdvancementListener;
 import de.raindancer.modules.enchants.rules.AirRule;
 import de.raindancer.modules.enchants.service.AirService;
-import de.raindancer.modules.enchants.service.NightVisionService;
+import de.raindancer.modules.enchants.listener.ElytraListener;
+import de.raindancer.modules.enchants.listener.TabListener;
+import de.raindancer.modules.enchants.listener.ToolListener;
+import de.raindancer.modules.enchants.service.ChestLinkService;
+import de.raindancer.modules.enchants.service.ElytraService;
+import de.raindancer.modules.enchants.service.ToolService;
+import de.raindancer.modules.enchants.service.WornEffectService;
+import de.raindancer.modules.enchants.store.ElytraStore;
 import de.raindancer.modules.enchants.store.AirStore;
 import de.raindancer.modules.enchants.util.PermissionNodes;
 import org.bukkit.Bukkit;
@@ -20,23 +27,29 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 /**
- * Rain's own enchantments: Veinminer (the enchantment itself; vein mining stays Veinminer's, gated by
- * veintoggle), Night Vision, Flight and Double Jump — and the advancements for them.
+ * Rain's own enchantments — Veinminer (the enchantment itself; vein mining stays Veinminer's, gated by
+ * veintoggle), Night Vision, Flight, Double Jump, Boost, Launch, Swiftness, Haste, Soulbound, Wisdom,
+ * Excavator, Harvester, Smelting, Telekinesis and Chest Link — and the advancements for them. Auto Sell is
+ * registered here too and enforced by the economy, which knows the prices.
  *
  * <p>Nothing here hands the enchantments out: no enchanting table, villager or loot entry. A boss drop
  * or a shop gives a book through {@code CustomEnchantments.book}.
  */
 public final class EnchantsModule implements FlexModule {
 
-    /** Night Vision is looked at every this-many ticks; an armour change is answered at once. */
+    /** Worn effects are looked at every this-many ticks; an armour change is answered at once. */
     private static final int NIGHT_VISION_EVERY = 10;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.2.0")
-            .describedAs("Veinminer, Night Vision, Flight and Double Jump as real enchantments, with advancements")
+    /** Chest Link drops are gathered this many ticks before they are sent. */
+    private static final int LINK_EVERY = 20;
+
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.3.0")
+            .describedAs("Sixteen real enchantments for tools, armour and the elytra, with advancements")
             .by("Raindancer118");
 
     private AirService air;
-    private NightVisionService nightVision;
+    private WornEffectService wornEffects;
+    private ChestLinkService links;
 
     @Override
     public ModuleInfo info() {
@@ -61,20 +74,37 @@ public final class EnchantsModule implements FlexModule {
         air = new AirService(new AirRule(), new AirStore(), settings::current, advancements,
                 context.core().effects(), context.core().messages());
         context.closeWith(air.follow(context.core()));
-        nightVision = new NightVisionService(advancements);
+        wornEffects = new WornEffectService(advancements);
+        ElytraService elytra = new ElytraService(new ElytraStore(), settings::current, advancements,
+                context.core().effects(), context.core().messages());
+        ToolService tools = new ToolService(context.plugin(), settings::current, advancements,
+                context.core().messages());
+        tools.learnRecipes();
+        // Data packs may add furnace recipes after the plugins are enabled.
+        Scheduling.globalLater(context.plugin(), 1, tools::learnRecipes);
+        links = new ChestLinkService(context.plugin(), advancements, context.core().messages(),
+                context.core().effects());
 
-        context.listener(new AirListener(air, nightVision));
+        context.listener(new AirListener(air, wornEffects));
         context.listener(new VeinAdvancementListener(advancements));
+        context.listener(new ElytraListener(elytra));
+        context.listener(new ToolListener(tools, links));
+        context.listener(new TabListener(advancements));
         EnchantsCommands.ready(new EnchantsServices(context.plugin().getServer(), context.core().messages()));
 
         int[] beat = {0};
         var timer = Scheduling.globalTimer(context.plugin(), 1, 1, task -> {
-            boolean checkNightVision = beat[0]++ % NIGHT_VISION_EVERY == 0;
+            int now = beat[0]++;
+            boolean checkNightVision = now % NIGHT_VISION_EVERY == 0;
+            if (now % LINK_EVERY == 0) {
+                links.flush();
+            }
             for (Player player : Bukkit.getOnlinePlayers()) {
                 Scheduling.entity(context.plugin(), player, () -> {
                     air.tick(player);
+                    elytra.tick(player);
                     if (checkNightVision) {
-                        nightVision.sync(player);
+                        wornEffects.sync(player);
                     }
                 });
             }
@@ -90,11 +120,14 @@ public final class EnchantsModule implements FlexModule {
 
     @Override
     public void disable() {
+        if (links != null) {
+            links.flush();
+        }
         if (air != null) {
             air.releaseAll();
         }
-        if (nightVision != null) {
-            Bukkit.getOnlinePlayers().forEach(nightVision::release);
+        if (wornEffects != null) {
+            Bukkit.getOnlinePlayers().forEach(wornEffects::release);
         }
         EnchantsCommands.stopped();
     }
