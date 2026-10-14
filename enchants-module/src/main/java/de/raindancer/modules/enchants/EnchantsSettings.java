@@ -123,8 +123,13 @@ public record EnchantsSettings(
         @Describe("How many in a thousand monsters coming by themselves under the open sky of the shard world come as a "
                 + "warden instead, of any kind from Shadowed to Overlord, dropping five times that kind's shards. 0 for none.")
         @Key("crystal-warden-per-mille")
-        int crystalWardenPerMille) {
+        int crystalWardenPerMille,
+
+        @In("enchants") @Title("Autopilot cooldown, seconds") @Range(min = 0, max = 3600)
+        @Describe("How long after landing an Autopilot elytra can fly again.")
+        @Key("autopilot-cooldown-seconds")
+        int autopilotCooldownSeconds) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12, 2);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12, 2, 300);
 }

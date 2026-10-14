@@ -29,7 +29,7 @@ public final class ShardRules {
         for (String key : new String[]{RainsEnchants.FLIGHT, RainsEnchants.LAUNCH, RainsEnchants.SOULBOUND,
                 RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR,
                 RainsEnchants.LIFESTEAL, RainsEnchants.EXECUTIONER, RainsEnchants.BERSERK, RainsEnchants.OVERPOWER,
-                RainsEnchants.UNDYING, RainsEnchants.FUSION}) {
+                RainsEnchants.UNDYING, RainsEnchants.FUSION, RainsEnchants.AUTOPILOT}) {
             WEIGHTS.put(key, RARE);
         }
     }

@@ -1,0 +1,94 @@
+package de.raindancer.e2e.modules;
+
+import de.raindancer.e2e.Await;
+import de.raindancer.e2e.Bot;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.GameMode;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Autopilot on a real server: a home picked in the menu is flown to by a mannequin of the player while they watch as a
+ * spectator, and they land there in their own game mode; a player picked is asked first and flown to on a yes; a quit
+ * mid-flight puts the player back at the start, never a spectator.
+ */
+@Tag("e2e")
+class AutopilotScenarioTest {
+
+    private static final int Y = 64;
+    private static final Duration FLIGHT = Duration.ofSeconds(40);
+
+    private static boolean near(Bot bot, double x, double z) {
+        return Math.abs(bot.position().getX() - x) < 2 && Math.abs(bot.position().getZ() - z) < 2;
+    }
+
+    private static boolean mannequin(Server server) {
+        return server.console("execute if entity @e[type=mannequin]").contains("passed");
+    }
+
+    @Test
+    @DisplayName("fly to a home, to a player who says yes, and back at the start after a quit mid-flight")
+    void autopilot() {
+        try (Server server = Server.start("autopilot", List.of("enchants-standalone:RainsEnchants-.*",
+                "homes-standalone:RainsHomes-.*"), List.of("Enchants are up"))) {
+            server.console("gamerule spawn_mobs false");
+            server.console("forceload add -64 -16 96 16");
+            server.console("fill -64 " + (Y - 1) + " -8 96 " + (Y - 1) + " 8 minecraft:stone");
+            server.console("fill -64 " + Y + " -8 96 " + (Y + 6) + " 8 minecraft:air");
+            assertThat(server.console("settings set autopilot-cooldown-seconds 0")).contains("is now");
+            Bot pilot = server.player("Pilot");
+            server.console("gamemode survival Pilot");
+            server.console("item replace entity Pilot armor.chest with elytra[enchantments={\"rainsenchants:autopilot\":1}]");
+
+            // --- a home of one's own -------------------------------------------------------------------------------
+            server.console("tp Pilot 80.5 " + Y + " 0.5");
+            Await.ticks(20);
+            pilot.run("sethome summit");
+            Await.ticks(20);
+            server.console("tp Pilot 0.5 " + Y + " 0.5");
+            Await.ticks(20);
+            pilot.run("autopilot");
+            pilot.awaitWindow("Autopilot");
+            pilot.click("summit");
+            Await.until("a spectator, watching", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
+            Await.until("a mannequin of the pilot flies", Duration.ofSeconds(5), () -> mannequin(server));
+            Await.until("landed and handed back", FLIGHT, () -> pilot.gameMode() == GameMode.SURVIVAL);
+            Await.until("at the home", Duration.ofSeconds(5), () -> near(pilot, 80.5, 0.5));
+            assertThat(mannequin(server)).as("the mannequin is gone").isFalse();
+            assertThat(server.console("advancement test Pilot rainsenchants:autopilot")).doesNotContain("not");
+
+            // --- a player, who is asked -------------------------------------------------------------------------------
+            Bot host = server.player("Host");
+            server.console("gamemode survival Host");
+            server.console("tp Host -40.5 " + Y + " 0.5");
+            Await.ticks(20);
+            pilot.run("autopilot");
+            pilot.awaitWindow("Autopilot");
+            pilot.click("Host");
+            Await.until("Host is asked", Duration.ofSeconds(10),
+                    () -> host.chatText().stream().anyMatch(line -> line.contains("wants to fly to you")));
+            host.say("yes");
+            Await.until("off to Host", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
+            Await.until("landed beside Host", FLIGHT, () -> pilot.gameMode() == GameMode.SURVIVAL && near(pilot, -40.5, 0.5));
+
+            // --- a quit mid-flight: back at the start, in survival ---------------------------------------------------
+            pilot.run("autopilot");
+            pilot.awaitWindow("Autopilot");
+            pilot.click("summit");
+            Await.until("off again", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
+            Await.ticks(20);
+            pilot.leave();
+            Await.ticks(20);
+            assertThat(mannequin(server)).as("no mannequin left behind").isFalse();
+            pilot.rejoin();
+            Await.ticks(40);
+            assertThat(pilot.gameMode()).isEqualTo(GameMode.SURVIVAL);
+            assertThat(near(pilot, -40.5, 0.5)).as("back where the flight began").isTrue();
+        }
+    }
+}

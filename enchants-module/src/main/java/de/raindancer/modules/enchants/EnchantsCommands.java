@@ -23,7 +23,9 @@ public final class EnchantsCommands {
                 ModuleCommand.of("give", "The game's /give, knowing Rain's shards and books too",
                         new de.raindancer.modules.enchants.command.GiveCommand(EnchantsCommands::require))
                         .taking("<player> <item> [count] — also telekinesis_shard, flight_book, flight_book_3")
-                        .needing(de.raindancer.modules.enchants.command.GiveCommand.PERMISSION));
+                        .needing(de.raindancer.modules.enchants.command.GiveCommand.PERMISSION),
+                ModuleCommand.of("autopilot", "Wearing an Autopilot elytra: pick a place or a player and watch yourself fly there",
+                        new de.raindancer.modules.enchants.command.AutopilotCommand(EnchantsCommands::require)));
     }
 
     static void ready(EnchantsServices live) {

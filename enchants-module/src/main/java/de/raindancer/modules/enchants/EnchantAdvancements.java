@@ -120,6 +120,8 @@ public final class EnchantAdvancements {
                 "Fuse two chestplates into one", AdvancementFrame.TASK, 1);
         child("thrice_forged", "fusion", Material.NETHERITE_CHESTPLATE, "Thrice Forged",
                 "Fuse a chestplate as far as it goes", AdvancementFrame.CHALLENGE, 1);
+        child("autopilot", "root", Material.ELYTRA, "Sit Back and Relax",
+                "Let Autopilot fly you somewhere", AdvancementFrame.TASK, 1);
         child("shardlands", "root", Material.CRYING_OBSIDIAN, "Into the Dark",
                 "Step through a portal into the shard world", AdvancementFrame.TASK, 1);
         child("first_shard", "shardlands", Material.ECHO_SHARD, "Shard Hunter",

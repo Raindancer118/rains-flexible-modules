@@ -42,7 +42,8 @@
         <!-- 0.18.0: the Crystal Warden — 2 in 1000 monsters under the shard world's open sky come as a warden of any kind, worth five times its shards; tyrants three times as common (6 in 100). -->
         <!-- 0.19.0: fighting enchantments — Lifesteal, Executioner, Bleed, Venom, Cleave, Armor Pierce, Berserk, Overpower (half against players); Undying keeps 2/4/8 totems in a chestplate; Fusion doubles a chestplate in an anvil, three times at most; no anvil is ever too expensive (39 levels at most); Thor III hits far harder (40 a hammer, 16 a bolt); Heat-seeking goes on Thor's mace and axes and steers the thrown hammer, and III locks on 45 degrees off the aim; advancements for each. -->
         <!-- 0.20.0: a sonic boom with every Boost, like Launch's; a puff of cloud under a double jump; a faint trail of sparks while flying with Flight. -->
-        <plugin.version>0.20.0</plugin.version>
+        <!-- 0.21.0: Autopilot (elytra) — /autopilot, pick a place in this world or a player (who is asked), and watch as a spectator a mannequin of you launch, fly and land hard there; then you take over. -->
+        <plugin.version>0.21.0</plugin.version>
     </properties>
 
     <dependencies>

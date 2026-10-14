@@ -25,7 +25,7 @@ class EnchantsDefinitionsTest {
                 RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR, RainsEnchants.VOLLEY, RainsEnchants.LIFESTEAL,
                 RainsEnchants.EXECUTIONER, RainsEnchants.BLEED, RainsEnchants.VENOM, RainsEnchants.CLEAVE,
                 RainsEnchants.ARMOR_PIERCE, RainsEnchants.BERSERK, RainsEnchants.OVERPOWER, RainsEnchants.UNDYING,
-                RainsEnchants.FUSION);
+                RainsEnchants.FUSION, RainsEnchants.AUTOPILOT);
         assertThat(def(RainsEnchants.CLEAVE).gear()).isEqualTo(Gear.AXES);
         assertThat(def(RainsEnchants.OVERPOWER).maxLevel()).isEqualTo(5);
         assertThat(def(RainsEnchants.UNDYING).gear()).isEqualTo(Gear.CHESTPLATE);
