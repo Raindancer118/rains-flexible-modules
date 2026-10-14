@@ -393,16 +393,16 @@ public final class EconomyModule implements FlexModule {
         long bottles = prices.tradablePotions().size();
         log.info("Potions: {} bottle(s) for sale or bought, one per potion type and form, brewed from their ingredients' "
                 + "prices, and the ominous bottles.", bottles);
-        try {
-            // The settings are in the database from 2.0.0 on and keep no unknown keys; the old lines are in the 1.x
-            // file, kept beside it once imported.
-            java.nio.file.Path old = settings.file().resolveSibling(settings.file().getFileName() + ".imported-2.0.0");
-            var file = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
-                    (java.nio.file.Files.isRegularFile(old) ? old : settings.file()).toFile());
-            de.raindancer.modules.economy.store.LegacyEnchantSettings.notice(file::get,
-                    enchantExamples(prices, economy.currency())).ifPresent(log::warn);
-        } catch (RuntimeException unreadable) {
-            log.warn("config.yml could not be read for old enchanted-book settings: {}", unreadable.getMessage());
+        // Only a 1.x config.yml still on disk can hold the old lines: from 2.0.0 the settings are in the database,
+        // which keeps no unknown keys, and the archived copy would repeat the notice on every start for ever.
+        if (java.nio.file.Files.isRegularFile(settings.file())) {
+            try {
+                var file = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(settings.file().toFile());
+                de.raindancer.modules.economy.store.LegacyEnchantSettings.notice(file::get,
+                        enchantExamples(prices, economy.currency())).ifPresent(log::info);
+            } catch (RuntimeException unreadable) {
+                log.warn("config.yml could not be read for old enchanted-book settings: {}", unreadable.getMessage());
+            }
         }
     }
 

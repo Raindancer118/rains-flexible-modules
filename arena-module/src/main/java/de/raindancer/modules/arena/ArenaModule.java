@@ -66,7 +66,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.14.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.14.2")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -237,9 +237,11 @@ public final class ArenaModule implements FlexModule {
         context.core().combat().alsoAsk(context.plugin().getName(), attack ->
                 fights.verdict(attack, arena::isArenaWorld, matches::opponents));
 
+        // Read now, while the plugin enables; the blocks go back once the worlds are loaded.
+        var leftFlooded = floods.leftFlooded();
         Scheduling.global(context.plugin(), () -> {
             worlds.loadAll(layout.current());
-            int dried = floods.recover();
+            int dried = floods.recover(leftFlooded);
             if (dried > 0) {
                 log.warn("{} pit(s) were left flooded by a stop mid-battle and are put back as they were.", dried);
             }

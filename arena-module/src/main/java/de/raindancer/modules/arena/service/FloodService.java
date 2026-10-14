@@ -382,11 +382,26 @@ public final class FloodService implements IArenaService {
         }
     }
 
+    /** The pits a stopped server left flooded, with what was there — read while the plugin enables. */
+    public Map<String, List<FloodLedger.Change>> leftFlooded() {
+        Map<String, List<FloodLedger.Change>> left = new java.util.LinkedHashMap<>();
+        for (String pit : ledger.pending()) {
+            left.put(pit, ledger.read(pit));
+        }
+        return left;
+    }
+
     /** At startup: any pit a stopped server left flooded is put back from its ledger. @return how many */
     public int recover() {
+        return recover(leftFlooded());
+    }
+
+    /** As {@link #recover()}, from what {@link #leftFlooded} read already — no database work on this thread. */
+    public int recover(Map<String, List<FloodLedger.Change>> left) {
         int recovered = 0;
-        for (String pit : ledger.pending()) {
-            List<FloodLedger.Change> changes = ledger.read(pit);
+        for (Map.Entry<String, List<FloodLedger.Change>> each : left.entrySet()) {
+            String pit = each.getKey();
+            List<FloodLedger.Change> changes = each.getValue();
             World world = changes.isEmpty() ? null : server.getWorld(changes.getFirst().world());
             if (world == null) {
                 log.warn("Pit {} was left flooded, but its world is not loaded; it is restored once it is.", pit);
