@@ -157,6 +157,13 @@ public final class AutopilotService {
         if (!ready(pilot) || !pilot.getWorld().equals(to.getWorld())) {
             return;
         }
+        // Landing there is a teleport there: whatever may refuse one (a claim the pilot is banned from, say) is asked.
+        org.bukkit.event.player.PlayerTeleportEvent asked = new org.bukkit.event.player.PlayerTeleportEvent(pilot,
+                pilot.getLocation(), to.clone(), org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN);
+        if (!asked.callEvent()) {
+            messages.send(pilot, "enchants.autopilot-not-allowed");
+            return;
+        }
         World world = pilot.getWorld();
         Location from = pilot.getLocation();
         GameMode mode = pilot.getGameMode();
@@ -299,7 +306,12 @@ public final class AutopilotService {
         landed.setPitch(0);
         end(flight);
         pilot.setSpectatorTarget(null);
-        pilot.teleportAsync(landed).thenRun(() -> Scheduling.entity(plugin, pilot, () -> {
+        pilot.teleportAsync(landed).thenAccept(moved -> Scheduling.entity(plugin, pilot, () -> {
+            if (!moved) {
+                // Refused at the last moment: back to the start rather than left in the air.
+                restore(pilot);
+                return;
+            }
             pilot.setGameMode(flight.mode);
             pilot.setFallDistance(0);
             pilot.getPersistentDataContainer().remove(FROM);

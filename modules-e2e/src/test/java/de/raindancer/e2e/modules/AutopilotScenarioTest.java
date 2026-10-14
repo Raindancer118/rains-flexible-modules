@@ -57,6 +57,10 @@ class AutopilotScenarioTest {
             pilot.click("summit");
             Await.until("a spectator, watching", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
             Await.until("a mannequin of the pilot flies", Duration.ofSeconds(5), () -> mannequin(server));
+            // A spectator in flight jumps to nobody: the spectator menu's teleport is refused.
+            server.console("execute as Pilot run tp Pilot -60.5 " + Y + " 0.5");
+            Await.ticks(5);
+            assertThat(near(pilot, -60.5, 0.5)).as("no teleport away mid-flight").isFalse();
             Await.until("landed and handed back", FLIGHT, () -> pilot.gameMode() == GameMode.SURVIVAL);
             Await.until("at the home", Duration.ofSeconds(5), () -> near(pilot, 80.5, 0.5));
             assertThat(mannequin(server)).as("the mannequin is gone").isFalse();
@@ -69,6 +73,11 @@ class AutopilotScenarioTest {
             Await.ticks(20);
             pilot.run("autopilot");
             pilot.awaitWindow("Autopilot");
+            Await.until("Host is listed", Duration.ofSeconds(5), () -> pilot.window().orElseThrow().items().values()
+                    .stream().anyMatch(item -> item.name().contains("Host")));
+            assertThat(pilot.window().orElseThrow().items().values().stream().filter(item -> item.name().contains("Host"))
+                    .flatMap(item -> item.lore().stream()).noneMatch(line -> line.contains("blocks")))
+                    .as("no player's distance given away").isTrue();
             pilot.click("Host");
             Await.until("Host is asked", Duration.ofSeconds(10),
                     () -> host.chatText().stream().anyMatch(line -> line.contains("wants to fly to you")));

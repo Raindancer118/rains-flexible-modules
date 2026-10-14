@@ -27,6 +27,36 @@ public final class AutopilotListener implements IEnchantsListener {
         }
     }
 
+    /** A spectator in flight goes nowhere else: not by the spectator menu, a command, or anybody's teleport. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onTeleport(org.bukkit.event.player.PlayerTeleportEvent event) {
+        if (autopilot.flying(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Nor looks into anything a spectator could open. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onOpen(org.bukkit.event.inventory.InventoryOpenEvent event) {
+        if (autopilot.flying(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+        if (autopilot.flying(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInteractEntity(org.bukkit.event.player.PlayerInteractEntityEvent event) {
+        if (autopilot.flying(event.getPlayer().getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onQuit(PlayerQuitEvent event) {
         autopilot.quit(event.getPlayer());

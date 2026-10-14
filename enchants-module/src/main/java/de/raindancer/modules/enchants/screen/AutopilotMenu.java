@@ -61,7 +61,7 @@ public final class AutopilotMenu extends PaginatedMenu<AutopilotMenu.Destination
                 .forEach(place -> found.add(new Destination(place, null)));
         viewer.getWorld().getPlayers().stream()
                 .filter(other -> !other.equals(viewer) && viewer.canSee(other) && other.getGameMode() != GameMode.SPECTATOR)
-                .sorted(Comparator.comparingDouble(other -> here.distanceSquared(other.getLocation())))
+                .sorted(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER))
                 .forEach(other -> found.add(new Destination(null, other.getUniqueId())));
         return found;
     }
@@ -77,9 +77,8 @@ public final class AutopilotMenu extends PaginatedMenu<AutopilotMenu.Destination
         }
         Player other = viewer.getServer().getPlayer(entry.player());
         String name = other == null ? "?" : other.getName();
-        long blocks = other == null ? 0 : Math.round(other.getLocation().distance(viewer.getLocation()));
-        return Icons.head(entry.player(), "<white>" + name, "<gray>player · " + blocks + " blocks",
-                "<yellow>▶ Click to ask to fly to them");
+        // No distance: where somebody is stays theirs to share, which is what saying yes does.
+        return Icons.head(entry.player(), "<white>" + name, "<gray>player", "<yellow>▶ Click to ask to fly to them");
     }
 
     @Override

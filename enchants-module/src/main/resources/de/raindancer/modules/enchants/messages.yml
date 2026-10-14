@@ -40,3 +40,4 @@ enchants:
   autopilot-other-world: "<red>They are in another world now."
   autopilot-off: "<aqua>Autopilot engaged. <gray>Sit back and enjoy the flight."
   autopilot-landed: "<aqua>Touchdown. <gray>You have the controls."
+  autopilot-not-allowed: "<red>You may not land there."
