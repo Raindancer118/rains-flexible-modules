@@ -126,7 +126,7 @@ public final class HomeTravelService implements IHomeService {
      */
     public HomeTravelService(Travel travel, Messages messages, Effects effects, HomeSettings settings,
                              LongSupplier clock) {
-        this.waits = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
+        this.waits = clock == null ? Cooldowns.shared("homes:travel") : new Cooldowns<>(clock);
         this.travel = travel;
         this.messages = messages;
         this.effects = effects;
@@ -333,12 +333,17 @@ public final class HomeTravelService implements IHomeService {
                             poi.yaw(), poi.pitch()))
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {
-                        hopping.remove(who);
+                        // Still hopping until the fee is settled or refunded: a quit in between must not refund it.
                         if (left) {
                             Scheduling.entity(plugin, traveller, () -> landed(who), () -> landed(who));
                         } else {
-                            Scheduling.entity(plugin, traveller, () -> told(traveller, refund(who)),
-                                    () -> refund(who));
+                            Scheduling.entity(plugin, traveller, () -> {
+                                told(traveller, refund(who));
+                                hopping.remove(who);
+                            }, () -> {
+                                refund(who);
+                                hopping.remove(who);
+                            });
                         }
                     });
         }
@@ -346,6 +351,7 @@ public final class HomeTravelService implements IHomeService {
         private void landed(UUID who) {
             settle(who);
             waits.start(who);
+            hopping.remove(who);
         }
 
         @Override

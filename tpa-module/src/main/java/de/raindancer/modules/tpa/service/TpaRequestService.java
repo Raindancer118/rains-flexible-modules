@@ -119,7 +119,7 @@ public final class TpaRequestService implements ITpaService {
                              TpaAskingRule asking, Travel travel, Messages messages,
                              ChatButtons buttons, Vanish vanish, TpaSettings settings,
                              LongSupplier clock) {
-        this.waits = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
+        this.waits = clock == null ? Cooldowns.shared("tpa:request") : new Cooldowns<>(clock);
         this.plugin = plugin;
         this.requests = requests;
         this.prefs = prefs;
@@ -974,12 +974,23 @@ public final class TpaRequestService implements ITpaService {
             hop.sendSafely(traveller, server, elsewhere)
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {
-                        hopping.remove(who);
+                        // Still hopping until the fee is settled or refunded: a quit in between must not refund it.
                         if (left) {
-                            Scheduling.entity(plugin, traveller, () -> paid(traveller), () -> fees.settle(who));
+                            Scheduling.entity(plugin, traveller, () -> {
+                                paid(traveller);
+                                hopping.remove(who);
+                            }, () -> {
+                                fees.settle(who);
+                                hopping.remove(who);
+                            });
                         } else {
-                            Scheduling.entity(plugin, traveller, () -> giveBack(traveller),
-                                    () -> fees.refundHeld(who));
+                            Scheduling.entity(plugin, traveller, () -> {
+                                giveBack(traveller);
+                                hopping.remove(who);
+                            }, () -> {
+                                fees.refundHeld(who);
+                                hopping.remove(who);
+                            });
                         }
                     });
         }

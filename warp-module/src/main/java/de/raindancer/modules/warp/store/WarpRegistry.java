@@ -56,6 +56,9 @@ public final class WarpRegistry {
     /** When each player last warped. One cooldown per player, not one per warp — see {@link #use}. */
     private final Cooldowns<UUID> waits;
 
+    /** The clock a running server passes. */
+    public static final LongSupplier SYSTEM = System::currentTimeMillis;
+
     /** @param clock milliseconds; injected so cooldowns can be tested without waiting */
     public WarpRegistry(PoiStore places, LongSupplier clock) {
         this(places, clock, world -> org.bukkit.Bukkit.getWorld(world) != null);
@@ -65,7 +68,8 @@ public final class WarpRegistry {
     public WarpRegistry(PoiStore places, LongSupplier clock, Predicate<String> worldLoaded) {
         this.places = places;
         this.worldLoaded = worldLoaded;
-        this.waits = new Cooldowns<>(clock);
+        // The running server's clock: a wait that follows the player across the network. A test's: its own.
+        this.waits = clock == SYSTEM ? Cooldowns.shared("warps:warp") : new Cooldowns<>(clock);
     }
 
     /** How long between one player's warps. Null switches it off. */

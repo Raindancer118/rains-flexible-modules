@@ -174,7 +174,7 @@ public final class RtpService implements IRtpService {
                       LogChannel log, RtpSettings settings, Random random, LongSupplier clock,
                       ChatButtons buttons) {
         this.buttons = buttons;
-        this.between = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
+        this.between = clock == null ? Cooldowns.shared("rtp:rtp") : new Cooldowns<>(clock);
         this.plugin = plugin;
         this.travel = travel;
         this.safety = safety;

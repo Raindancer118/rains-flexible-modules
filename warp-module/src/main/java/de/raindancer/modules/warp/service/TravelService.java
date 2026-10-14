@@ -304,16 +304,25 @@ public final class TravelService implements IWarpService {
                             elsewhere.y(), elsewhere.z(), elsewhere.yaw(), elsewhere.pitch()))
                     .exceptionally(failure -> false)
                     .thenAccept(left -> {
-                        hopping.remove(who);
+                        // Still hopping until the fee is settled or refunded: a quit in between must not refund it.
                         if (left) {
-                            Scheduling.entity(plugin, traveller, () -> landed(who), () -> landed(who));
+                            Scheduling.entity(plugin, traveller, () -> {
+                                landed(who);
+                                hopping.remove(who);
+                            }, () -> {
+                                landed(who);
+                                hopping.remove(who);
+                            });
                         } else {
-                            Scheduling.entity(plugin, traveller, () -> paidBack(traveller),
-                                    () -> {
-                                        if (visits != null) {
-                                            visits.refund(who);
-                                        }
-                                    });
+                            Scheduling.entity(plugin, traveller, () -> {
+                                paidBack(traveller);
+                                hopping.remove(who);
+                            }, () -> {
+                                if (visits != null) {
+                                    visits.refund(who);
+                                }
+                                hopping.remove(who);
+                            });
                         }
                     });
         }

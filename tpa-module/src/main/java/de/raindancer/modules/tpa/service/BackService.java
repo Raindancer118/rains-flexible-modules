@@ -84,7 +84,7 @@ public final class BackService implements ITpaService {
     private BackService(Travel travel, Messages messages, TpaSettings settings, LongSupplier clock,
                         ChatButtons buttons) {
         this.buttons = buttons;
-        this.waits = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
+        this.waits = clock == null ? Cooldowns.shared("tpa:back") : new Cooldowns<>(clock);
         this.travel = travel;
         this.returns = travel.cameFrom();
         this.messages = messages;
@@ -404,8 +404,8 @@ public final class BackService implements ITpaService {
                             to.yaw(), to.pitch()))
                     .exceptionally(failure -> false)
                     .thenAccept(moved -> {
-                        hopping.remove(who);
-                        Runnable outcome = moved ? () -> {
+                        // Still hopping until the fee is settled or refunded: a quit in between must not refund it.
+                        Runnable decided = moved ? () -> {
                             waits.start(who);
                             fees.settle(who);
                         } : () -> {
@@ -417,6 +417,10 @@ public final class BackService implements ITpaService {
                                     messages.send(traveller, "tpa.refunded", "price", Fees.format(spent.total()));
                                 }
                             }
+                        };
+                        Runnable outcome = () -> {
+                            decided.run();
+                            hopping.remove(who);
                         };
                         if (plugin == null) {
                             outcome.run();
