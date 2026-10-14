@@ -42,4 +42,13 @@ class ThorTest {
         assertThat(Thor.sparesEnderman(true, true)).as("standing in water").isFalse();
         assertThat(Thor.sparesEnderman(false, false)).as("another world").isFalse();
     }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("Thor III hits drastically harder: twenty hearts a hammer, eight a bolt")
+    void thorThree() {
+        assertThat(Thor.hammerDamage(3)).isEqualTo(40);
+        assertThat(Thor.stormDamage(3)).isEqualTo(16);
+        assertThat(Thor.hammerDamage(2)).isEqualTo(10);
+        assertThat(Thor.stormDamage(2)).isEqualTo(5);
+    }
 }

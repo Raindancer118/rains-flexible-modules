@@ -21,6 +21,11 @@ class ThorScenarioTest {
 
     private static final int Y = 64;
 
+    /** Hurt or killed outright (Thor III's hammer kills a husk): no longer at full health. */
+    private static boolean struck(Server server, String type, String tag) {
+        return health(server, type, tag) < 19.9;
+    }
+
     private static double health(Server server, String type, String tag) {
         Matcher found = Pattern.compile("data: ([0-9.]+)f").matcher(
                 server.console("data get entity @e[type=" + type + ",tag=" + tag + ",limit=1] Health"));
@@ -38,7 +43,10 @@ class ThorScenarioTest {
         try (Server server = Server.start("thor", List.of("enchants-standalone:RainsEnchants-.*"),
                 List.of("Enchants are up"))) {
             server.console("time set midnight");
-            server.console("gamerule doDaylightCycle false");
+            server.console("gamerule advance_time false");
+            // No wild monster to steal the seeking hammer's lock at midnight.
+            server.console("gamerule spawn_mobs false");
+            server.console("kill @e[type=!player]");
             server.console("forceload add -16 -32 16 16");
             server.console("fill -8 " + (Y - 1) + " -32 16 " + (Y - 1) + " 8 minecraft:stone");
             server.console("fill -8 " + Y + " -32 16 " + (Y + 6) + " 8 minecraft:air");
@@ -53,8 +61,20 @@ class ThorScenarioTest {
             thrower.hold(thrower.hotbarSlotOf(item -> item.material().toLowerCase().contains("netherite_axe")));
             thrower.look(180, 4).useHeld();
             Await.ticks(60);
-            assertThat(health(server, "husk", "hammered")).as("the hammer hit").isBetween(0.0, 19.9);
+            assertThat(struck(server, "husk", "hammered")).as("the hammer hit").isTrue();
             assertThat(count(server, "netherite_axe")).as("the axe stayed in the inventory").isEqualTo(1);
+            server.console("kill @e[type=husk]");
+
+            // --- a Heat-seeking mace: thrown straight ahead, it finds the husk well off to the side -------------------
+            server.console("summon minecraft:husk 6.5 " + Y + " -10.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"sought\"]}");
+            server.console("clear Thrower");
+            server.console("give Thrower mace[enchantments={\"rainsenchants:thor\":3,\"rainsenchants:heat_seeking\":3}]");
+            server.console("tp Thrower 0.5 " + Y + " 0.5 180 0");
+            Await.ticks(20);
+            thrower.hold(thrower.hotbarSlotOf(item -> item.material().toLowerCase().contains("mace")));
+            thrower.look(180, 4).useHeld();
+            Await.ticks(60);
+            assertThat(struck(server, "husk", "sought")).as("the seeking hammer found it").isTrue();
             server.console("kill @e[type=husk]");
 
             // --- the trident strikes a wall between two husks; its storm hurts both --------------------------
@@ -70,8 +90,8 @@ class ThorScenarioTest {
             Await.ticks(15);
             thrower.look(180, 0).releaseUse();
             Await.ticks(60);
-            assertThat(health(server, "husk", "left")).as("the storm struck the left husk").isBetween(0.0, 19.9);
-            assertThat(health(server, "husk", "right")).as("the storm struck the right husk").isBetween(0.0, 19.9);
+            assertThat(struck(server, "husk", "left")).as("the storm struck the left husk").isTrue();
+            assertThat(struck(server, "husk", "right")).as("the storm struck the right husk").isTrue();
 
             // --- rain: the shard world's spares its endermen, the overworld's does not --------------------------
             server.console("execute in minecraft:shardlands run forceload add -16 -16 16 16");

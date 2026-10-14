@@ -178,8 +178,11 @@ class ShardsScenarioTest {
             ada.click("Rain's enchantments");
             ada.awaitWindow("Rain's books");
             ada.forgetChat();
+            // Twenty-nine enchantments fill more than one page; Launch is on the second.
+            ada.click("Next page");
             ada.click("Launch I");
             Await.until("Launch is locked", WAIT, () -> told(ada, "has not unlocked"));
+            ada.click("Previous page");
             ada.click("Telekinesis I");
             Await.until("bought", WAIT, () -> told(ada, "You bought"));
             ada.closeWindow();

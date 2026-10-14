@@ -22,10 +22,16 @@ class EnchantsDefinitionsTest {
                 RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.LAUNCH, RainsEnchants.SWIFTNESS,
                 RainsEnchants.HASTE, RainsEnchants.SOULBOUND, RainsEnchants.WISDOM, RainsEnchants.EXCAVATOR,
                 RainsEnchants.HARVESTER, RainsEnchants.SMELTING, RainsEnchants.TELEKINESIS, RainsEnchants.CHEST_LINK,
-                RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR, RainsEnchants.VOLLEY);
+                RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR, RainsEnchants.VOLLEY, RainsEnchants.LIFESTEAL,
+                RainsEnchants.EXECUTIONER, RainsEnchants.BLEED, RainsEnchants.VENOM, RainsEnchants.CLEAVE,
+                RainsEnchants.ARMOR_PIERCE, RainsEnchants.BERSERK, RainsEnchants.OVERPOWER, RainsEnchants.UNDYING,
+                RainsEnchants.FUSION);
+        assertThat(def(RainsEnchants.CLEAVE).gear()).isEqualTo(Gear.AXES);
+        assertThat(def(RainsEnchants.OVERPOWER).maxLevel()).isEqualTo(5);
+        assertThat(def(RainsEnchants.UNDYING).gear()).isEqualTo(Gear.CHESTPLATE);
         assertThat(def(RainsEnchants.VOLLEY).gear()).isEqualTo(Gear.TRIDENT);
         assertThat(def(RainsEnchants.THOR).gear()).isEqualTo(Gear.THUNDER);
-        assertThat(def(RainsEnchants.HEAT_SEEKING).gear()).isEqualTo(Gear.RANGED);
+        assertThat(def(RainsEnchants.HEAT_SEEKING).gear()).isEqualTo(Gear.SEEKING);
         assertThat(def(RainsEnchants.HEAT_SEEKING).maxLevel()).isEqualTo(3);
     }
 

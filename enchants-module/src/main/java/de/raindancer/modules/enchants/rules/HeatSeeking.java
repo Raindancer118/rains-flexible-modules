@@ -19,7 +19,8 @@ public final class HeatSeeking {
 
     /** Half the cone's opening around the aim, in degrees. */
     public static double cone(int level) {
-        return 2 + 8 * Math.max(1, Math.min(3, level));
+        int clamped = Math.max(1, Math.min(3, level));
+        return clamped == 3 ? 45 : 2 + 8 * clamped;
     }
 
     /** How far a target may be, in blocks. */
@@ -29,7 +30,8 @@ public final class HeatSeeking {
 
     /** How much of the way to the target's direction the flight turns each tick (0 none, 1 at once). */
     public static double turn(int level) {
-        return 0.25 + 0.15 * Math.max(1, Math.min(3, level));
+        int clamped = Math.max(1, Math.min(3, level));
+        return clamped == 3 ? 0.85 : 0.25 + 0.15 * clamped;
     }
 
     /**

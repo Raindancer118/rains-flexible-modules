@@ -22,11 +22,14 @@ public final class ShardRules {
             WEIGHTS.put(key, COMMON);
         }
         for (String key : new String[]{RainsEnchants.VEINMINER, RainsEnchants.EXCAVATOR, RainsEnchants.CHEST_LINK,
-                RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.VOLLEY}) {
+                RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.VOLLEY, RainsEnchants.BLEED,
+                RainsEnchants.VENOM, RainsEnchants.CLEAVE, RainsEnchants.ARMOR_PIERCE}) {
             WEIGHTS.put(key, UNCOMMON);
         }
         for (String key : new String[]{RainsEnchants.FLIGHT, RainsEnchants.LAUNCH, RainsEnchants.SOULBOUND,
-                RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR}) {
+                RainsEnchants.HEAT_SEEKING, RainsEnchants.THOR,
+                RainsEnchants.LIFESTEAL, RainsEnchants.EXECUTIONER, RainsEnchants.BERSERK, RainsEnchants.OVERPOWER,
+                RainsEnchants.UNDYING, RainsEnchants.FUSION}) {
             WEIGHTS.put(key, RARE);
         }
     }

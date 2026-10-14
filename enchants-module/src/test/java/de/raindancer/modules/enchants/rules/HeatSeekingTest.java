@@ -80,4 +80,12 @@ class HeatSeekingTest {
             assertThat(hit).as("level " + level).isTrue();
         }
     }
+
+    @Test
+    @DisplayName("III forgives a wide miss: 45 degrees off the aim, and turns hard enough to still get there")
+    void threeForgives() {
+        assertThat(HeatSeeking.cone(3)).isEqualTo(45);
+        assertThat(HeatSeeking.turn(3)).isEqualTo(0.85);
+        assertThat(HeatSeeking.cone(2)).isEqualTo(18);
+    }
 }

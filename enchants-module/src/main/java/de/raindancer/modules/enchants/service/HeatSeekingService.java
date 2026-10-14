@@ -115,6 +115,10 @@ public final class HeatSeekingService {
         if (projectile instanceof AbstractArrow arrow && arrow.getWeapon() != null && !arrow.getWeapon().isEmpty()) {
             return arrow.getWeapon();
         }
+        // A Thor hammer in flight is a snowball wearing the weapon.
+        if (projectile instanceof org.bukkit.entity.Snowball hammer && hammer.getItem().getType() != Material.SNOWBALL) {
+            return hammer.getItem();
+        }
         // A crossbow's firework is no arrow and says nothing of what shot it: the crossbow in the shooter's hands did.
         for (ItemStack held : new ItemStack[]{shooter.getInventory().getItemInMainHand(),
                 shooter.getInventory().getItemInOffHand()}) {

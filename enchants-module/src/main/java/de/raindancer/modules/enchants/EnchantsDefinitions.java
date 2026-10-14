@@ -47,10 +47,30 @@ public final class EnchantsDefinitions {
                 EnchantDef.builder(RainsEnchants.CHEST_LINK).name("<dark_purple>Chest Link").maxLevel(1)
                         .gear(Gear.DIGGING_TOOLS).anvilCost(6).build(),
                 EnchantDef.builder(RainsEnchants.HEAT_SEEKING).name("<red>Heat-seeking").maxLevel(3)
-                        .gear(Gear.RANGED).anvilCost(8).build(),
+                        .gear(Gear.SEEKING).anvilCost(8).build(),
                 EnchantDef.builder(RainsEnchants.THOR).name("<yellow>Thor").maxLevel(3)
                         .gear(Gear.THUNDER).anvilCost(8).build(),
                 EnchantDef.builder(RainsEnchants.VOLLEY).name("<aqua>Volley").maxLevel(2)
-                        .gear(Gear.TRIDENT).anvilCost(6).build());
+                        .gear(Gear.TRIDENT).anvilCost(6).build(),
+                EnchantDef.builder(RainsEnchants.LIFESTEAL).name("<dark_red>Lifesteal").maxLevel(3)
+                        .gear(Gear.MELEE).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.EXECUTIONER).name("<dark_red>Executioner").maxLevel(3)
+                        .gear(Gear.MELEE).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.BLEED).name("<red>Bleed").maxLevel(3)
+                        .gear(Gear.MELEE).anvilCost(6).build(),
+                EnchantDef.builder(RainsEnchants.VENOM).name("<dark_green>Venom").maxLevel(3)
+                        .gear(Gear.MELEE).anvilCost(6).build(),
+                EnchantDef.builder(RainsEnchants.CLEAVE).name("<gold>Cleave").maxLevel(3)
+                        .gear(Gear.AXES).anvilCost(6).build(),
+                EnchantDef.builder(RainsEnchants.ARMOR_PIERCE).name("<gray>Armor Pierce").maxLevel(3)
+                        .gear(Gear.MELEE).anvilCost(6).build(),
+                EnchantDef.builder(RainsEnchants.BERSERK).name("<red>Berserk").maxLevel(3)
+                        .gear(Gear.MELEE).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.OVERPOWER).name("<dark_purple>Overpower").maxLevel(5)
+                        .gear(Gear.MELEE).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.UNDYING).name("<yellow>Undying").maxLevel(3)
+                        .gear(Gear.CHESTPLATE).anvilCost(8).build(),
+                EnchantDef.builder(RainsEnchants.FUSION).name("<aqua>Fusion").maxLevel(1)
+                        .gear(Gear.CHESTPLATE).anvilCost(8).build());
     }
 }

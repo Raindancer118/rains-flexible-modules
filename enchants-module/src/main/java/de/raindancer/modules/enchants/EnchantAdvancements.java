@@ -96,6 +96,30 @@ public final class EnchantAdvancements {
                 "Throw a hammer into something, or call a storm with a trident", AdvancementFrame.TASK, 1);
         child("volley", "root", Material.TRIDENT, "Trident Storm",
                 "Throw a volley of tridents", AdvancementFrame.TASK, 1);
+        child("lifesteal", "root", Material.GHAST_TEAR, "Vampire",
+                "Heal yourself by hitting something with Lifesteal", AdvancementFrame.TASK, 1);
+        child("executioner", "root", Material.WITHER_SKELETON_SKULL, "Off With Their Heads",
+                "Hit something nearly dead with Executioner", AdvancementFrame.TASK, 1);
+        child("bleed", "root", Material.REDSTONE, "First Blood",
+                "Leave something bleeding", AdvancementFrame.TASK, 1);
+        child("venom", "root", Material.SPIDER_EYE, "Toxic",
+                "Poison something with Venom", AdvancementFrame.TASK, 1);
+        child("cleave", "root", Material.IRON_AXE, "Timber!",
+                "Strike more than one with a single swing of a Cleave axe", AdvancementFrame.TASK, 1);
+        child("crowd_control", "cleave", Material.NETHERITE_AXE, "Crowd Control",
+                "Strike four more with a single swing of a Cleave axe", AdvancementFrame.GOAL, 1);
+        child("armor_pierce", "root", Material.POINTED_DRIPSTONE, "Can Opener",
+                "Hit through armour with Armor Pierce", AdvancementFrame.TASK, 1);
+        child("berserk", "root", Material.FIRE_CHARGE, "Rage Mode",
+                "Hit harder for being hurt, with Berserk", AdvancementFrame.TASK, 1);
+        child("overpower", "root", Material.NETHERITE_SWORD, "Overkill",
+                "Strike with an Overpower weapon", AdvancementFrame.TASK, 1);
+        child("undying", "root", Material.TOTEM_OF_UNDYING, "Extra Lives",
+                "Be saved by a totem kept in your chestplate", AdvancementFrame.TASK, 1);
+        child("fusion", "root", Material.ANVIL, "Double Down",
+                "Fuse two chestplates into one", AdvancementFrame.TASK, 1);
+        child("thrice_forged", "fusion", Material.NETHERITE_CHESTPLATE, "Thrice Forged",
+                "Fuse a chestplate as far as it goes", AdvancementFrame.CHALLENGE, 1);
         child("shardlands", "root", Material.CRYING_OBSIDIAN, "Into the Dark",
                 "Step through a portal into the shard world", AdvancementFrame.TASK, 1);
         child("first_shard", "shardlands", Material.ECHO_SHARD, "Shard Hunter",
@@ -185,6 +209,22 @@ public final class EnchantAdvancements {
     public void launchCarried(UUID player, double blocks) {
         if (blocks >= LAUNCH_BLOCKS) {
             advancements.award(player, "rainsenchants:ludicrous_speed");
+        }
+    }
+
+    /** A Cleave axe struck this many besides its target. */
+    public void cleaved(UUID player, int others) {
+        used(player, RainsEnchants.CLEAVE);
+        if (others >= 4) {
+            advancements.award(player, "rainsenchants:crowd_control");
+        }
+    }
+
+    /** A chestplate was fused; {@code fusions} is how often it has been now. */
+    public void fused(UUID player, int fusions) {
+        used(player, RainsEnchants.FUSION);
+        if (fusions >= de.raindancer.modules.enchants.rules.Fusion.MOST) {
+            advancements.award(player, "rainsenchants:thrice_forged");
         }
     }
 

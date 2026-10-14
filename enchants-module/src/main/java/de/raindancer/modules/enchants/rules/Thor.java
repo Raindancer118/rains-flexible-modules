@@ -17,9 +17,9 @@ public final class Thor {
         return Math.max(1, Math.min(3, level));
     }
 
-    /** What a thrown hammer deals to what it hits, in half-hearts. */
+    /** What a thrown hammer deals to what it hits, in half-hearts — III far more than the rest. */
     public static double hammerDamage(int level) {
-        return 6 + 2 * clamp(level);
+        return clamp(level) == 3 ? 40 : 6 + 2 * clamp(level);
     }
 
     /** Ticks before the hammer can be thrown again — the time it takes to come back, more or less. */
@@ -39,7 +39,7 @@ public final class Thor {
 
     /** What one bolt deals to whatever stands where it strikes, in half-hearts. */
     public static double stormDamage(int level) {
-        return 3 + clamp(level);
+        return clamp(level) == 3 ? 16 : 3 + clamp(level);
     }
 
     /** Where the storm's bolts strike, as x z offsets from the trident: the first on it, the rest around it. */
