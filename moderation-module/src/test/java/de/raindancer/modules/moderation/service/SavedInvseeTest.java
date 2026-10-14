@@ -64,23 +64,24 @@ class SavedInvseeTest {
     }
 
     @Test
-    @DisplayName("the newest copy of any server is the one shown, with which server and when")
-    void newestWins() {
-        ItemStack[] older = new ItemStack[41];
-        ItemStack[] newer = new ItemStack[41];
-        older[0] = mock(ItemStack.class);
-        newer[0] = mock(ItemStack.class);
-        items.put((byte) 1, older);
-        items.put((byte) 2, newer);
+    @DisplayName("this server's copy is the one shown — the SMP inventory on the SMP, though another server saved later")
+    void thisServersCopy() {
+        ItemStack[] onSmp = new ItemStack[41];
+        ItemStack[] onOneblock = new ItemStack[41];
+        onSmp[0] = mock(ItemStack.class);
+        onOneblock[0] = mock(ItemStack.class);
+        items.put((byte) 1, onSmp);
+        items.put((byte) 2, onOneblock);
         items.put((byte) 3, new ItemStack[27]);
         save("smp", 100, (byte) 1, (byte) 3);
-        save("arena", 200, (byte) 2, (byte) 3);
+        save("oneblock", 200, (byte) 2, (byte) 3);
 
-        SavedInvsee.Copy copy = invsee(true).latest(ALEX).orElseThrow();
+        SavedInvsee.Copy copy = invsee(true).here(ALEX, "smp").orElseThrow();
 
-        assertThat(copy.server()).isEqualTo("arena");
-        assertThat(copy.savedAt()).isEqualTo(200);
-        assertThat(copy.carried().at(Section.HOTBAR, 0)).isSameAs(newer[0]);
+        assertThat(copy.server()).isEqualTo("smp");
+        assertThat(copy.savedAt()).isEqualTo(100);
+        assertThat(copy.carried().at(Section.HOTBAR, 0)).isSameAs(onSmp[0]);
+        assertThat(invsee(true).here(ALEX, "arena")).as("never played there").isEmpty();
     }
 
     @Test
@@ -116,10 +117,10 @@ class SavedInvseeTest {
     @Test
     @DisplayName("nothing saved is nothing to show, and a copy that cannot be decoded is too")
     void nothingToShow() {
-        assertThat(invsee(true).latest(ALEX)).isEmpty();
+        assertThat(invsee(true).here(ALEX, "smp")).isEmpty();
 
         save("smp", 100, (byte) 9, (byte) 9);
-        assertThat(invsee(true).latest(ALEX)).isEmpty();
+        assertThat(invsee(true).here(ALEX, "smp")).isEmpty();
     }
 
     @Test
@@ -129,7 +130,7 @@ class SavedInvseeTest {
             throw new UnsupportedOperationException("this core keeps no inventories");
         }, decoder, () -> true);
 
-        assertThat(none.latest(ALEX)).isEmpty();
+        assertThat(none.here(ALEX, "smp")).isEmpty();
     }
 
     @Test
@@ -154,7 +155,7 @@ class SavedInvseeTest {
         items.put((byte) 3, new ItemStack[27]);
         save("arena", 200, (byte) 1, (byte) 3);
 
-        invsee(true).latest(ALEX);
+        invsee(true).here(ALEX, "smp");
 
         SavedInventories.Saved after = store.on("arena", ALEX).orElseThrow();
         assertThat(after.savedAt()).isEqualTo(200);

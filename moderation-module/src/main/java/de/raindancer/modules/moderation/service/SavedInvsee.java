@@ -25,10 +25,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Looking at the latest inventory every server of the network has saved for somebody, read only.
+ * Looking at the inventory this server last saved for somebody who is not on it, read only.
  *
  * <p>Inventories are each server's own, so a player who is on another server, or on none, has no inventory here to
- * open. What the network keeps is {@link SavedInventories}: each server's last copy. This shows the newest of them and
+ * open. What the network keeps is {@link SavedInventories}: each server's last copy. This shows this server's and
  * never writes: the window it opens is {@link Access#READ_ONLY} over a source that refuses every write, and nothing
  * here touches any server's copy.
  */
@@ -74,10 +74,13 @@ public final class SavedInvsee implements IModerationService {
         return network.getAsBoolean();
     }
 
-    /** The newest copy any server has of {@code player}, off the server's threads. Empty when there is none, or it cannot be read. */
-    public Optional<Copy> latest(UUID player) {
+    /**
+     * The copy {@code server} — this one — saved of {@code player}, off the server's threads: their inventory here,
+     * whichever server they are on now. Empty when there is none, or it cannot be read.
+     */
+    public Optional<Copy> here(UUID player, String server) {
         try {
-            return store.get().latest(player).map(saved -> new Copy(saved.server(), saved.savedAt(),
+            return store.get().on(server, player).map(saved -> new Copy(saved.server(), saved.savedAt(),
                     carriedOf(decoder.apply(saved.contents()), decoder.apply(saved.enderChest()))));
         } catch (RuntimeException unavailable) {
             log.warn("The saved inventory of {} could not be read: {}", player, unavailable.toString());
@@ -154,6 +157,6 @@ public final class SavedInvsee implements IModerationService {
 
     @Override
     public String describe() {
-        return "looking at the latest saved inventory of somebody who is not on this server";
+        return "looking at the saved inventory of somebody who is not on this server";
     }
 }

@@ -89,8 +89,8 @@ public final class InvseeCommand extends StaffCommand {
     }
 
     /**
-     * On a network somebody who is not here is on another server or on none, and their inventory is that server's:
-     * the newest saved copy is shown read only, and never written. With no copy at all, this server's own save
+     * On a network somebody who is not here is on another server or on none. What is shown is their inventory on
+     * this server, as this server last saved it, read only and never written. With no copy, this server's own save
      * file is looked at, still read only.
      */
     private static void lookAtSavedCopy(ModerationServices moderation, Player watcher, OfflinePlayer them) {
@@ -101,8 +101,10 @@ public final class InvseeCommand extends StaffCommand {
         }
         UUID id = them.getUniqueId();
         String name = Players.nameOf(them);
+        // This server's copy: on the SMP, their SMP inventory — whichever server they are on now.
+        String here = de.raindancer.core.RainsCore.get().network().serverId();
         Scheduling.async(moderation.plugin(), () -> {
-            Optional<SavedInvsee.Copy> copy = moderation.savedInvsee().latest(id);
+            Optional<SavedInvsee.Copy> copy = moderation.savedInvsee().here(id, here);
             Scheduling.entity(moderation.plugin(), watcher, () -> {
                 if (copy.isPresent()) {
                     if (!moderation.savedInvsee().show(watcher, id, name, copy.get())) {
