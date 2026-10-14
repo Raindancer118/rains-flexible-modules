@@ -102,7 +102,15 @@ public final class ShardMobService {
         org.bukkit.entity.Wither wither = base.getWorld().spawn(base.clone().add(0.5, 0, 0.5), org.bukkit.entity.Wither.class,
                 made -> made.setInvulnerableTicks(WITHER_CHARGE_TICKS));
         giveKind(wither, ShardTier.CRYSTAL);
+        wither.getPersistentDataContainer().set(CRYSTAL_WITHER, PersistentDataType.BYTE, (byte) 1);
         return wither;
+    }
+
+    private static final org.bukkit.NamespacedKey CRYSTAL_WITHER = new org.bukkit.NamespacedKey("rainsenchants", "crystal_wither");
+
+    /** Whether this is a Crystal Wither risen from its build — not a wither from a command or an egg. */
+    public static boolean isCrystalWither(org.bukkit.entity.Entity entity) {
+        return entity instanceof org.bukkit.entity.Wither && entity.getPersistentDataContainer().has(CRYSTAL_WITHER);
     }
 
     /** Keeps an always-angry creature on the nearest player who can be hurt, angry the way its kind gets angry. */

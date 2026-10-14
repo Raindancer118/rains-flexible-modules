@@ -69,4 +69,19 @@ class CrystalWitherTest {
         soulSand.put(10, 64, 10, CrystalWither.Part.OTHER);
         assertThat(CrystalWither.find(soulSand, 10, 66, 10)).isEmpty();
     }
+
+    @Test
+    @DisplayName("a Crystal Wither drops a ton of shards: forty to sixty")
+    void loot() {
+        java.util.SplittableRandom random = new java.util.SplittableRandom(7);
+        int least = Integer.MAX_VALUE;
+        int most = 0;
+        for (int i = 0; i < 1_000; i++) {
+            int shards = CrystalWither.shards(random);
+            least = Math.min(least, shards);
+            most = Math.max(most, shards);
+        }
+        assertThat(least).isGreaterThanOrEqualTo(40);
+        assertThat(most).isLessThanOrEqualTo(60).isGreaterThan(55);
+    }
 }

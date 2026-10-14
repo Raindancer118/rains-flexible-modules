@@ -60,6 +60,15 @@ class CrystalWitherScenarioTest {
             assertThat(server.console(shard + "data get entity @e[type=wither,limit=1] CustomName")).contains("Crystal");
             assertThat(server.console(shard + "execute if block 0 301 0 minecraft:air")).as("the build is gone")
                     .contains("passed");
+
+            // Killed by the player who built it: a ton of shards, in many kinds.
+            server.console(shard + "data merge entity @e[type=wither,limit=1] {Invul:0}");
+            server.console(shard + "damage @e[type=wither,limit=1] 5000 minecraft:player_attack by Builder");
+            Await.ticks(40);
+            java.util.regex.Matcher stacks = java.util.regex.Pattern.compile("Count: (\\d+)").matcher(server.console(
+                    shard + "execute if entity @e[type=item,nbt={Item:{id:\"minecraft:echo_shard\"}}]"));
+            assertThat(stacks.find() ? Integer.parseInt(stacks.group(1)) : 0).as("stacks of shards dropped")
+                    .isGreaterThanOrEqualTo(5);
         }
     }
 }

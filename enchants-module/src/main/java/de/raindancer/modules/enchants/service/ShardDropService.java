@@ -49,14 +49,17 @@ public final class ShardDropService {
         }
         EnchantsSettings config = settings.get();
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        if (random.nextInt(100) >= config.shardDropPercent()) {
+        // The Crystal Wither always drops, and its ton of shards counts against nobody's hour.
+        boolean boss = ShardMobService.isCrystalWither(mob);
+        if (!boss && random.nextInt(100) >= config.shardDropPercent()) {
             return;
         }
         ShardTier tier = kind.get();
         Map<String, Integer> found = new LinkedHashMap<>();
-        int count = tier.shards(random);
-        for (int i = 0; i < count && cap.take(killer.getUniqueId(), config.shardsPerHour()); i++) {
-            String enchantment = ShardRules.pick(random, tier.rareFactor());
+        int count = boss ? de.raindancer.modules.enchants.rules.CrystalWither.shards(random) : tier.shards(random);
+        int rareFactor = boss ? de.raindancer.modules.enchants.rules.CrystalWither.RARE_FACTOR : tier.rareFactor();
+        for (int i = 0; i < count && (boss || cap.take(killer.getUniqueId(), config.shardsPerHour())); i++) {
+            String enchantment = ShardRules.pick(random, rareFactor);
             if (CustomEnchantments.find(enchantment).isPresent()) {
                 found.merge(enchantment, 1, Integer::sum);
             }

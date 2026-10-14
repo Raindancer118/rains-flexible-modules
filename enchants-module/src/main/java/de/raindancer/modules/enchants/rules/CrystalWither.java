@@ -25,7 +25,15 @@ public final class CrystalWither {
     public record Found(int[] base, List<int[]> blocks) {
     }
 
+    /** How much likelier the rare shards are in its loot — twice a Shard Tyrant's. */
+    public static final int RARE_FACTOR = 8;
+
     private CrystalWither() {
+    }
+
+    /** What one drops: a ton of shards, forty to sixty. */
+    public static int shards(java.util.random.RandomGenerator random) {
+        return 40 + random.nextInt(21);
     }
 
     /** The build the skull just placed at x y z completes, if it completes one. */

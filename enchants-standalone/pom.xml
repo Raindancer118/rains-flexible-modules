@@ -35,7 +35,8 @@
         <!-- 0.12.0: the Crystal Wither — built like a wither, of amethyst blocks, in the shard world; a wither of the Crystal kind. -->
         <!-- 0.12.1: the Crystal Wither rises only if whoever placed the last skull may break every block of the build (security review). -->
         <!-- 0.13.0: Volley — a thrown trident brings two (I) or four (II) more, fanned out like Multishot; the copies cannot be picked up, never come back and are gone soon after landing. -->
-        <plugin.version>0.13.0</plugin.version>
+        <!-- 0.14.0: a Crystal Wither killed by a player drops forty to sixty shards, rare ones likelier, outside the hourly limit. -->
+        <plugin.version>0.14.0</plugin.version>
     </properties>
 
     <dependencies>
