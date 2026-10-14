@@ -37,7 +37,8 @@
         <!-- 0.13.0: Volley — a thrown trident brings two (I) or four (II) more, fanned out like Multishot; the copies cannot be picked up, never come back and are gone soon after landing. -->
         <!-- 0.14.0: a Crystal Wither killed by a player drops forty to sixty shards, rare ones likelier, outside the hourly limit. -->
         <!-- 0.15.0: shard creatures hit 30 % harder each kind up (melee, arrows, blasts); shard world creepers blow up twice as big and more (at most 12); zombie tyrants call four zombies below half health, once; skeleton tyrants fire in minigun bursts; baby zombie tyrants run 20 % faster. -->
-        <plugin.version>0.15.0</plugin.version>
+        <!-- 0.16.0: every shard drop is 30–50 % bigger. -->
+        <plugin.version>0.16.0</plugin.version>
     </properties>
 
     <dependencies>
