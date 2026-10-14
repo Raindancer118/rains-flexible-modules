@@ -42,6 +42,7 @@
              is checked against; nothing else in this file ties a module's version to another's. -->
         <modules-api.version>1.3.0</modules-api.version>
         <modules-wrapper.version>1.7.0</modules-wrapper.version>
+        <network-proxy.version>1.0.0</network-proxy.version>
         <!-- Matches each module's corresponding *-standalone plugin.version — the real, accumulated
              version of that feature (see claims-standalone etc.), not the reactor's own 1.0.0. -->
         <claims-module.version>2.12.0</claims-module.version>
@@ -194,6 +195,8 @@
           RainsSpeedrun's scenarios and only runs them with -Pe2e (scripts/e2e.sh) — a normal build
           compiles them and checks that every command, button and setting has one.
         -->
+        <!-- The Velocity side of a network: not a module, a proxy plugin of its own. -->
+        <module>network-proxy</module>
         <module>e2e-harness</module>
         <module>speedrun-e2e</module>
         <module>modules-e2e</module>
