@@ -111,4 +111,40 @@ class SnapshotStoreTest {
 
         assertThat(store.knownPlayerIds()).containsExactly(player);
     }
+
+    @Test
+    @org.junit.jupiter.api.DisplayName("a prune waits for a snapshot being written for the same player, so neither undoes the other")
+    void pruneWaitsForAWrite() throws Exception {
+        SnapshotStore store = new SnapshotStore(folder);
+        UUID player = UUID.randomUUID();
+        java.time.Instant old = java.time.Instant.now().minusSeconds(86_400 * 30).truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        java.time.Instant fresh = java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        store.saveAll(player, java.util.List.of(new Snapshot(player, "Someone", old, java.util.List.of(), java.util.List.of(), null)));
+
+        java.util.concurrent.CountDownLatch writing = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch pruneStarted = new java.util.concurrent.CountDownLatch(1);
+        Thread writer = new Thread(() -> store.change(player, all -> {
+            writing.countDown();
+            try {
+                pruneStarted.await();
+                Thread.sleep(200);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            java.util.List<Snapshot> more = new java.util.ArrayList<>(all);
+            more.add(new Snapshot(player, "Someone", fresh, java.util.List.of(), java.util.List.of(), null));
+            return more;
+        }));
+        writer.start();
+        writing.await();
+        Thread pruner = new Thread(() -> {
+            pruneStarted.countDown();
+            store.pruneOlderThan(java.time.Instant.now().minusSeconds(86_400));
+        });
+        pruner.start();
+        writer.join(5_000);
+        pruner.join(5_000);
+
+        assertThat(store.load(player)).extracting(Snapshot::takenAt).containsExactly(fresh);
+    }
 }

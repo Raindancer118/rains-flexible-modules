@@ -58,17 +58,37 @@ public final class SnapshotStore {
     public int pruneOlderThan(Instant cutoff) {
         int dropped = 0;
         for (UUID playerId : knownPlayerIds()) {
-            List<Snapshot> all = load(playerId);
-            List<Snapshot> kept = all.stream().filter(snapshot -> !snapshot.takenAt().isBefore(cutoff)).toList();
-            if (kept.size() == all.size()) {
-                continue;
-            }
-            boolean done = kept.isEmpty() ? folder.delete(playerId + SUFFIX) : saveAll(playerId, kept);
+            int[] gone = {0};
+            boolean done = change(playerId, all -> {
+                List<Snapshot> kept = all.stream().filter(snapshot -> !snapshot.takenAt().isBefore(cutoff)).toList();
+                gone[0] = all.size() - kept.size();
+                return kept;
+            });
             if (done) {
-                dropped += all.size() - kept.size();
+                dropped += gone[0];
             }
         }
         return dropped;
+    }
+
+    /** One write per player at a time: the snapshot being saved and the prune both read, change and write back. */
+    private final Map<UUID, Object> changing = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Changes a player's history: {@code change} gets what is stored and answers what to keep, under that player's
+     * lock, so two changes never undo each other. Nothing left drops the player's document.
+     *
+     * @return whether it was written (true when nothing changed)
+     */
+    public boolean change(UUID playerId, java.util.function.UnaryOperator<List<Snapshot>> change) {
+        synchronized (changing.computeIfAbsent(playerId, id -> new Object())) {
+            List<Snapshot> all = load(playerId);
+            List<Snapshot> kept = change.apply(all);
+            if (kept.equals(all)) {
+                return true;
+            }
+            return kept.isEmpty() ? folder.delete(playerId + SUFFIX) : saveAll(playerId, kept);
+        }
     }
 
     /** A player's whole stored history, oldest first. Nothing stored is an empty list, not an error. */
