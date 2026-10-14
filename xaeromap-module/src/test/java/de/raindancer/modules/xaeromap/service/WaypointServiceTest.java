@@ -222,4 +222,21 @@ class WaypointServiceTest {
         assertThat(waypoints.homesOf(player)).isEmpty();
         assertThat(waypoints.offer(player, List.of())).isZero();
     }
+
+    @Test
+    @DisplayName("a place on another server is not offered although its world has the same name as one here")
+    void otherServersPlacesAreLeftOut() {
+        de.raindancer.core.platform.network.ThisServer.set("smp");
+        try {
+            places.add(Poi.builder("Here", WORLD, 1, 64, 1).kind(WaypointService.HOMES).owner(playerId)
+                    .server("smp").build());
+            places.add(Poi.builder("Old", WORLD, 2, 64, 2).kind(WaypointService.HOMES).owner(playerId).build());
+            places.add(Poi.builder("Away", WORLD, 3, 64, 3).kind(WaypointService.HOMES).owner(playerId)
+                    .server("arena").build());
+
+            assertThat(waypoints.homesOf(player)).extracting(Waypoint::name).containsExactlyInAnyOrder("Here", "Old");
+        } finally {
+            de.raindancer.core.platform.network.ThisServer.set("");
+        }
+    }
 }

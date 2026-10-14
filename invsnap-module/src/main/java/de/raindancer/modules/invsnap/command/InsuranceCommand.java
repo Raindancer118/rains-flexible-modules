@@ -52,11 +52,11 @@ public final class InsuranceCommand implements IInvSnapCommand {
             case "on", "off" -> {
                 if (!insurance.enabled()) {
                     live.messages().send(player, "invsnap.insurance.death-disabled");
+                } else if (!insurance.setInsured(player.getUniqueId(), word.equals("on"))) {
+                    live.messages().send(player, "invsnap.insurance.not-saved");
                 } else if (word.equals("on")) {
-                    insurance.setInsured(player.getUniqueId(), true);
                     live.messages().send(player, "invsnap.insurance.now-on", "price", price(live, player));
                 } else {
-                    insurance.setInsured(player.getUniqueId(), false);
                     live.messages().send(player, "invsnap.insurance.now-off");
                 }
             }

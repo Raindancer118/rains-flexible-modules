@@ -73,7 +73,9 @@ public final class InsuranceMenu extends Menu implements IInvSnapScreen {
                         "<white>Death insurance: " + (insured ? "<green>on" : "<red>off"), deathLore),
                 "Death insurance is not offered on this server",
                 click -> {
-                    death.setInsured(me, !insured);
+                    if (!death.setInsured(me, !insured)) {
+                        services.messages().send(viewer, "invsnap.insurance.not-saved");
+                    }
                     refresh();
                 });
 

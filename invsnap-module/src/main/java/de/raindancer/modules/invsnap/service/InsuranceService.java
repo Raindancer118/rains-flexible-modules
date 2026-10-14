@@ -68,8 +68,9 @@ public final class InsuranceService implements IInvSnapService {
         return store.isInsured(player);
     }
 
-    public void setInsured(UUID player, boolean on) {
-        store.set(player, on);
+    /** @return whether the choice is saved */
+    public boolean setInsured(UUID player, boolean on) {
+        return store.set(player, on);
     }
 
     public boolean enabled() {

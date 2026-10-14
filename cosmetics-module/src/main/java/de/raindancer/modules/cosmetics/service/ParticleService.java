@@ -337,7 +337,12 @@ public final class ParticleService implements ICosmeticsService, ParticleSlot {
         return SEES.isOn(who);
     }
 
-    /** On join: a particle they may no longer wear — permission gone, or blocked since — comes off. */
+    /** The wings in their data right now. Only on their own thread. */
+    public ParticleChoice wings(Player who) {
+        return wingChoices.read(who);
+    }
+
+    /** When their data arrives or changes: a particle they may no longer wear — permission gone, or blocked since — comes off. */
     public void revalidate(Player who) {
         ParticleRule.Worn worn = rule.split(choices.read(who), wingChoices.read(who));
         if (!worn.particle().equals(choices.read(who)) || !worn.wings().equals(wingChoices.read(who))) {

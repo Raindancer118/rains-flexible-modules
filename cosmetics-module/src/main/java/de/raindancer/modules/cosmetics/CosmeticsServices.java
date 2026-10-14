@@ -34,6 +34,7 @@ public record CosmeticsServices(
         ReloadService reloading,
         ClearService clearing,
         de.raindancer.modules.cosmetics.service.TeleportLookService teleports,
+        de.raindancer.modules.cosmetics.service.DataWatch watch,
         Vanish vanish,
         ICosmeticsScreensOpener screens,
         de.raindancer.modules.cosmetics.service.UnlockService unlocks,

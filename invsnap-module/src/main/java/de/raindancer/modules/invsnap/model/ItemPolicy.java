@@ -28,6 +28,10 @@ public record ItemPolicy(String id, UUID owner, String description, String mater
         return new ItemPolicy(id, owner, description, material, value, premiumTaken, due, "", false);
     }
 
+    public ItemPolicy dueAt(long due) {
+        return new ItemPolicy(id, owner, description, material, value, premium, due, ended, told);
+    }
+
     public ItemPolicy endedBy(String reason) {
         return new ItemPolicy(id, owner, description, material, value, premium, nextDue, reason, false);
     }

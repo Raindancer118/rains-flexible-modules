@@ -10,6 +10,7 @@ import de.raindancer.modules.invsnap.InvSnapSettings;
 import de.raindancer.modules.invsnap.model.ItemPolicy;
 import de.raindancer.modules.invsnap.rules.ItemPremiumRule;
 import de.raindancer.modules.invsnap.store.ItemPolicyStore;
+import de.raindancer.modules.invsnap.store.ItemReturns;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -353,15 +354,21 @@ public final class ItemInsuranceService implements IInvSnapService {
             if (!policy.inForce() || policy.nextDue() > now) {
                 continue;
             }
+            long due = policy.nextDue() + period > now ? policy.nextDue() + period : now + period;
+            if (!store.claimDue(policy.id(), policy.nextDue(), due)) {
+                // Another server found it due first and takes the premium.
+                continue;
+            }
             EconomyResult result = payments.charge(policy.owner(), premiumOf(policy),
                     "Item insurance renewal: " + policy.description(), SOURCE);
             if (result.succeeded()) {
-                long due = policy.nextDue() + period > now ? policy.nextDue() + period : now + period;
                 store.put(policy.renewed(result.amount().minor(), due));
             } else if (result.outcome() != EconomyResult.Outcome.UNAVAILABLE) {
                 ItemPolicy ended = policy.endedBy(ItemPolicy.UNPAID);
                 store.put(ended);
                 lapsed.add(ended);
+            } else {
+                store.claimDue(policy.id(), due, policy.nextDue());
             }
         }
         return lapsed;
@@ -537,25 +544,35 @@ public final class ItemInsuranceService implements IInvSnapService {
             return 0;
         }
         UUID id = owner.getUniqueId();
-        List<String> waiting = store.returnsOf(id);
-        int room = freeSlots(owner);
-        List<String> keep = new ArrayList<>();
-        List<ItemStack> give = new ArrayList<>();
-        for (int index = 0; index < waiting.size(); index++) {
-            String text = waiting.get(index);
-            ItemStack stack = (onlyIndex < 0 || index == onlyIndex) && give.size() < Math.min(most, room)
-                    ? codec.decode(text) : null;
-            if (stack == null) {
-                keep.add(text);
-            } else {
-                give.add(marks.policy(stack).filter(this::alive).isPresent() ? stack : marks.strip(stack));
-            }
+        // What the database holds, not what this server last heard: the claim below is what makes it once.
+        Optional<List<ItemReturns.Waiting>> listed = store.returns().fresh(id);
+        if (listed.isEmpty()) {
+            return 0;
         }
-        if (give.isEmpty() || !store.setReturns(id, keep)) {
+        int room = freeSlots(owner);
+        List<Long> take = new ArrayList<>();
+        int position = 0;
+        for (ItemReturns.Waiting waiting : listed.get()) {
+            if (codec.decode(waiting.item()) == null) {
+                continue;
+            }
+            if ((onlyIndex < 0 || position == onlyIndex) && take.size() < Math.min(most, room)) {
+                take.add(waiting.id());
+            }
+            position++;
+        }
+        Optional<List<ItemReturns.Waiting>> claimed = store.returns().claim(id, take);
+        if (claimed.isEmpty()) {
             return 0;
         }
         int handed = 0;
-        for (ItemStack stack : give) {
+        for (ItemReturns.Waiting each : claimed.get()) {
+            ItemStack decoded = codec.decode(each.item());
+            if (decoded == null) {
+                store.addReturn(id, each.item());
+                continue;
+            }
+            ItemStack stack = marks.policy(decoded).filter(this::alive).isPresent() ? decoded : marks.strip(decoded);
             if (owner.getInventory().addItem(stack).isEmpty()) {
                 handed++;
             } else {

@@ -128,7 +128,8 @@ public final class WaypointService implements IXaeroMapService {
         WaypointVisibilityRule mayHave = new WaypointVisibilityRule(player::hasPermission);
         Map<String, Waypoint> byId = new LinkedHashMap<>();
         for (Poi place : found) {
-            if (!mayHave.mayHave(player.getUniqueId(), place)) {
+            // A place of another server is not on any map here, even where a world has the same name.
+            if (!place.isHere() || !mayHave.mayHave(player.getUniqueId(), place)) {
                 continue;
             }
             String dimension = dimensionOf(place.world());

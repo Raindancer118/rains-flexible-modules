@@ -7,7 +7,11 @@ import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.util.UUID;
 
-/** Takes off a name style or particle somebody may no longer wear, as they join. Never stops anybody joining. */
+/**
+ * Takes off a name style somebody may no longer wear, as they join; their particle and teleport look are
+ * checked by {@link de.raindancer.modules.cosmetics.service.DataWatch} once their data is on them. Never stops
+ * anybody joining.
+ */
 public final class JoinListener implements ICosmeticsListener {
 
     private final CosmeticsServices services;
@@ -24,8 +28,6 @@ public final class JoinListener implements ICosmeticsListener {
         }
         try {
             services.names().revalidate(event.getPlayer());
-            services.particles().revalidate(event.getPlayer());
-            services.teleports().load(event.getPlayer());
         } catch (RuntimeException broken) {
             services.log().warn("Could not check {}'s cosmetics on join: {}",
                     event.getPlayer().getName(), broken.getMessage());
@@ -41,5 +43,6 @@ public final class JoinListener implements ICosmeticsListener {
     @Override
     public void forget(UUID player) {
         services.teleports().forget(player);
+        services.watch().forget(player);
     }
 }

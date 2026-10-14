@@ -35,7 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Kept in memory per online player as well as in their data: Core asks on whichever thread sends
  * them, and with a teleport request that is the other player's — not a thread a player's data may be
- * read from.
+ * read from. The memory follows the data: {@link DataWatch} reloads it whenever the data changes, which on a
+ * network includes the moment Core puts what the player chose on another server onto them.
  */
 public final class TeleportLookService implements ICosmeticsService, TravelLooks {
 
@@ -82,9 +83,10 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
     }
 
     /**
-     * Read as they join, on their own thread, and checked again: a sound picked with a permission they no
+     * Read from their data on their own thread, and checked again: a sound picked with a permission they no
      * longer have, or one the owner has since taken off the list, goes back to the server's — and they are
-     * told. Called again for everybody online when the settings change.
+     * told. Called by {@link DataWatch} whenever their data changed (on a network it arrives after they join),
+     * and again for everybody online when the settings change.
      */
     public void load(Player who) {
         TeleportLookChoice read = store.read(who);
@@ -95,11 +97,25 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
             store.write(who, stored);
             messages.send(who, "cosmetics.teleport.dropped");
         }
-        if (stored.isServers()) {
-            chosen.remove(who.getUniqueId());
+        remember(who.getUniqueId(), stored);
+    }
+
+    /** Takes what their data holds now into memory, without judging it — see {@link DataWatch}. */
+    public void refresh(Player who) {
+        remember(who.getUniqueId(), store.read(who));
+    }
+
+    private void remember(UUID who, TeleportLookChoice choice) {
+        if (choice.isServers()) {
+            chosen.remove(who);
         } else {
-            chosen.put(who.getUniqueId(), stored);
+            chosen.put(who, choice);
         }
+    }
+
+    /** What their data holds right now, whatever the memory says. Only on their own thread. */
+    public TeleportLookChoice stored(Player who) {
+        return store.read(who);
     }
 
     public void forget(UUID who) {
@@ -176,11 +192,7 @@ public final class TeleportLookService implements ICosmeticsService, TravelLooks
 
     private void keep(Player who, TeleportLookChoice now) {
         store.write(who, now);
-        if (now.isServers()) {
-            chosen.remove(who.getUniqueId());
-        } else {
-            chosen.put(who.getUniqueId(), now);
-        }
+        remember(who.getUniqueId(), now);
     }
 
     /** The waiting particle, as the particle page edits it — the same page as the worn one. */

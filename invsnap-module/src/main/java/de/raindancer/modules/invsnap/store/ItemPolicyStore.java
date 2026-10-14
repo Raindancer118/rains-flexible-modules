@@ -1,158 +1,132 @@
 package de.raindancer.modules.invsnap.store;
 
+import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.data.store.KeyedDocument;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.modules.invsnap.model.ItemPolicy;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
- * Item policies, and the items waiting to go back to their owners — two small files, read once and kept in
- * memory, written through on every change.
+ * Item policies — the network's one document, so a policy bought on one server is in force on every other — and
+ * the items waiting to go back to their owners, which live in the database ({@link ItemReturns}).
  *
- * <p>The "to collect" list holds an item's only copy while it is not in anybody's inventory, so a write is
- * reported to the caller: an item whose write failed must stay where it is.
+ * <p>Each policy is a key of its own and a change writes that policy alone. The "to collect" list holds an
+ * item's only copy while it is not in anybody's inventory, so a write is reported to the caller: an item whose
+ * write failed must stay where it is.
  */
 public final class ItemPolicyStore {
 
-    private final YamlStore policyFile;
-    private final YamlStore returnFile;
-    private final Map<String, ItemPolicy> policies = new LinkedHashMap<>();
-    private final Map<UUID, List<String>> returns = new LinkedHashMap<>();
+    private static final String SECTION = "policies";
 
+    private final KeyedDocument<ItemPolicy> policies;
+    private final ItemReturns returns;
+
+    /** On a server of its own, and for tests: the documents as files and the list in a SQLite file beside them. */
     public ItemPolicyStore(Path dataFolder) {
-        this(new YamlStore(dataFolder.resolve("item-policies.yml")), new YamlStore(dataFolder.resolve("item-returns.yml")));
+        this(YamlStore.network(dataFolder.resolve("item-policies.yml")),
+                new YamlStore(dataFolder.resolve("item-returns.yml")),
+                new ItemReturns(Database.open(dataFolder.resolve(ItemReturns.NAME + ".db"), ItemReturns.SCHEMA,
+                        () -> false), System::currentTimeMillis));
     }
 
-    public ItemPolicyStore(YamlStore policyFile, YamlStore returnFile) {
-        this.policyFile = policyFile;
-        this.returnFile = returnFile;
-        ConfigurationSection saved = policyFile.read().getConfigurationSection("policies");
-        if (saved != null) {
-            for (String id : saved.getKeys(false)) {
-                ConfigurationSection each = saved.getConfigurationSection(id);
-                try {
-                    policies.put(id, new ItemPolicy(id, UUID.fromString(each.getString("owner", "")),
-                            each.getString("description", "an item"), each.getString("material", "SHIELD"),
-                            each.getLong("value"), each.getLong("premium"), each.getLong("next-due"),
-                            each.getString("ended", ""), each.getBoolean("told")));
-                } catch (RuntimeException unreadable) {
-                    // A hand-edited entry: skip it rather than lose everybody else's policy.
-                }
-            }
+    /**
+     * @param legacyReturns the 1.x file of waiting items, whose contents move onto the shared list
+     */
+    public ItemPolicyStore(YamlStore policyFile, YamlStore legacyReturns, ItemReturns returns) {
+        this.policies = new KeyedDocument<>(policyFile, SECTION, ItemPolicyStore::read, ItemPolicyStore::write);
+        this.returns = returns;
+        policies.load();
+        returns.load();
+        returns.importFrom(legacyReturns);
+    }
+
+    private static ItemPolicy read(ConfigurationSection yaml, String id) {
+        ConfigurationSection each = yaml.getConfigurationSection(id);
+        if (each == null) {
+            return null;
         }
-        ConfigurationSection waiting = returnFile.read().getConfigurationSection("returns");
-        if (waiting != null) {
-            for (String owner : waiting.getKeys(false)) {
-                try {
-                    returns.put(UUID.fromString(owner), new ArrayList<>(waiting.getStringList(owner)));
-                } catch (IllegalArgumentException notAUuid) {
-                    // Same: one bad key must not lose the rest.
-                }
-            }
+        try {
+            return new ItemPolicy(id, UUID.fromString(each.getString("owner", "")),
+                    each.getString("description", "an item"), each.getString("material", "SHIELD"),
+                    each.getLong("value"), each.getLong("premium"), each.getLong("next-due"),
+                    each.getString("ended", ""), each.getBoolean("told"));
+        } catch (RuntimeException unreadable) {
+            // A hand-edited entry: skip it rather than lose everybody else's policy.
+            return null;
         }
+    }
+
+    private static void write(ConfigurationSection yaml, String path, ItemPolicy each) {
+        String at = path + ".";
+        yaml.set(at + "owner", each.owner().toString());
+        yaml.set(at + "description", each.description());
+        yaml.set(at + "material", each.material());
+        yaml.set(at + "value", each.value());
+        yaml.set(at + "premium", each.premium());
+        yaml.set(at + "next-due", each.nextDue());
+        yaml.set(at + "ended", each.ended());
+        yaml.set(at + "told", each.told());
+    }
+
+    public ItemReturns returns() {
+        return returns;
     }
 
     // ------------------------------------------------------------------ policies
 
-    public synchronized ItemPolicy get(String id) {
-        return id == null ? null : policies.get(id);
+    public ItemPolicy get(String id) {
+        return id == null ? null : policies.get(id).orElse(null);
     }
 
-    public synchronized boolean put(ItemPolicy policy) {
-        ItemPolicy before = policies.put(policy.id(), policy);
-        if (savePolicies()) {
-            return true;
-        }
-        if (before == null) {
-            policies.remove(policy.id());
-        } else {
-            policies.put(policy.id(), before);
-        }
-        return false;
+    /** Saves a policy, replacing the one of that id; false means it was not written. */
+    public boolean put(ItemPolicy policy) {
+        return policies.change(policy.id(), before -> policy);
     }
 
-    public synchronized void remove(String id) {
-        if (policies.remove(id) != null) {
-            savePolicies();
-        }
+    public void remove(String id) {
+        policies.change(id, before -> null);
     }
 
-    public synchronized List<ItemPolicy> all() {
-        return List.copyOf(policies.values());
+    public List<ItemPolicy> all() {
+        return policies.all().values().stream()
+                .sorted(Comparator.comparing(ItemPolicy::description).thenComparing(ItemPolicy::id)).toList();
     }
 
-    public synchronized List<ItemPolicy> inForceOf(UUID owner) {
-        return policies.values().stream().filter(each -> each.owner().equals(owner) && each.inForce()).toList();
+    public List<ItemPolicy> inForceOf(UUID owner) {
+        return all().stream().filter(each -> each.owner().equals(owner) && each.inForce()).toList();
     }
 
-    public synchronized List<ItemPolicy> endedUntoldOf(UUID owner) {
-        return policies.values().stream()
-                .filter(each -> each.owner().equals(owner) && !each.inForce() && !each.told()).toList();
+    public List<ItemPolicy> endedUntoldOf(UUID owner) {
+        return all().stream().filter(each -> each.owner().equals(owner) && !each.inForce() && !each.told()).toList();
     }
 
-    private boolean savePolicies() {
-        List<ItemPolicy> now = List.copyOf(policies.values());
-        return policyFile.write(yaml -> {
-            for (ItemPolicy each : now) {
-                String at = "policies." + each.id() + ".";
-                yaml.set(at + "owner", each.owner().toString());
-                yaml.set(at + "description", each.description());
-                yaml.set(at + "material", each.material());
-                yaml.set(at + "value", each.value());
-                yaml.set(at + "premium", each.premium());
-                yaml.set(at + "next-due", each.nextDue());
-                yaml.set(at + "ended", each.ended());
-                yaml.set(at + "told", each.told());
-            }
+    /**
+     * Moves a policy's due date on to {@code next}, but only if it still falls due at {@code expected}. Of the
+     * servers that find a premium due, one wins this and takes it.
+     */
+    public boolean claimDue(String id, long expected, long next) {
+        boolean[] won = new boolean[1];
+        boolean written = policies.change(id, before -> {
+            won[0] = before != null && before.inForce() && before.nextDue() == expected;
+            return won[0] ? before.dueAt(next) : before;
         });
+        return written && won[0];
     }
 
     // ------------------------------------------------------------------ to collect
 
     /** The encoded items waiting for this owner, oldest first. */
-    public synchronized List<String> returnsOf(UUID owner) {
-        return List.copyOf(returns.getOrDefault(owner, List.of()));
+    public List<String> returnsOf(UUID owner) {
+        return returns.of(owner).stream().map(ItemReturns.Waiting::item).toList();
     }
 
     /** Puts an item on the list and writes it before returning; false means it is not on the list. */
-    public synchronized boolean addReturn(UUID owner, String encoded) {
-        returns.computeIfAbsent(owner, key -> new ArrayList<>()).add(encoded);
-        if (saveReturns()) {
-            return true;
-        }
-        List<String> list = returns.get(owner);
-        list.remove(list.size() - 1);
-        return false;
-    }
-
-    /** Replaces the owner's list — what is left once some were handed over. */
-    public synchronized boolean setReturns(UUID owner, List<String> encoded) {
-        List<String> before = returns.get(owner);
-        if (encoded.isEmpty()) {
-            returns.remove(owner);
-        } else {
-            returns.put(owner, new ArrayList<>(encoded));
-        }
-        if (saveReturns()) {
-            return true;
-        }
-        if (before == null) {
-            returns.remove(owner);
-        } else {
-            returns.put(owner, before);
-        }
-        return false;
-    }
-
-    private boolean saveReturns() {
-        Map<UUID, List<String>> now = new LinkedHashMap<>();
-        returns.forEach((owner, list) -> now.put(owner, List.copyOf(list)));
-        return returnFile.write(yaml -> now.forEach((owner, list) -> yaml.set("returns." + owner, list)));
+    public boolean addReturn(UUID owner, String encoded) {
+        return returns.add(owner, encoded);
     }
 }

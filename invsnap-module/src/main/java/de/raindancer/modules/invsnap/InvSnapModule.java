@@ -19,6 +19,7 @@ import de.raindancer.modules.invsnap.model.ItemPolicy;
 import de.raindancer.modules.invsnap.screen.InsuranceMenu;
 import de.raindancer.modules.invsnap.service.ItemInsuranceService;
 import de.raindancer.modules.invsnap.store.ItemPolicyStore;
+import de.raindancer.modules.invsnap.store.ItemReturns;
 import java.util.function.Predicate;
 import de.raindancer.modules.invsnap.listener.PlayerDeathSnapshotListener;
 import de.raindancer.modules.invsnap.listener.PlayerQuitSnapshotListener;
@@ -50,7 +51,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.9.0")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -95,12 +96,19 @@ public final class InvSnapModule implements FlexModule {
         settings.onChange(snapshotService::settings);
         settings.onChange(autoSnapshotService::settings);
 
+        // Both are about a player wherever they play: who opted in, and what the policies are.
         InsuranceService insurance = InsuranceService.live(new InsuredStore(context.dataFolder()),
                 settings.current());
         settings.onChange(insurance::settings);
 
-        ItemInsuranceService itemInsurance = ItemInsuranceService.live(new ItemPolicyStore(context.dataFolder()),
-                server::getPlayer, settings.current());
+        // The items waiting to be collected may be claimed on any server: one table, claimed by a conditional delete.
+        ItemReturns returns = new ItemReturns(
+                context.core().databases().shared(ItemReturns.NAME, ItemReturns.SCHEMA), System::currentTimeMillis);
+        ItemPolicyStore policies = new ItemPolicyStore(
+                de.raindancer.core.data.store.YamlStore.network(context.dataFolder().resolve("item-policies.yml")),
+                new de.raindancer.core.data.store.YamlStore(context.dataFolder().resolve("item-returns.yml")), returns);
+        context.closeWith(returns.connect(context.core().bus()));
+        ItemInsuranceService itemInsurance = ItemInsuranceService.live(policies, server::getPlayer, settings.current());
         settings.onChange(itemInsurance::settings);
         // The answer to "is this policy in force": shops and auctions refuse an item while it is.
         Predicate<String> inForce = itemInsurance::inForce;

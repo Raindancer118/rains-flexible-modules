@@ -70,6 +70,20 @@ class WaypointVisibilityRuleTest {
     }
 
     @Test
+    @DisplayName("a place of another server is not offered, even to its owner; one with no server counts as here")
+    void onlyThisServer() {
+        de.raindancer.core.platform.network.ThisServer.set("smp");
+        try {
+            Poi.Builder base = Poi.builder("Base", "world", 0, 64, 0).kind("home").owner(VIEWER);
+            assertThat(openHanded.mayHave(VIEWER, base.server("arena").build())).isFalse();
+            assertThat(openHanded.mayHave(VIEWER, base.server("smp").build())).isTrue();
+            assertThat(openHanded.mayHave(VIEWER, base.server("").build())).isTrue();
+        } finally {
+            de.raindancer.core.platform.network.ThisServer.set("");
+        }
+    }
+
+    @Test
     @DisplayName("nobody in particular may have nothing in particular")
     void nullsRefuse() {
         assertThat(openHanded.mayHave(null, place(null, true, null))).isFalse();

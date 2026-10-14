@@ -26,6 +26,7 @@ invsnap:
     death-disabled: "<yellow>Death insurance is not offered on this server. Item insurance is: <white>/insurance item</white>."
     now-on: "<green>You are insured. If you die you pay the premium and keep your inventory — about <white><price></white> for what you carry right now."
     now-off: "<yellow>You are no longer insured. A death drops your things as usual."
+    not-saved: "<red>Your choice could not be saved just now. Try again in a moment."
     status-on: "<green>You are insured. Dying now would cost about <white><price></white>."
     status-off: "<gray>You are not insured. <white>/insurance on</white> insures you; dying now would cost about <white><price></white>."
     paid: "<green>Your insurance paid out: you kept your inventory for <white><price></white>."

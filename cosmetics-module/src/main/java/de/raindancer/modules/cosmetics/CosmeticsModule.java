@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class CosmeticsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.17.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("cosmetics", "Cosmetics", "0.18.0")
             .describedAs("Paint your own name and wear a particle effect")
             .by("Raindancer118");
 
@@ -95,8 +95,16 @@ public final class CosmeticsModule implements FlexModule {
                         context.core().travelShow(), particles, settings.current());
         teleports.start();
         context.closeWith(teleports::stop);
-        for (Player online : server.getOnlinePlayers()) {
-            Scheduling.entity(context.plugin(), online, () -> teleports.load(online));
+        // The teleport look is read back from the player's data whenever that changes: on a network Core puts what
+        // they chose elsewhere on them a moment after they join, and joins here are covered by the same check.
+        de.raindancer.modules.cosmetics.service.DataWatch watch =
+                new de.raindancer.modules.cosmetics.service.DataWatch(particles, teleports, context.core()::linkFollows);
+        watch.start(context.plugin(), server);
+        context.closeWith(watch::stop);
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
+            clearing.connectNetwork(new de.raindancer.modules.cosmetics.store.ClearNetwork(
+                    de.raindancer.modules.cosmetics.store.ClearNetwork.Directory.of(context.core().networkPlayers().get()),
+                    context.core().networkCalls().get()), server::getPlayer);
         }
         de.raindancer.modules.cosmetics.store.UnlockBook unlockBook = new de.raindancer.modules.cosmetics.store.UnlockBook(
                 de.raindancer.core.data.store.YamlStore.network(context.dataFolder().resolve("unlocks.yml")));
@@ -114,7 +122,7 @@ public final class CosmeticsModule implements FlexModule {
         teleports.entitlements(unlocks);
         services = new CosmeticsServices(context.plugin(), server, log, context.core().messages(),
                 context.chat().brand(), catalogue::current, settings::current, names, particles, reloading,
-                clearing, teleports, context.core().vanish(), new LiveScreens(), unlocks,
+                clearing, teleports, watch, context.core().vanish(), new LiveScreens(), unlocks,
                 context.core());
         // What admin mode swaps with the rest of a side: the worn particle, wings and teleport looks (all kept under
         // rainscosmetics: in the player's data) and the name style, so an admin wears different cosmetics as admin.

@@ -31,6 +31,7 @@ class StoresInTheDatabaseTest {
     Path plugins;
 
     private Database database;
+    private Database returns;
     private Documents documents;
     private Path data;
 
@@ -39,10 +40,12 @@ class StoresInTheDatabaseTest {
         database = TestDatabases.open(plugins.resolve("documents.db"), Documents.SCHEMA);
         documents = new Documents(database, null, plugins, "smp", System::currentTimeMillis);
         data = plugins.resolve("RainsInvSnap");
+        returns = TestDatabases.open(plugins.resolve("invsnap.db"), ItemReturns.SCHEMA);
     }
 
     @AfterEach
     void close() {
+        returns.close();
         database.close();
     }
 
@@ -52,6 +55,11 @@ class StoresInTheDatabaseTest {
 
     private YamlStore yaml(String name) {
         return new YamlStore(data.resolve(name), documents, Documents.Scope.SERVER);
+    }
+
+    private ItemPolicyStore policyStore() {
+        return new ItemPolicyStore(new YamlStore(data.resolve("item-policies.yml"), documents, Documents.Scope.NETWORK),
+                yaml("item-returns.yml"), new ItemReturns(returns, System::currentTimeMillis));
     }
 
     private static Snapshot taken(UUID player, Instant at) {
@@ -114,11 +122,11 @@ class StoresInTheDatabaseTest {
     void policiesAreDocuments() {
         UUID owner = UUID.randomUUID();
         ItemPolicy policy = new ItemPolicy("p1", owner, "Diamond Sword", "DIAMOND_SWORD", 5_000, 500, 123_456L, "", false);
-        ItemPolicyStore store = new ItemPolicyStore(yaml("item-policies.yml"), yaml("item-returns.yml"));
+        ItemPolicyStore store = policyStore();
         store.put(policy);
         store.addReturn(owner, "AAAA");
 
-        ItemPolicyStore again = new ItemPolicyStore(yaml("item-policies.yml"), yaml("item-returns.yml"));
+        ItemPolicyStore again = policyStore();
         assertThat(again.get("p1")).isEqualTo(policy);
         assertThat(again.returnsOf(owner)).containsExactly("AAAA");
         assertThat(Files.exists(data.resolve("item-policies.yml"))).isFalse();

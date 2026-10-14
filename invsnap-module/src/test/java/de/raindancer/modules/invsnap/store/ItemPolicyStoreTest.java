@@ -53,9 +53,9 @@ class ItemPolicyStoreTest {
 
         assertThat(new ItemPolicyStore(folder).returnsOf(owner)).containsExactly("AAAA", "BBBB");
 
-        store.setReturns(owner, List.of("BBBB"));
+        long first = store.returns().of(owner).getFirst().id();
+        assertThat(store.returns().claim(owner, List.of(first)).orElseThrow()).extracting(ItemReturns.Waiting::item)
+                .containsExactly("AAAA");
         assertThat(new ItemPolicyStore(folder).returnsOf(owner)).containsExactly("BBBB");
-        store.setReturns(owner, List.of());
-        assertThat(new ItemPolicyStore(folder).returnsOf(owner)).isEmpty();
     }
 }

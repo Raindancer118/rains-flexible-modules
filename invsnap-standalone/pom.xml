@@ -40,8 +40,10 @@
              screen behind /insurance.
              1.5.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
              1.8.0: RainsCore 2.0 — snapshots, insured players and item policies are documents in Core's database, no
-             files; snapshots older than snapshot.retention-days (7) are dropped, also those of players who left. -->
-        <plugin.version>1.8.0</plugin.version>
+             files; snapshots older than snapshot.retention-days (7) are dropped, also those of players who left.
+             1.9.0: network — death insurance opt-ins and item policies are the network's documents, items waiting to
+             be collected are one shared table claimed exactly once on any server; a premium is taken by one server. -->
+        <plugin.version>1.9.0</plugin.version>
     </properties>
 
     <dependencies>

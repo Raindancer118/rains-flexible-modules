@@ -20,6 +20,9 @@ import java.util.function.Predicate;
  *       {@code warp-module} stores all three of its access kinds in it, so asking that one node here
  *       gives exactly the same answer as the warp screen does — rather than a second copy of the rule
  *       that can be more generous than the first.</li>
+ *   <li><b>Only a place on this server.</b> On a network a place of another server may be in a world of the
+ *       same name as one here, and its coordinates would land on the wrong map. A place with no server
+ *       (kept before 2.0) is here.</li>
  * </ul>
  */
 public final class WaypointVisibilityRule implements IXaeroMapRule {
@@ -44,6 +47,9 @@ public final class WaypointVisibilityRule implements IXaeroMapRule {
 
     public boolean mayHave(UUID viewer, Poi place) {
         if (place == null || viewer == null) {
+            return false;
+        }
+        if (!place.isHere()) {
             return false;
         }
         if (viewer.equals(place.owner())) {
