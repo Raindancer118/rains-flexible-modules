@@ -1,0 +1,8 @@
+# The serious wording for this module: only the lines that differ from messages.yml.
+voicebridge:
+  group:
+    joined: "<aqua>You are connected to the Discord channel <white><channel></white> (<count> present). <yellow>Everything said in this group is transmitted to Discord."
+  proximity:
+    connected: "<aqua>Discord voice is connected. Players near you can hear you, and you can hear them. <gray>/voicebridge groups for voice groups."
+    dm:
+      has-mod: "Simple Voice Chat is installed in your game, so Discord is not needed for voice chat."

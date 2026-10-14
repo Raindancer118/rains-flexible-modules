@@ -81,6 +81,7 @@ public final class VoiceBridgeModule implements FlexModule {
         context.core().messages().defineFrom(
                 VoiceBridgeModule.class.getResourceAsStream("messages.yml"),
                 context.chat().brand()::chatPrefix);
+        context.core().messages().seriousFrom(VoiceBridgeModule.class.getResourceAsStream("messages-serious.yml"));
         PermissionNodes.register(context.plugin().getServer());
 
         TokenFile tokens = TokenFile.in(context.dataFolder());
