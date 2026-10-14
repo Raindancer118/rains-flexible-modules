@@ -215,6 +215,58 @@ public final class BankService implements IGuildsService {
     }
 
     /**
+     * Pays {@code to} from the bank on the guild's behalf: any sum the bank holds, no daily limit, for ranks allowed
+     * to pay. Debited first, the payee paid after; if that fails, the bank gets it back. Paying oneself is taking out.
+     */
+    public GuildOutcome pay(UUID payer, UUID to, Money amount) {
+        if (!settings.bankEnabled()) {
+            return GuildOutcome.SWITCHED_OFF;
+        }
+        Optional<Economy> bank = economy.get();
+        if (bank.isEmpty()) {
+            return GuildOutcome.ECONOMY_DOWN;
+        }
+        Optional<Guild> found = book.guildOf(payer);
+        if (found.isEmpty()) {
+            return GuildOutcome.NO_GUILD;
+        }
+        if (amount == null || !amount.isPositive()) {
+            return GuildOutcome.INVALID_AMOUNT;
+        }
+        if (payer.equals(to)) {
+            return GuildOutcome.YOURSELF;
+        }
+        Guild guild = found.get();
+        GuildOutcome may = ranks.may(guild, payer, GuildPermission.PAY);
+        if (!may.isSuccess()) {
+            return may;
+        }
+        AtomicReference<GuildOutcome> refused = new AtomicReference<>();
+        GuildOutcome debited = book.update(guild.id(), now -> {
+            if (amount.minor() > now.bank()) {
+                refused.set(GuildOutcome.BANK_EMPTY);
+                return now;
+            }
+            return now.withBank(now.bank() - amount.minor());
+        });
+        GuildOutcome outcome = refused.get() != null ? refused.get() : debited;
+        if (!outcome.isSuccess()) {
+            return outcome;
+        }
+        EconomyResult paid = bank.get().deposit(to, amount, "Paid by " + guild.name(), SOURCE);
+        if (!paid.succeeded()) {
+            book.update(guild.id(), now -> now.withBank(now.bank() + amount.minor()));
+            return GuildOutcome.ECONOMY_DOWN;
+        }
+        book.log(GuildEvent.of(guild.id().value(), clock.getAsLong(), GuildEvent.Kind.WITHDRAWAL, payer, to, amount.minor(),
+                "paid"));
+        notify.holding(guild, GuildPermission.VIEW_LOG, "guilds.bank.paid-told", "player", notify.name(payer),
+                "to", notify.name(to), "amount", format(amount.minor()));
+        notify.tell(to, "guilds.bank.paid-you", "guild", GuildNotifier.title(guild), "amount", format(amount.minor()));
+        return GuildOutcome.SUCCESS;
+    }
+
+    /**
      * The bank as Core's treasury for the guild's groups: pays what the guild's officers agreed to (a claim's upkeep)
      * straight from the bank, all or nothing, written in the guild's log. Nobody's daily limit applies — no member
      * takes it.

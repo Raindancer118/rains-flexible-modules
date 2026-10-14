@@ -367,6 +367,42 @@ class ServicesTest {
         }
 
         @Test
+        @DisplayName("paying someone from the bank: any sum it holds, no daily limit, only for ranks allowed to pay")
+        void pay() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            guilds.setRank(ALICE, BOB, Rank.OFFICER);
+            long limit = guild(ALICE).rank(Rank.OFFICER).orElseThrow().dailyLimit();
+            economy.give(ALICE, 100 * limit);
+            bank.deposit(ALICE, Money.of(100 * limit));
+
+            assertThat(bank.pay(BOB, CAROL, Money.of(1))).as("taking out is not paying").isEqualTo(GuildOutcome.NOT_ALLOWED);
+            guilds.toggle(ALICE, Rank.OFFICER, GuildPermission.PAY);
+            assertThat(bank.pay(BOB, CAROL, Money.of(10 * limit))).as("far above the daily limit")
+                    .isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.pay(BOB, BOB, Money.of(1))).as("that is taking out").isEqualTo(GuildOutcome.YOURSELF);
+            assertThat(bank.pay(ALICE, DAVE, Money.of(90 * limit))).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.pay(ALICE, DAVE, Money.of(1))).isEqualTo(GuildOutcome.BANK_EMPTY);
+            assertThat(bank.pay(ALICE, DAVE, Money.of(0))).isEqualTo(GuildOutcome.INVALID_AMOUNT);
+            assertThat(bank.pay(CAROL, DAVE, Money.of(1))).isEqualTo(GuildOutcome.NO_GUILD);
+
+            assertThat(economy.balance(CAROL).minor()).isEqualTo(10 * limit);
+            assertThat(economy.balance(DAVE).minor()).isEqualTo(90 * limit);
+            assertThat(guild(ALICE).bank()).isZero();
+        }
+
+        @Test
+        @DisplayName("when paying someone fails, the guild gets its money back")
+        void failedPay() {
+            found(ALICE, "Elves", "ELF");
+            economy.give(ALICE, 1000);
+            bank.deposit(ALICE, Money.of(1000));
+            economy.depositsFail(true);
+            assertThat(bank.pay(ALICE, CAROL, Money.of(300))).isEqualTo(GuildOutcome.ECONOMY_DOWN);
+            assertThat(guild(ALICE).bank()).isEqualTo(1000);
+        }
+
+        @Test
         @DisplayName("as a treasury the bank pays what the guild agreed to (a claim's upkeep), all or nothing")
         void treasury() {
             found(ALICE, "Elves", "ELF");

@@ -98,6 +98,15 @@ class GuildsScenarioTest {
             ada.forgetChat();
             ada.run("guild withdraw 9999");
             Await.until("not more than is there", WAIT, () -> told(ada, "does not hold that much"));
+            // ---- paying someone from the bank: the leader may, any sum it holds; a recruit may not
+            ada.forgetChat();
+            cy.forgetChat();
+            ada.run("guild pay Cy 120");
+            Await.until("paid from the bank", WAIT, () -> told(ada, "The guild paid"));
+            Await.until("and told so", WAIT, () -> told(cy, "paid you"));
+            bo.forgetChat();
+            bo.run("guild pay Cy 1");
+            Await.until("a recruit may not pay", WAIT, () -> told(bo, "Your rank cannot do that"));
 
             // ---- ranks: the leader promotes, the recruit cannot kick
             ada.forgetChat();

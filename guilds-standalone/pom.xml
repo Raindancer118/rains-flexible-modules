@@ -38,7 +38,8 @@
         <!-- 0.9.0: a network's guilds (RainsCore 2.0): one namespace of names and tags, members on any server, bank and experience written as additions, vault as rows, home with its server, chat and notices across servers; the per-server data comes into the shared database. -->
         <!-- 0.10.0: the bank is Core's treasury for the guild: it pays a claim's upkeep its officers agreed to (/claim guild pays), logged and told. -->
         <!-- 0.12.0: /guild shards opens the enchantments page (shift-click a stack of shards in your inventory to pay it in), /guild shards add pays in every shard you carry, each up to what the guild still needs. -->
-        <plugin.version>0.12.0</plugin.version>
+        <!-- 0.13.0: /guild pay <player> <amount> — the guild pays anybody from its bank, any sum it holds, no daily limit; a new rank permission (Pay from the bank), the leader's alone by default. -->
+        <plugin.version>0.13.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -14,6 +14,7 @@ public enum GuildPermission {
     KICK("Kick members", Material.IRON_BOOTS, "Remove members of a lower rank."),
     PROMOTE("Promote and demote", Material.GOLDEN_HELMET, "Move members of a lower rank up or down, below their own."),
     WITHDRAW("Take from the bank", Material.GOLD_INGOT, "Take money out of the guild bank, up to the rank's daily limit."),
+    PAY("Pay from the bank", Material.EMERALD, "Pay anybody from the guild bank, any sum it holds — no daily limit."),
     SET_HOME("Set the guild home", Material.RED_BED, "Move the guild home to where they stand."),
     USE_HOME("Use the guild home", Material.ENDER_PEARL, "Travel to the guild home."),
     EDIT_INFO("Edit the guild", Material.NAME_TAG, "Change the message of the day, colour, emblem and how people join."),

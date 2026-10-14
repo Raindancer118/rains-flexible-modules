@@ -48,6 +48,9 @@ guilds:
     withdrawn-told: "<gray><white><player></white> took <white><amount></white> out of the bank."
     paid-for-told: "<gray>The bank paid <white><amount></white>: <white><reason></white>."
     share: "<green>Your share of <guild><green>'s bank: <white><amount></white>."
+    paid: "<green>The guild paid <white><amount></white> to <white><player></white>."
+    paid-told: "<gray><white><player></white> paid <white><amount></white> from the bank to <white><to></white>."
+    paid-you: "<green><guild><green> paid you <white><amount></white>."
   home:
     set-told: "<gray><white><player></white> moved the guild home to <white><where></white>."
     wait: "<red>Not so fast — the guild home is still there in <white><time></white>."
@@ -94,10 +97,11 @@ guilds:
   log:
     line: "<gray><white><what></white> <dark_gray>(<when>)</dark_gray> <detail>"
   usage:
-    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · perks · shards [add] · vault · crown · invite · join · leave · c <message> · home · deposit · ally"
+    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · perks · shards [add] · vault · crown · invite · join · leave · c <message> · home · deposit · pay · ally"
     found: "<gray>/guild create <name> <tag> <dark_gray>— e.g. /guild create The Elves ELF"
     player: "<gray>Name a player."
     rank: "<gray>/guild rank <player> <rank>"
+    pay: "<gray>/guild pay <player> <amount> <dark_gray>— from the guild bank, any sum it holds"
     chat: "<gray>/guild c <message> <dark_gray>· oc for officers · ac for allies"
     joining: "<gray>/guild joining <invite|apply|open>"
     which-invitation: "<gray>You have <white><count></white> invitations — say which guild: /guild accept <guild>"

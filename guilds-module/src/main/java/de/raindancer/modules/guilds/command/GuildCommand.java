@@ -40,7 +40,7 @@ public final class GuildCommand implements IGuildsCommand {
 
     static final List<String> SUBCOMMANDS = List.of("create", "info", "list", "invite", "accept", "decline", "join",
             "leave", "kick", "promote", "demote", "rank", "leader", "chat", "c", "officer", "oc", "ally-chat", "ac",
-            "home", "sethome", "deposit", "withdraw", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
+            "home", "sethome", "deposit", "withdraw", "pay", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
             "motd", "joining", "disband", "level", "contracts", "perks", "vault", "prestige", "crown", "shards");
     static final List<String> STAFF = List.of("admin");
 
@@ -171,6 +171,7 @@ public final class GuildCommand implements IGuildsCommand {
                     .orElse(GuildOutcome.INVALID_AMOUNT));
             case "withdraw" -> say(live, player, live.bank().parse(rest).map(amount -> live.bank().withdraw(me, amount))
                     .orElse(GuildOutcome.INVALID_AMOUNT));
+            case "pay" -> pay(live, player, rest);
             case "ally" -> withGuild(live, player, rest, guild -> say(live, player,
                     live.guilds().guildOf(me).filter(own -> live.relations().alliancesAskedOf(own).stream()
                                     .anyMatch(asked -> asked.guild().equals(guild.id().value())))
@@ -228,6 +229,26 @@ public final class GuildCommand implements IGuildsCommand {
             return;
         }
         say(live, player, outcome);
+    }
+
+    /** {@code /guild pay <player> <amount>} — the guild pays them from its bank. */
+    private static void pay(GuildsServices live, Player player, String rest) {
+        String[] parts = rest.strip().split("\\s+", 2);
+        if (parts.length < 2) {
+            live.messages().send(player, "guilds.usage.pay");
+            return;
+        }
+        withPlayer(live, player, parts[0], target -> {
+            Optional<de.raindancer.core.social.economy.Money> amount = live.bank().parse(parts[1]);
+            GuildOutcome outcome = amount.map(sum -> live.bank().pay(player.getUniqueId(), target, sum))
+                    .orElse(GuildOutcome.INVALID_AMOUNT);
+            if (outcome.isSuccess()) {
+                live.messages().send(player, "guilds.bank.paid", "player", parts[0],
+                        "amount", live.bank().format(amount.orElseThrow().minor()));
+            } else {
+                say(live, player, outcome);
+            }
+        });
     }
 
     private static void say(GuildsServices live, CommandSender sender, GuildOutcome outcome) {
@@ -409,7 +430,7 @@ public final class GuildCommand implements IGuildsCommand {
         } else if (args.length == 2) {
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "shards", "enchants" -> options.add("add");
-                case "invite", "kick", "promote", "demote", "rank", "leader" ->
+                case "invite", "kick", "promote", "demote", "rank", "leader", "pay" ->
                         live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
                 case "join", "apply", "info", "ally", "unally", "rival", "unrival", "accept", "decline" ->
                         live.book().all().forEach(guild -> options.add(guild.tag()));
