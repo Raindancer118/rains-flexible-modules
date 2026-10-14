@@ -31,7 +31,7 @@
              0.1.0: /island from every server (to the island server through the proxy), team and guest
              invites to and from players anywhere on the network, joined through BentoBox's own accept. -->
         <!-- 0.3.0: runs on a RainsCore 2.0 network — invites and answers go to the island server over the network's calls (its id is the proxy-server setting), names and lines go through the network's presence, players are sent by the network's travel. The server link still works on a server that is not on a network. -->
-        <plugin.version>0.3.0</plugin.version>
+        <plugin.version>0.3.1</plugin.version>
     </properties>
 
     <dependencies>

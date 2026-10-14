@@ -16,9 +16,9 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The island server answering the others, on every link it has and on the network's calls. Handlers wait for the
- * service, which works on the server thread — a tick or two. On a network that is the bus's thread waiting, so the
- * wait is short and nothing in it waits on another server.
+ * The island server answering the others, on every link it has and on the network's calls. On the link handlers
+ * wait for the service, which works on the server thread; on a network they answer later, so the bus never waits.
+ * On a network a server speaks only for players who are on it: another server cannot invite or accept in their name.
  */
 public final class IslandEndpoint {
 
@@ -28,16 +28,20 @@ public final class IslandEndpoint {
     private final InviteService invites;
     private final Collection<ServerLink> links;
     private final Optional<NetworkCalls> calls;
+    private final java.util.function.BiPredicate<UUID, String> isOn;
     private final List<NetworkBus.Subscription> answering = new ArrayList<>();
 
     public IslandEndpoint(InviteService invites, Collection<ServerLink> links) {
-        this(invites, links, Optional.empty());
+        this(invites, links, Optional.empty(), (player, server) -> false);
     }
 
-    public IslandEndpoint(InviteService invites, Collection<ServerLink> links, Optional<NetworkCalls> calls) {
+    /** @param isOn whether a player is on a server of the network now (presence) */
+    public IslandEndpoint(InviteService invites, Collection<ServerLink> links, Optional<NetworkCalls> calls,
+                          java.util.function.BiPredicate<UUID, String> isOn) {
         this.invites = invites;
         this.links = links;
         this.calls = calls;
+        this.isOn = isOn;
     }
 
     public void listen() {
@@ -46,9 +50,47 @@ public final class IslandEndpoint {
             link.on(IslandProtocol.ANSWER, this::answer);
         }
         calls.ifPresent(network -> {
-            answering.add(network.answer(IslandProtocol.INVITE, this::invite));
-            answering.add(network.answer(IslandProtocol.ANSWER, this::answer));
+            answering.add(network.answerFrom(IslandProtocol.INVITE, (from, data) -> forOwn(from, data.get("from"))
+                    ? inviteLater(data) : asleep()));
+            answering.add(network.answerFrom(IslandProtocol.ANSWER, (from, data) -> forOwn(from, data.get("player"))
+                    ? answerLater(data) : asleep()));
         });
+    }
+
+    private boolean forOwn(String server, String player) {
+        try {
+            return isOn.test(UUID.fromString(player), server);
+        } catch (RuntimeException garbled) {
+            return false;
+        }
+    }
+
+    private static java.util.concurrent.CompletableFuture<Map<String, String>> asleep() {
+        return java.util.concurrent.CompletableFuture.completedFuture(ASLEEP.toWire());
+    }
+
+    private java.util.concurrent.CompletableFuture<Map<String, String>> inviteLater(Map<String, String> data) {
+        try {
+            Requester from = new Requester(UUID.fromString(data.get("from")), data.getOrDefault("fromName", "?"));
+            return later(invites.invite(from, data.get("to"), InviteKind.fromWire(data.get("kind"))));
+        } catch (RuntimeException garbled) {
+            return asleep();
+        }
+    }
+
+    private java.util.concurrent.CompletableFuture<Map<String, String>> answerLater(Map<String, String> data) {
+        try {
+            Requester who = new Requester(UUID.fromString(data.get("player")), data.getOrDefault("name", "?"));
+            return later(invites.answer(who, data.get("from"), "true".equals(data.get("accept")), false));
+        } catch (RuntimeException garbled) {
+            return asleep();
+        }
+    }
+
+    private static java.util.concurrent.CompletableFuture<Map<String, String>> later(
+            java.util.concurrent.CompletableFuture<Reply> reply) {
+        return reply.orTimeout(WAIT_SECONDS, TimeUnit.SECONDS).thenApply(Reply::toWire)
+                .exceptionally(failed -> ASLEEP.toWire());
     }
 
     private Map<String, String> invite(Map<String, String> data) {

@@ -40,7 +40,7 @@ import java.util.concurrent.Executor;
  */
 public final class OneBlockModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("oneblock", "OneBlock", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("oneblock", "OneBlock", "0.3.1")
             .describedAs("OneBlock islands on their own server, with /island and invites from anywhere on the network.")
             .by("Raindancer118");
 
@@ -92,7 +92,8 @@ public final class OneBlockModule implements FlexModule {
             invites = Optional.of(service);
             gateway = new LocalGateway(service, host.get(), onServer);
             List<ServerLink> links = new ArrayList<>(context.core().links().all().values());
-            endpoint = new IslandEndpoint(service, links, calls);
+            endpoint = new IslandEndpoint(service, links, calls, (player, at) -> context.core().networkPlayers()
+                    .flatMap(players -> players.where(player, true)).filter(here -> here.server().equals(at)).isPresent());
             endpoint.listen();
             var timer = Scheduling.globalTimer(context.plugin(), SWEEP_TICKS, SWEEP_TICKS, task -> service.sweep());
             if (timer != null) {

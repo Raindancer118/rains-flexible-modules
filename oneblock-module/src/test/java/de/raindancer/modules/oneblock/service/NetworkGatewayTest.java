@@ -42,7 +42,9 @@ class NetworkGatewayTest {
                 (name, key, values) -> { },
                 name -> CompletableFuture.completedFuture(Optional.of(new LinkDirectory.Found(bo, "Bo", "hub"))),
                 Runnable::run, System::currentTimeMillis, OneBlockSettings.DEFAULTS);
-        IslandEndpoint endpoint = new IslandEndpoint(service, List.of(), Optional.of(calls));
+        // Ada and Bo play on the hub.
+        IslandEndpoint endpoint = new IslandEndpoint(service, List.of(), Optional.of(calls),
+                (player, server) -> server.equals(player.equals(bo) || player.equals(ada.id()) ? "hub" : "smp"));
         endpoint.listen();
         open.add(endpoint::stop);
         return endpoint;
@@ -90,5 +92,22 @@ class NetworkGatewayTest {
     void homeAsksNothing() throws Exception {
         assertThat(RemoteGateway.overNetwork(calls("hub"), () -> "oneblock").home(ada).get(1, TimeUnit.SECONDS).transfer())
                 .isTrue();
+    }
+
+    @Test
+    @DisplayName("a server speaks only for its own players: an answer or invite for somebody playing elsewhere is refused")
+    void onlyForItsOwnPlayers() throws Exception {
+        island(calls("oneblock"));
+        RemoteGateway fromHub = RemoteGateway.overNetwork(calls("hub"), () -> "oneblock");
+        RemoteGateway fromSmp = RemoteGateway.overNetwork(calls("smp"), () -> "oneblock");
+
+        assertThat(fromSmp.invite(ada, "bo", InviteKind.TEAM).get(10, TimeUnit.SECONDS).key())
+                .as("Ada is on the hub, not on smp").isEqualTo("oneblock.refuse.asleep");
+        assertThat(fromHub.invite(ada, "bo", InviteKind.GUEST).get(10, TimeUnit.SECONDS).key())
+                .isEqualTo("oneblock.invite.sent-guest");
+        assertThat(fromSmp.answer(new Requester(bo, "Bo"), "Ada", true).get(10, TimeUnit.SECONDS).transfer())
+                .as("smp cannot accept for Bo").isFalse();
+        assertThat(fromHub.answer(new Requester(bo, "Bo"), "Ada", true).get(10, TimeUnit.SECONDS).key())
+                .as("the invite is still there for Bo himself").isEqualTo("oneblock.accept.on-the-way");
     }
 }

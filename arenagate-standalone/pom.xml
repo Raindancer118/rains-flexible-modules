@@ -47,7 +47,7 @@
         <!-- 0.7.2: /pvp invite to somebody on the hub or OneBlock says where they are instead of "nobody is online". -->
         <!-- 0.7.3: a fight in one's own gear no longer fails for somebody who is mid-transfer: when their scheduler is already gone the gear copy is read from the file saved as they leave. -->
         <!-- 0.8.0: runs on a RainsCore 2.0 network — talks to the arena server named in the settings over the network's calls (any number of survival servers can use one arena); stakes are held in this server's own database and paid through Core's economy (the network's bank), answered off the bus's thread, never settled while the bank cannot be reached, a winner from another server paid out of this pot. The server link still works on a server that is not on a network. Needs arena-api 0.6.0. -->
-        <plugin.version>0.8.0</plugin.version>
+        <plugin.version>0.8.1</plugin.version>
     </properties>
 
     <dependencies>

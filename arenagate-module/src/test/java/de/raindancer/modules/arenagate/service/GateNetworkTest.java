@@ -110,7 +110,7 @@ class GateNetworkTest {
         NetworkWire.Directory directory = new NetworkWire.Directory() {
             @Override
             public Set<String> servers() {
-                return Set.of("arena", "smp-1", "smp-2");
+                return Set.of("arena", "smp-1", "smp-2", "hub");
             }
 
             @Override
@@ -266,5 +266,26 @@ class GateNetworkTest {
         bankUp[0] = true;
         assertThat(pay(arena, "smp-1", "f1", Map.of(ADA, 200L))).containsEntry("ok", "true");
         assertThat(bank.balances).containsEntry(ADA, 600L).containsEntry(BO, 400L);
+    }
+
+    @Test
+    @DisplayName("only the arena may move stakes: another server of the network holding, paying or refunding is refused")
+    void onlyTheArena() throws Exception {
+        GateConsents first = gate("smp-1");
+        GateConsents second = gate("smp-2");
+        NetworkWire arena = wire("arena");
+        NetworkWire elsewhere = wire("hub");
+        everybodyHasMoneyAndAgreed(first, second);
+        UUID thief = UUID.fromString("00000000-0000-0000-0000-0000000000ff");
+
+        assertThat(hold(elsewhere, "smp-1", "f9", ADA + "," + BO)).containsEntry("ok", "false");
+        assertThat(bank.balances).containsEntry(ADA, 500L).containsEntry(BO, 500L);
+
+        assertThat(hold(arena, "smp-1", "f1", ADA + "," + BO)).containsEntry("ok", "true");
+        assertThat(ask(elsewhere, "smp-1", ArenaProtocol.STAKE_PAY, Map.of("fight", "f1", "payouts", thief + "=200",
+                "participants", thief.toString()))).containsEntry("ok", "false");
+        assertThat(ask(elsewhere, "smp-1", ArenaProtocol.STAKE_REFUND, Map.of("fight", "f1"))).containsEntry("ok", "false");
+        assertThat(bank.balances).containsEntry(ADA, 400L).containsEntry(BO, 400L).doesNotContainKey(thief);
+        assertThat(ask(elsewhere, "smp-1", ArenaProtocol.GEAR, Map.of("player", ADA.toString()))).containsEntry("ok", "false");
     }
 }

@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
  */
 public final class GateNetwork {
 
+    private static final de.raindancer.core.platform.log.LogChannel LOG = de.raindancer.core.platform.log.Log.of("arenagate");
+
     private final Plugin plugin;
     private final Server server;
     private final Messages messages;
@@ -72,13 +74,15 @@ public final class GateNetwork {
     }
 
     public void listen() {
+        // Everything here is the arena's to ask. On a network every server can send these, and a server that is not
+        // the arena must not hold, pay or refund a stake, copy gear, or invite and summon in its name.
         // Money and gear wait on the bank, the database and the world: answered later, off the bus's thread.
-        wire.onLater(ArenaProtocol.STAKE_HOLD, (peer, data) -> CompletableFuture.completedFuture(hold(data)));
-        wire.onLater(ArenaProtocol.STAKE_PAY, (peer, data) -> CompletableFuture.completedFuture(pay(data)));
-        wire.onLater(ArenaProtocol.STAKE_REFUND, (peer, data) -> CompletableFuture.completedFuture(
+        onLaterFromArena(ArenaProtocol.STAKE_HOLD, (peer, data) -> CompletableFuture.completedFuture(hold(data)));
+        onLaterFromArena(ArenaProtocol.STAKE_PAY, (peer, data) -> CompletableFuture.completedFuture(pay(data)));
+        onLaterFromArena(ArenaProtocol.STAKE_REFUND, (peer, data) -> CompletableFuture.completedFuture(
                 Map.of("ok", String.valueOf(escrow.refund(data.get("fight"))))));
-        wire.onLater(ArenaProtocol.GEAR, (peer, data) -> CompletableFuture.completedFuture(gear(data)));
-        wire.on(ArenaProtocol.CONSENT, (peer, data) -> {
+        onLaterFromArena(ArenaProtocol.GEAR, (peer, data) -> CompletableFuture.completedFuture(gear(data)));
+        onFromArena(ArenaProtocol.CONSENT, (peer, data) -> {
             try {
                 consents.agree(UUID.fromString(data.get("player")), Long.parseLong(data.getOrDefault("stake", "0")),
                         "true".equals(data.get("gear")));
@@ -87,8 +91,8 @@ public final class GateNetwork {
             }
             return null;
         });
-        wire.on(ArenaProtocol.WHERE, (peer, data) -> where(data));
-        wire.on(ArenaProtocol.GROUP, (peer, data) -> {
+        onFromArena(ArenaProtocol.WHERE, (peer, data) -> where(data));
+        onFromArena(ArenaProtocol.GROUP, (peer, data) -> {
             try {
                 return de.raindancer.core.social.team.Groups.of(UUID.fromString(data.get("player"))).stream().findFirst()
                         .map(group -> Map.of("id", group.id(), "tag", group.tag(), "name", group.name()))
@@ -97,9 +101,9 @@ public final class GateNetwork {
                 return Map.of("id", "");
             }
         });
-        wire.on(ArenaProtocol.INVITE, (peer, data) -> inviteFromArena(data));
-        wire.on(ArenaProtocol.SUMMON, (peer, data) -> summon(data));
-        wire.on(ArenaProtocol.INVITE_CANCEL, (peer, data) -> {
+        onFromArena(ArenaProtocol.INVITE, (peer, data) -> inviteFromArena(data));
+        onFromArena(ArenaProtocol.SUMMON, (peer, data) -> summon(data));
+        onFromArena(ArenaProtocol.INVITE_CANCEL, (peer, data) -> {
             java.util.Optional<GateInvites.Pending> taken;
             try {
                 taken = invites.cancel(UUID.fromString(data.get("from")), data.get("id"));
@@ -114,7 +118,7 @@ public final class GateNetwork {
             });
             return Map.of("ok", String.valueOf(taken.isPresent()));
         });
-        wire.on(ArenaProtocol.RETURNING, (peer, data) -> {
+        onFromArena(ArenaProtocol.RETURNING, (peer, data) -> {
             try {
                 returning.add(UUID.fromString(data.get("player")));
             } catch (RuntimeException garbled) {
@@ -122,6 +126,27 @@ public final class GateNetwork {
             }
             return null;
         });
+    }
+
+    /** Whether {@code peer} is the arena: on the link the one peer there is, on a network the server the settings name. */
+    boolean isArena(String peer) {
+        return wire.defaultPeer().isPresent() || peer != null && peer.equalsIgnoreCase(arena.get());
+    }
+
+    private static final Map<String, String> REFUSED = Map.of("ok", "false", "who", "nobody (not asked by the arena)");
+
+    private void onFromArena(String topic, Wire.Handler handler) {
+        wire.on(topic, (peer, data) -> isArena(peer) ? handler.handle(peer, data) : refused(topic, peer));
+    }
+
+    private void onLaterFromArena(String topic, Wire.LaterHandler handler) {
+        wire.onLater(topic, (peer, data) -> isArena(peer) ? handler.handle(peer, data)
+                : CompletableFuture.completedFuture(refused(topic, peer)));
+    }
+
+    private Map<String, String> refused(String topic, String peer) {
+        LOG.warn("Server '{}' asked {}, which only the arena ('{}') may ask; refused.", peer, topic, arena.get());
+        return REFUSED;
     }
 
     public void stop() {
