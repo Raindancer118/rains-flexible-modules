@@ -25,11 +25,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -38,19 +35,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import de.raindancer.core.data.store.DocumentFolder;
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
 
 /**
- * One YAML file per claim under {@code plugins/RainsExtendedClaims/claims/}.
+ * One YAML document per claim in a {@link DocumentFolder} ({@code claims/<id>.yml}) — a row in Core's database,
+ * or a file of that name without Core, and a 1.x file still lying there is brought in when first read.
  * <p>
- * A file per claim keeps saves cheap (only dirty claims are written), makes manual admin surgery
- * possible and avoids one corrupt entry taking down every claim on the server. Writes go through a
- * temporary file and an atomic move.
+ * A document per claim keeps saves cheap (only dirty claims are written) and avoids one corrupt entry taking
+ * down every claim on the server. Claims belong to this server's worlds, so they stay per server.
  */
 public final class ClaimStorage {
 
-    /** Makes every temporary write file unique, so concurrent saves cannot clobber each other. */
     /**
      * The shape of a claim file this version writes.
      * <p>
@@ -66,32 +64,27 @@ public final class ClaimStorage {
      */
     public static final int DATA_VERSION = 2;
 
-    private static final java.util.concurrent.atomic.AtomicLong WRITE_COUNTER =
-            new java.util.concurrent.atomic.AtomicLong();
-
     private static final LogChannel log = Log.of("land");
 
-    private final Path directory;
+    private static final String SUFFIX = ".yml";
+
+    private final DocumentFolder folder;
 
     public ClaimStorage(Path dataFolder) {
-        this.directory = dataFolder.resolve("claims");
+        this(DocumentFolder.of(dataFolder.resolve("claims")));
     }
 
-    public void ensureDirectory() throws IOException {
-        Files.createDirectories(directory);
+    public ClaimStorage(DocumentFolder folder) {
+        this.folder = folder;
     }
 
     public List<Claim> loadAll() {
         List<Claim> claims = new ArrayList<>();
-        File[] files = directory.toFile().listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null) {
-            return claims;
-        }
         java.util.List<String> unreadable = new java.util.ArrayList<>();
         int upgraded = 0;
-        for (File file : files) {
+        for (String name : folder.names(SUFFIX)) {
             try {
-                Claim claim = load(file);
+                Claim claim = load(name);
                 if (claim != null) {
                     claims.add(claim);
                     if (claim.dirty()) {
@@ -99,9 +92,9 @@ public final class ClaimStorage {
                     }
                 }
             } catch (RuntimeException exception) {
-                unreadable.add(file.getName());
-                log.error(exception, "Could not load claim file " + file.getName()
-                        + " — it is being skipped, the file was left untouched.");
+                unreadable.add(name);
+                log.error(exception, "Could not load claim " + name
+                        + " — it is being skipped, the document was left untouched.");
             }
         }
         if (!unreadable.isEmpty()) {
@@ -122,8 +115,15 @@ public final class ClaimStorage {
         return claims;
     }
 
-    private Claim load(File file) {
-        return fromYaml(YamlConfiguration.loadConfiguration(file), file.getName());
+    private Claim load(String name) {
+        YamlStore store = folder.store(name);
+        YamlConfiguration yaml = store.read();
+        // An unparsable document reads as empty, which fromYaml would skip as "no id" — quietly. It has to
+        // be the loud failure instead: that land is unprotected until somebody looks.
+        if (!store.problems().isEmpty()) {
+            throw new IllegalStateException(String.join("; ", store.problems()));
+        }
+        return fromYaml(yaml, name);
     }
 
     /**
@@ -540,7 +540,9 @@ public final class ClaimStorage {
 
     /** Writes a description made earlier. Disk work, and safe to do off the server's threads. */
     public void write(YamlConfiguration yaml, UUID id) throws IOException {
-        writeAtomically(yaml, id);
+        if (!folder.store(nameOf(id)).writeText(yaml.saveToString())) {
+            throw new IOException("Could not write claim " + id);
+        }
     }
 
     // ------------------------------------------------------------ flags
@@ -710,30 +712,13 @@ public final class ClaimStorage {
         return raw.startsWith("n") ? -Integer.parseInt(raw.substring(1)) : Integer.parseInt(raw);
     }
 
-    private void writeAtomically(YamlConfiguration yaml, UUID id) throws IOException {
-        Files.createDirectories(directory);
-        Path target = directory.resolve(id + ".yml");
-        // The temporary name must be unique per write. Two saves of the same claim can overlap — an
-        // auto-save and an edit, say — and with a shared name the first one to finish moves the file
-        // away while the second is still writing to it, which then dies with NoSuchFileException and
-        // loses that save entirely.
-        Path temporary = directory.resolve(id + ".yml." + WRITE_COUNTER.incrementAndGet() + ".tmp");
-        Files.writeString(temporary, yaml.saveToString());
-        try {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException atomicUnsupported) {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            // A failed move must not leave the scratch file behind.
-            Files.deleteIfExists(temporary);
-        }
+    private static String nameOf(UUID id) {
+        return id + SUFFIX;
     }
 
     public void delete(UUID claimId) throws IOException {
-        Files.deleteIfExists(directory.resolve(claimId + ".yml"));
-    }
-
-    public Path directory() {
-        return directory;
+        if (!folder.delete(nameOf(claimId))) {
+            throw new IOException("Could not delete claim " + claimId);
+        }
     }
 }

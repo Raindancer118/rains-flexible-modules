@@ -2,6 +2,7 @@ package de.raindancer.modules.mannequin.store;
 
 import io.papermc.paper.registry.RegistryKey;
 import io.papermc.paper.registry.RegistryAccess;
+import de.raindancer.core.data.store.DocumentFolder;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
@@ -15,9 +16,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.EquipmentSlot;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,41 +26,40 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * One mannequin, one file — {@code <dataFolder>/mannequins/<id>.yml}.
+ * One mannequin, one document — {@code mannequins/<id>.yml} in a {@link DocumentFolder}: a row in Core's
+ * database, or a file of that name without Core; a 1.x file still lying there is brought in when first read.
+ * A mannequin stands in this server's world, so it stays per server.
  *
  * <h2>Why one file per mannequin rather than one file for all of them</h2>
  * A server with a training room might have a dozen of these, not the thousands a location pool can
  * hold — and a mannequin is edited far more often, one at a time, through the loadout and skin
  * screens. A single shared file would mean every equip click rewrites everybody else's dummy too.
  *
- * <h2>Every write is atomic</h2>
- * Through {@link YamlStore}: write-to-a-temporary-then-move, so a server killed mid-save leaves the
- * old file or the new one and never half of either.
+ * <h2>Every write is whole</h2>
+ * Through {@link YamlStore}: a server killed mid-save leaves the old document or the new one and never
+ * half of either.
  */
 public final class MannequinStore {
 
     private static final LogChannel log = Log.of("mannequin");
 
-    private final Path folder;
+    private static final String SUFFIX = ".yml";
+
+    private final DocumentFolder folder;
 
     public MannequinStore(Path dataFolder) {
-        this.folder = dataFolder.resolve("mannequins");
-        try {
-            Files.createDirectories(folder);
-        } catch (IOException cannot) {
-            throw new UncheckedIOException("could not create " + folder, cannot);
-        }
+        this(DocumentFolder.of(dataFolder.resolve("mannequins")));
     }
 
-    public Path folder() {
-        return folder;
+    public MannequinStore(DocumentFolder folder) {
+        this.folder = folder;
     }
 
     private YamlStore storeFor(String id) {
-        return new YamlStore(folder.resolve(id + ".yml"));
+        return folder.store(id + SUFFIX);
     }
 
-    /** Writes one mannequin's file. @return whether it reached the disk */
+    /** Writes one mannequin. @return whether it was stored */
     public boolean save(Mannequin mannequin) {
         return storeFor(mannequin.id()).write(yaml -> {
             yaml.set("id", mannequin.id());
@@ -93,47 +90,40 @@ public final class MannequinStore {
         });
     }
 
-    /** Deletes one mannequin's file. @return whether there was one to delete */
+    /** Deletes one mannequin. @return whether it is gone */
     public boolean delete(String id) {
-        Path file = folder.resolve(id + ".yml");
-        try {
-            return Files.deleteIfExists(file);
-        } catch (IOException cannot) {
-            log.error(cannot, "could not delete {}", file);
-            return false;
-        }
+        return folder.delete(id + SUFFIX);
     }
 
     /**
-     * Every mannequin on disk. An entry that will not read is skipped and named, and the rest still
-     * load — one mangled file must not cost the server every other mannequin already placed.
+     * Every mannequin stored. An entry that will not read is skipped and named, and the rest still
+     * load — one mangled document must not cost the server every other mannequin already placed.
      */
     public List<Mannequin> loadAll() {
         List<Mannequin> found = new ArrayList<>();
         List<String> unreadable = new ArrayList<>();
-        try (var files = Files.list(folder)) {
-            for (Path file : files.filter(p -> p.toString().endsWith(".yml")).sorted().toList()) {
-                try {
-                    Mannequin mannequin = read(file);
-                    if (mannequin != null) {
-                        found.add(mannequin);
-                    }
-                } catch (RuntimeException broken) {
-                    unreadable.add(file.getFileName().toString());
+        for (String name : folder.names(SUFFIX)) {
+            try {
+                Mannequin mannequin = read(folder.store(name));
+                if (mannequin != null) {
+                    found.add(mannequin);
                 }
+            } catch (RuntimeException broken) {
+                unreadable.add(name);
             }
-        } catch (IOException unreadableDir) {
-            log.error(unreadableDir, "could not list {}", folder);
         }
         if (!unreadable.isEmpty()) {
-            log.error("{} mannequin file(s) could not be read and have been skipped: {}",
+            log.error("{} mannequin(s) could not be read and have been skipped, left as they are: {}",
                     unreadable.size(), String.join(", ", unreadable));
         }
         return found;
     }
 
-    private Mannequin read(Path file) {
-        YamlConfiguration yaml = new YamlStore(file).read();
+    private Mannequin read(YamlStore store) {
+        YamlConfiguration yaml = store.read();
+        if (!store.problems().isEmpty()) {
+            throw new IllegalStateException(String.join("; ", store.problems()));
+        }
         if (!yaml.contains("id")) {
             return null;
         }

@@ -23,6 +23,11 @@ class MannequinStoreTest {
     @TempDir
     Path folder;
 
+    private void writeFile(String name, String text) throws java.io.IOException {
+        Path mannequins = Files.createDirectories(folder.resolve("mannequins"));
+        Files.writeString(mannequins.resolve(name), text);
+    }
+
     @Test
     @DisplayName("nothing on disk is an empty list, not an error")
     void loadingNothingIsEmpty() {
@@ -118,7 +123,7 @@ class MannequinStoreTest {
     @DisplayName("a file written before kinds existed loads as PLAYER, not a crash")
     void aFileWithNoKindDefaultsToPlayer() throws Exception {
         MannequinStore store = new MannequinStore(folder);
-        Files.writeString(store.folder().resolve("MQ1.yml"),
+        writeFile("MQ1.yml",
                 "id: MQ1\nowner: " + UUID.randomUUID() + "\nworld: world\nx: 0\ny: 64\nz: 0\n");
 
         List<Mannequin> loaded = store.loadAll();
@@ -131,7 +136,7 @@ class MannequinStoreTest {
     @DisplayName("a garbled kind value falls back to PLAYER rather than throwing")
     void aGarbledKindDefaultsToPlayer() throws Exception {
         MannequinStore store = new MannequinStore(folder);
-        Files.writeString(store.folder().resolve("MQ1.yml"),
+        writeFile("MQ1.yml",
                 "id: MQ1\nowner: " + UUID.randomUUID() + "\nworld: world\nx: 0\ny: 64\nz: 0\nkind: DRAGON\n");
 
         assertThat(store.loadAll().getFirst().kind()).isEqualTo(MannequinKind.PLAYER);
@@ -185,7 +190,7 @@ class MannequinStoreTest {
     @DisplayName("a garbled claim id round-trips as no claim rather than throwing")
     void aGarbledClaimIdDefaultsToNone() throws Exception {
         MannequinStore store = new MannequinStore(folder);
-        Files.writeString(store.folder().resolve("MQ1.yml"),
+        writeFile("MQ1.yml",
                 "id: MQ1\nowner: " + UUID.randomUUID()
                         + "\nworld: world\nx: 0\ny: 64\nz: 0\nclaim-id: not-a-uuid\n");
 
@@ -198,7 +203,7 @@ class MannequinStoreTest {
         MannequinStore store = new MannequinStore(folder);
         Mannequin good = Mannequin.freshlyPlaced("MQ2", UUID.randomUUID(), "world", 0, 64, 0);
         store.save(good);
-        Files.writeString(store.folder().resolve("MQ1.yml"), "id: MQ1\nowner: not-a-uuid\n");
+        writeFile("MQ1.yml", "id: MQ1\nowner: not-a-uuid\n");
 
         List<Mannequin> loaded = store.loadAll();
 

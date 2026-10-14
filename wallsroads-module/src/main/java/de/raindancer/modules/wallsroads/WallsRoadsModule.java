@@ -34,7 +34,6 @@ import de.raindancer.modules.wallsroads.util.PermissionNodes;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -48,7 +47,7 @@ import java.util.List;
  */
 public final class WallsRoadsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("wallsroads", "Walls and Roads", "1.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("wallsroads", "Walls and Roads", "1.4.0")
             .describedAs("Huge polygonal town walls and roads that cut a real gate where they cross, "
                     + "with renamable signs placed automatically. Every build has a real inverse.")
             .by("Raindancer118");
@@ -85,11 +84,6 @@ public final class WallsRoadsModule implements FlexModule {
 
         WallsRoadsRegistry registry = new WallsRoadsRegistry();
         WallsRoadsStorage storage = new WallsRoadsStorage(context.dataFolder());
-        try {
-            storage.ensureDirectories();
-        } catch (IOException cannotCreate) {
-            throw new IllegalStateException("could not create the walls/roads data folders", cannotCreate);
-        }
         for (Wall wall : storage.loadAllWalls()) {
             registry.putWall(wall);
         }

@@ -21,7 +21,11 @@ public final class UpkeepStore {
     private final YamlStore store;
 
     public UpkeepStore(Path dataFolder) {
-        this.store = new YamlStore(dataFolder.resolve("upkeep.yml"));
+        this(new YamlStore(dataFolder.resolve("upkeep.yml")));
+    }
+
+    public UpkeepStore(YamlStore store) {
+        this.store = store;
     }
 
     public Map<UUID, UpkeepAccount> load() {

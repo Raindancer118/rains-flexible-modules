@@ -1,6 +1,9 @@
 package de.raindancer.modules.wallsroads.store;
 
+import de.raindancer.core.data.store.DocumentFolder;
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.platform.log.Log;
+import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.world.build.BuildSnapshot;
 import de.raindancer.core.world.geometry.ColumnPolygon;
 import de.raindancer.core.world.geometry.Polyline;
@@ -17,46 +20,45 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * One YAML file per wall and per road, read and written through Core's {@link YamlStore} — the
- * same write-temp-then-move guarantees every other store in this repository already relies on,
- * rather than a bespoke copy of that dance.
+ * One YAML document per wall and per road, in a {@link DocumentFolder} each — rows in Core's database, or
+ * files of those names without Core; a 1.x file still lying there is brought in when first read. They
+ * belong to this server's worlds, so they stay per server.
  */
 public final class WallsRoadsStorage {
 
-    private final Path wallsDir;
-    private final Path roadsDir;
+    private static final LogChannel log = Log.of("walls");
+    private static final String SUFFIX = ".yml";
+
+    private final DocumentFolder walls;
+    private final DocumentFolder roads;
 
     public WallsRoadsStorage(Path dataFolder) {
-        this.wallsDir = dataFolder.resolve("walls");
-        this.roadsDir = dataFolder.resolve("roads");
+        this(DocumentFolder.of(dataFolder.resolve("walls")), DocumentFolder.of(dataFolder.resolve("roads")));
     }
 
-    public void ensureDirectories() throws IOException {
-        Files.createDirectories(wallsDir);
-        Files.createDirectories(roadsDir);
+    public WallsRoadsStorage(DocumentFolder walls, DocumentFolder roads) {
+        this.walls = walls;
+        this.roads = roads;
     }
 
     // ------------------------------------------------------------------------------------ walls
 
     public List<Wall> loadAllWalls() {
-        return loadAll(wallsDir, this::readWall);
+        return loadAll(walls, this::readWall);
     }
 
     public boolean saveWall(Wall wall) {
-        return new YamlStore(wallsDir.resolve(wall.id() + ".yml")).write(yaml -> writeWall(yaml, wall));
+        return walls.store(wall.id() + SUFFIX).write(yaml -> writeWall(yaml, wall));
     }
 
     public void deleteWall(String id) {
-        delete(wallsDir, id);
+        delete(walls, id);
     }
 
     private void writeWall(YamlConfiguration yaml, Wall wall) {
@@ -134,15 +136,15 @@ public final class WallsRoadsStorage {
     // ------------------------------------------------------------------------------------ roads
 
     public List<RoadPath> loadAllRoads() {
-        return loadAll(roadsDir, this::readRoad);
+        return loadAll(roads, this::readRoad);
     }
 
     public boolean saveRoad(RoadPath road) {
-        return new YamlStore(roadsDir.resolve(road.id() + ".yml")).write(yaml -> writeRoad(yaml, road));
+        return roads.store(road.id() + SUFFIX).write(yaml -> writeRoad(yaml, road));
     }
 
     public void deleteRoad(String id) {
-        delete(roadsDir, id);
+        delete(roads, id);
     }
 
     private void writeRoad(YamlConfiguration yaml, RoadPath road) {
@@ -311,15 +313,17 @@ public final class WallsRoadsStorage {
         T read(YamlConfiguration yaml);
     }
 
-    private <T> List<T> loadAll(Path directory, Reader<T> reader) {
+    private <T> List<T> loadAll(DocumentFolder folder, Reader<T> reader) {
         List<T> loaded = new ArrayList<>();
-        File[] files = directory.toFile().listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null) {
-            return loaded;
-        }
-        for (File file : files) {
-            YamlStore store = new YamlStore(file.toPath());
+        for (String name : folder.names(SUFFIX)) {
+            YamlStore store = folder.store(name);
             YamlConfiguration yaml = store.read();
+            if (!store.problems().isEmpty()) {
+                // Skipped, not replaced: the document stays as it is for somebody to look at.
+                log.error("{} could not be read ({}) — it is not loaded and has been left untouched.", name,
+                        String.join("; ", store.problems()));
+                continue;
+            }
             if (yaml.getString("id") == null) {
                 continue;
             }
@@ -328,11 +332,9 @@ public final class WallsRoadsStorage {
         return loaded;
     }
 
-    private void delete(Path directory, String id) {
-        try {
-            Files.deleteIfExists(directory.resolve(id + ".yml"));
-        } catch (IOException ignored) {
-            // Nothing left to remove is not a failure worth reporting.
+    private static void delete(DocumentFolder folder, String id) {
+        if (!folder.delete(id + SUFFIX)) {
+            log.warn("{} could not be deleted.", id);
         }
     }
 

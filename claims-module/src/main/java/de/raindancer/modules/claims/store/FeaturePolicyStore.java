@@ -7,8 +7,6 @@ import de.raindancer.modules.claims.model.ClaimFeature;
 import de.raindancer.modules.claims.model.FeaturePolicy;
 import org.bukkit.configuration.ConfigurationSection;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +44,11 @@ public final class FeaturePolicyStore {
     private final YamlStore store;
 
     public FeaturePolicyStore(Path dataFolder) {
-        this.store = new YamlStore(dataFolder.resolve("feature-policies.yml"));
+        this(new YamlStore(dataFolder.resolve("feature-policies.yml")));
+    }
+
+    public FeaturePolicyStore(YamlStore store) {
+        this.store = store;
     }
 
     /** What the file says, or everything as it ships when there is no file. */
@@ -97,13 +99,11 @@ public final class FeaturePolicyStore {
             // something on disk implying they made one. YamlStore has no notion of that — every other
             // store built on it only ever grows and shrinks entries within one file — so this one case
             // stays here rather than in Core.
-            try {
-                Files.deleteIfExists(store.file());
+            if (store.delete()) {
                 return true;
-            } catch (IOException cannot) {
-                log.error(cannot, "Could not remove feature-policies.yml");
-                return false;
             }
+            log.error("Could not remove feature-policies.yml");
+            return false;
         }
 
         return store.write(yaml -> {

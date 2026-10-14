@@ -46,7 +46,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.bukkit.World;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 
 /**
  * Land claims, as a module.
@@ -66,7 +65,7 @@ import java.io.UncheckedIOException;
  */
 public final class ClaimsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.11.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("claims", "Claims", "2.12.0")
             .describedAs("Land claims: who owns what, who may do what there, and the screens for it")
             .by("Raindancer118");
 
@@ -147,14 +146,6 @@ public final class ClaimsModule implements FlexModule {
 
         claims = new ClaimRegistry();
         storage = new ClaimStorage(context.dataFolder());
-        try {
-            storage.ensureDirectory();
-        } catch (IOException cannot) {
-            // Refused rather than carried on: a claims module that cannot reach its own directory would come
-            // up with no claims at all, register itself as the authority, and answer "nothing is protected
-            // here" for every block on the server.
-            throw new UncheckedIOException("cannot reach the claims directory", cannot);
-        }
         for (Claim claim : storage.loadAll()) {
             claims.add(claim);
         }
