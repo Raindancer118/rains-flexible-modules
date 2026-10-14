@@ -63,7 +63,12 @@ public final class TwitchCommand implements ITwitchCommand {
         TwitchPoller poller = live.poller().get();
         String channel = live.settings().get().channelClean();
         if (poller == null) {
-            live.messages().send(sender, "twitch.status.listening", "channel", channel);
+            String holder = live.role().holder().orElse("");
+            if (holder.isEmpty()) {
+                live.messages().send(sender, "twitch.status.listening", "channel", channel);
+            } else {
+                live.messages().send(sender, "twitch.status.elsewhere", "channel", channel, "server", holder);
+            }
             return;
         }
         Observation last = poller.last();

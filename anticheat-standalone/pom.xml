@@ -41,8 +41,9 @@
              0.21.2: what a flagged move carries on with is capped (0.2 sideways, 0.12 up past the limit), so one huge
                     move buys no free glide.
              0.21.3: no more server freeze — exemptions have their own lock, so the packet thread never waits for the
-                    movement engine (Lilly: deadlock, watchdog restarts). -->
-        <plugin.version>0.21.3</plugin.version>
+                    movement engine (Lilly: deadlock, watchdog restarts).
+             0.22.0: network-ready — alerts reach staff on every server (naming the player's server), violation levels follow a player from server to server, evidence and alert mutes are shared by the network; 1.x files come across by themselves. -->
+        <plugin.version>0.22.0</plugin.version>
     </properties>
 
     <dependencies>

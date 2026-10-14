@@ -41,6 +41,8 @@ public final class ConnectionListener implements IAntiCheatListener {
         services.alerts().joined(player);
         services.tap().inject(player);
         services.engine().start(player);
+        // Levels earned on another server of the network come along.
+        Scheduling.async(services.plugin(), () -> services.violations().arrived(track));
         // The brand arrives during configuration, but some proxies forward it late.
         Scheduling.entityLater(services.plugin(), player, 40, () -> checkBrand(player, track));
     }
@@ -89,6 +91,7 @@ public final class ConnectionListener implements IAntiCheatListener {
         }
         services.alerts().forget(id);
         services.violations().forget(id);
+        Scheduling.async(services.plugin(), () -> services.violations().departed());
         services.shield().forget(id);
         services.tracks().forget(id);
     }

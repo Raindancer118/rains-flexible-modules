@@ -2,6 +2,7 @@ package de.raindancer.modules.twitch.service;
 
 import de.raindancer.core.RainsCore;
 import de.raindancer.core.platform.link.ServerLink;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
@@ -12,6 +13,7 @@ import de.raindancer.modules.twitch.rules.AnnouncementRule;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Server;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -23,8 +25,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Says it in chat: on this server, and on every other server of the network through the link. The server that watches
- * Twitch sends what happened; each server words it itself from its own messages, so a banner reads the same everywhere.
+ * Says it in chat: on this server, and on every other server of the network — over the network bus, or through the link
+ * when this server is not part of a network. The server that watches Twitch sends what happened; each server words it
+ * itself from its own messages, so a banner reads the same everywhere.
  */
 public final class Announcer {
 
@@ -34,31 +37,36 @@ public final class Announcer {
     private final Server server;
     private final LogChannel log;
     private final Messages messages;
+    private final NetworkBus bus;
     private final Supplier<Collection<ServerLink>> links;
     private final Consumer<Map<String, String>> display;
     private final Supplier<TwitchSettings> settings;
     private final AnnouncementRule rule = new AnnouncementRule();
+    private volatile NetworkBus.Subscription heard;
 
     public Announcer(Plugin plugin, Server server, LogChannel log, Messages messages, RainsCore core,
                      Supplier<TwitchSettings> settings) {
-        this(plugin, server, log, messages, () -> core.links().all().values(), settings, null);
+        this(plugin, server, log, messages, core.bus(),
+                () -> core.network().isNetwork() ? java.util.List.of() : core.links().all().values(), settings, null);
     }
 
     /** @param shown what to do with an announcement that reaches this server; null shows it in chat — a seam for tests */
-    Announcer(Plugin plugin, Server server, LogChannel log, Messages messages,
+    Announcer(Plugin plugin, Server server, LogChannel log, Messages messages, NetworkBus bus,
               Supplier<Collection<ServerLink>> links, Supplier<TwitchSettings> settings,
               Consumer<Map<String, String>> shown) {
         this.plugin = plugin;
         this.server = server;
         this.log = log;
         this.messages = messages;
+        this.bus = bus == null ? NetworkBus.NONE : bus;
         this.links = links;
         this.settings = settings;
         this.display = shown == null ? this::show : shown;
     }
 
-    /** Listens for what the watching server sends, on every link. */
+    /** Listens for what the watching server sends, on the bus and on every link. */
     public void listen() {
+        heard = bus.subscribe(TOPIC, event -> decode(event.payload()).ifPresent(display));
         links.get().forEach(link -> link.on(TOPIC, data -> {
             display.accept(data);
             return null;
@@ -66,15 +74,38 @@ public final class Announcer {
     }
 
     public void stop() {
+        if (heard != null) {
+            heard.close();
+            heard = null;
+        }
         links.get().forEach(link -> link.off(TOPIC));
     }
 
-    /** Tells this server and every linked one. */
+    /** Tells this server, every other server of the network and every linked one. */
     public void announce(StreamEvent event) {
         Map<String, String> data = encode(event);
         display.accept(data);
+        bus.publish(TOPIC, "announce", yaml(data));
         for (ServerLink link : links.get()) {
             link.send(TOPIC, data);
+        }
+    }
+
+    static String yaml(Map<String, String> data) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        data.forEach(yaml::set);
+        return yaml.saveToString();
+    }
+
+    static java.util.Optional<Map<String, String>> decode(String payload) {
+        try {
+            YamlConfiguration yaml = new YamlConfiguration();
+            yaml.loadFromString(payload);
+            Map<String, String> data = new HashMap<>();
+            yaml.getKeys(false).forEach(key -> data.put(key, yaml.getString(key, "")));
+            return data.containsKey("kind") ? java.util.Optional.of(data) : java.util.Optional.empty();
+        } catch (org.bukkit.configuration.InvalidConfigurationException broken) {
+            return java.util.Optional.empty();
         }
     }
 

@@ -10,7 +10,7 @@ import de.raindancer.modules.voicebridge.service.GroupService;
 import de.raindancer.modules.voicebridge.service.LinkService;
 import de.raindancer.modules.voicebridge.service.LobbyService;
 import de.raindancer.modules.voicebridge.service.VoicechatGateway;
-import de.raindancer.modules.voicebridge.store.TokenFile;
+import de.raindancer.modules.voicebridge.store.BotTokens;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 
@@ -25,7 +25,7 @@ public record VoiceBridgeServices(
         Brand brand,
         RainsCore core,
         Supplier<VoiceBridgeSettings> settings,
-        TokenFile tokens,
+        BotTokens tokens,
         BridgeService bridge,
         VoicechatGateway gateway,
         LinkService links,

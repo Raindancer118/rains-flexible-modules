@@ -33,7 +33,7 @@ class AnnouncerLinkTest {
     }
 
     private static Announcer announcer(ServerLink link, List<Map<String, String>> shown) {
-        return new Announcer(null, null, null, null, () -> List.of(link),
+        return new Announcer(null, null, null, null, null, () -> List.of(link),
                 () -> TwitchSettings.DEFAULTS, shown::add);
     }
 

@@ -5,7 +5,8 @@ twitch:
   reloaded: "<green>The Twitch login was read again."
   status:
     watching: "<gray>Watching <white><channel></white>: <white><seen></white>."
-    listening: "<gray>This server does not ask Twitch for <white><channel></white> — it shows what the watching server tells it."
+    listening: "<gray>This server does not ask Twitch for <white><channel></white> (no login in credentials.yml, or announcements are off) — it shows what a watching server tells it."
+    elsewhere: "<gray>This server does not ask Twitch for <white><channel></white> — <white><server></white> does, and tells this one."
   live:
     rule: "<gradient:#9146FF:#E0A8FF>━━━━━━━━━━━━━━ ✦ ━━━━━━━━━━━━━━</gradient>"
     head: "   <red><bold>●</bold></red> <gradient:#9146FF:#E0A8FF><bold>LIVE ON TWITCH</bold></gradient>"

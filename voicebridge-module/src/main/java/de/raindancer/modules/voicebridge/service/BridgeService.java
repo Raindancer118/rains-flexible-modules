@@ -6,7 +6,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.voicebridge.VoiceBridgeSettings;
 import de.raindancer.modules.voicebridge.model.BridgeStatus;
 import de.raindancer.modules.voicebridge.rules.ConnectReadinessRule;
-import de.raindancer.modules.voicebridge.store.TokenFile;
+import de.raindancer.modules.voicebridge.store.BotTokens;
 import de.raindancer.modules.voicebridge.util.Pcm;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.dv8tion.jda.api.JDA;
@@ -29,7 +29,7 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
     private final Server server;
     private final Messages messages;
     private final LogChannel log;
-    private final TokenFile tokens;
+    private final BotTokens tokens;
     private final ConnectReadinessRule readiness;
 
     private volatile VoiceBridgeSettings settings;
@@ -40,7 +40,7 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
     private volatile List<String> lineTokens = List.of();
     private volatile boolean stopped;
 
-    public BridgeService(Plugin plugin, Server server, Messages messages, LogChannel log, TokenFile tokens,
+    public BridgeService(Plugin plugin, Server server, Messages messages, LogChannel log, BotTokens tokens,
                          ConnectReadinessRule readiness, VoiceBridgeSettings settings) {
         this.plugin = plugin;
         this.server = server;
@@ -88,7 +88,7 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
             token = all.isEmpty() ? "" : all.getFirst();
             lineTokens = all.size() > 1 ? List.copyOf(all.subList(1, all.size())) : List.of();
         } catch (RuntimeException unreadable) {
-            log.error("Could not read the Discord token file " + tokens.file() + ".", unreadable);
+            log.error("Could not read the Discord bot tokens.", unreadable);
             discord.disconnect();
             discord.idle("voicebridge.not-ready.no-token");
             return;
@@ -171,7 +171,7 @@ public final class BridgeService implements IVoiceBridgeService, DiscordLink.Eve
         Scheduling.async(plugin, () -> {
             if (settings.proximityEnabled()) {
                 if (lineTokens.isEmpty()) {
-                    log.warn("Proximity mode is on, but discord-token.txt has no proximity bot tokens after the main one.");
+                    log.warn("Proximity mode is on, but the Discord tokens hold no proximity bot tokens after the main one.");
                 }
                 bots.start(lineTokens, guildId);
             }

@@ -2,8 +2,12 @@ package de.raindancer.modules.voicebridge.service;
 
 import de.raindancer.modules.voicebridge.rules.LinkCodeRule;
 import de.raindancer.modules.voicebridge.store.LinkStore;
+import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -14,6 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("database")
 class LinkServiceTest {
 
     @TempDir
@@ -21,13 +26,20 @@ class LinkServiceTest {
 
     private final AtomicLong now = new AtomicLong(0);
     private final UUID alex = UUID.randomUUID();
+    private Database database;
     private LinkStore store;
     private LinkService links;
 
     @BeforeEach
     void setUp() {
-        store = new LinkStore(folder.resolve("links.yml"));
+        database = TestDatabases.open(folder.resolve("voicebridge.db"), LinkStore.SCHEMA);
+        store = new LinkStore(database, null, null);
         links = new LinkService(store, new LinkCodeRule(), new Random(7), now::get);
+    }
+
+    @AfterEach
+    void close() {
+        database.close();
     }
 
     @Test

@@ -1,6 +1,7 @@
 package de.raindancer.modules.voicebridge;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
@@ -31,7 +32,7 @@ import de.raindancer.modules.voicebridge.service.BridgeService;
 import de.raindancer.modules.voicebridge.service.DiscordLink;
 import de.raindancer.modules.voicebridge.service.SpeakerMixer;
 import de.raindancer.modules.voicebridge.service.VoicechatGateway;
-import de.raindancer.modules.voicebridge.store.TokenFile;
+import de.raindancer.modules.voicebridge.store.BotTokens;
 import de.raindancer.modules.voicebridge.util.PermissionNodes;
 import org.bukkit.entity.Player;
 
@@ -51,7 +52,7 @@ import java.util.UUID;
  */
 public final class VoiceBridgeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("voicebridge", "Voice Bridge", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("voicebridge", "Voice Bridge", "0.3.0")
             .describedAs("A Discord voice channel joined to a Simple Voice Chat group.")
             .by("Raindancer118");
 
@@ -84,7 +85,7 @@ public final class VoiceBridgeModule implements FlexModule {
         context.core().messages().seriousFrom(VoiceBridgeModule.class.getResourceAsStream("messages-serious.yml"));
         PermissionNodes.register(context.plugin().getServer());
 
-        TokenFile tokens = TokenFile.in(context.dataFolder());
+        BotTokens tokens = BotTokens.in(context.dataFolder());
         Server server = context.plugin().getServer();
         SpeakerMixer<UUID> toDiscord = new SpeakerMixer<>(live.prebufferFrames(), live.bufferFramesClamped(),
                 SPEAKER_IDLE_MILLIS, System::currentTimeMillis);
@@ -94,8 +95,11 @@ public final class VoiceBridgeModule implements FlexModule {
         gateway = new VoicechatGateway(new BridgedSpeakerRule(), toDiscord, discord::isListening,
                 () -> onlinePlayers(server), bridge, log, live);
 
-        LinkService links = new LinkService(new LinkStore(context.dataFolder().resolve("links.yml")),
-                new LinkCodeRule(), new SecureRandom(), System::currentTimeMillis);
+        LinkStore linkStore = new LinkStore(context.core().databases().shared(LinkStore.NAME, LinkStore.SCHEMA),
+                context.core().bus(), new YamlStore(context.dataFolder().resolve("links.yml")));
+        context.closeWith(linkStore.connect(context.core().bus()));
+        LinkService links = new LinkService(linkStore, new LinkCodeRule(), new SecureRandom(),
+                System::currentTimeMillis);
         Positions positions = new Positions();
         BotPool pool = new BotPool(log);
         LobbyService lobby = new LobbyService(context.plugin(), server, context.core().messages(), log, links, pool,
@@ -136,8 +140,7 @@ public final class VoiceBridgeModule implements FlexModule {
         }
 
         bridge.reconnect();
-        log.info("Voice bridge is up; the group is '{}'. Token: {}.", live.groupNameOrDefault(),
-                tokens.file());
+        log.info("Voice bridge is up; the group is '{}'.", live.groupNameOrDefault());
     }
 
     private final class LiveScreens implements IVoiceBridgeScreensOpener {

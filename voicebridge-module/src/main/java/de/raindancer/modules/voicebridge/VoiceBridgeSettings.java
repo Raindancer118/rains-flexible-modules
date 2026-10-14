@@ -12,7 +12,7 @@ import org.bukkit.Material;
 
 /**
  * What an owner decides about the bridge. The bot token is deliberately not here — see
- * {@code TokenFile} for why.
+ * {@code BotTokens} for why.
  */
 @Settings(id = "voicebridge", topics = {
         @Topic(path = "voicebridge", title = "Discord voice bridge", icon = Material.NOTE_BLOCK),
@@ -70,7 +70,7 @@ public record VoiceBridgeSettings(
         @Describe("Linked Discord users who play without the mod talk and listen through their own "
                 + "player, exactly as if they had Simple Voice Chat: people near them hear them, they "
                 + "hear people near them, and they can use voice chat groups. Needs one extra bot "
-                + "token per Discord user at the same time (see discord-token.txt).")
+                + "token per Discord user at the same time (see discord-tokens.yml).")
         @Key("proximity.enabled")
         boolean proximityEnabled,
 

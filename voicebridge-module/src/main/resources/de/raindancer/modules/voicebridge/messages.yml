@@ -9,7 +9,7 @@ voicebridge:
 
   not-ready:
     switched-off: "<gray>The Discord bridge is switched off in /settings."
-    no-token: "<yellow>No Discord bot token yet. Paste it into discord-token.txt in this plugin's folder, then /voicebridge reconnect."
+    no-token: "<yellow>No Discord bot token yet. Put it into the discord-tokens.yml document (/documents export, edit, /documents import) or the RAINS_VOICEBRIDGE_TOKEN variable, then /voicebridge reconnect."
     no-server: "<yellow>No Discord server id yet. Set it in /settings under Discord voice bridge."
     bad-server: "<red>The Discord server id in /settings is not an id. Right click the server icon, Copy Server ID."
     no-channel: "<yellow>No Discord voice channel id yet. Set it in /settings under Discord voice bridge."
@@ -17,7 +17,7 @@ voicebridge:
     bad-lobby: "<red>The proximity lobby id in /settings is not an id. Right click the channel, Copy Channel ID."
 
   failed:
-    token: "<red>Discord refused the bot token. Paste a fresh one into discord-token.txt, then /voicebridge reconnect."
+    token: "<red>Discord refused the bot token. Put a fresh one into the discord-tokens.yml document (/documents export, edit, /documents import), then /voicebridge reconnect."
     dave: "<red>Discord voice encryption could not start on this server's system. See the server log."
     discord: "<red>The Discord bot could not start. See the server log."
     no-server: "<red>The bot is not on that Discord server. Invite it first, then /voicebridge reconnect."

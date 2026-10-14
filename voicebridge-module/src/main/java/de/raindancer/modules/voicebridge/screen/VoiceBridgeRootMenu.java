@@ -112,7 +112,7 @@ public final class VoiceBridgeRootMenu extends Menu implements IVoiceBridgeScree
         boolean admin = viewer.hasPermission(PermissionNodes.ADMIN);
         band(MenuLayout.RULES, 7, admin, Icons.of(Material.ENDER_PEARL,
                         "<white>Reconnect the bot",
-                        "<gray>Reads the token file again and rejoins",
+                        "<gray>Reads the tokens again and rejoins",
                         "<gray>the channel set in /settings."),
                 "Only staff can reconnect the Discord bot.",
                 click -> reconnect());

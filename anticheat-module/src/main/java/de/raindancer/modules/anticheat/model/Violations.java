@@ -39,6 +39,12 @@ public final class Violations {
         entry[0] *= Math.max(0, factor);
     }
 
+    /** Lifts a level to at least {@code level}: what the network already holds against a player who just arrived. */
+    public synchronized void raiseTo(CheckType check, double level) {
+        double[] entry = decayed(check);
+        entry[0] = Math.max(entry[0], level);
+    }
+
     public synchronized void reset(CheckType check) {
         levels.remove(check);
     }

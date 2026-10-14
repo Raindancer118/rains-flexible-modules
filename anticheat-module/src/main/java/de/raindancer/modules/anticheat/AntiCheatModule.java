@@ -1,6 +1,7 @@
 package de.raindancer.modules.anticheat;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.anticheat.listener.CombatListener;
 import de.raindancer.modules.anticheat.listener.ConnectionListener;
@@ -21,7 +22,9 @@ import de.raindancer.modules.anticheat.service.PunishService;
 import de.raindancer.modules.anticheat.service.Tracks;
 import de.raindancer.modules.anticheat.service.ViolationService;
 import de.raindancer.modules.anticheat.service.WorldService;
+import de.raindancer.modules.anticheat.store.AntiCheatDatabase;
 import de.raindancer.modules.anticheat.store.EvidenceLog;
+import de.raindancer.modules.anticheat.store.ViolationLedger;
 import de.raindancer.modules.anticheat.util.PermissionNodes;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
@@ -39,7 +42,7 @@ import java.util.List;
  */
 public final class AntiCheatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.21.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("anticheat", "Anti-Cheat", "0.22.0")
             .describedAs("Server-side anti-cheat: movement, combat, world, inventory and packet checks")
             .by("Raindancer118");
 
@@ -64,18 +67,26 @@ public final class AntiCheatModule implements FlexModule {
         }
 
         Tracks tracks = new Tracks(System::currentTimeMillis);
-        AlertService alerts = new AlertService(context.plugin().getServer(), messages, context.log(), System::currentTimeMillis);
+        var bus = context.core().bus();
+        var database = context.core().databases().shared(AntiCheatDatabase.NAME, AntiCheatDatabase.SCHEMA);
+        AlertService alerts = new AlertService(context.plugin().getServer(), messages, context.log(), System::currentTimeMillis, bus);
+        context.closeWith(alerts::close);
         de.raindancer.modules.anticheat.store.AlertMutes mutes = new de.raindancer.modules.anticheat.store.AlertMutes(context.dataFolder());
         mutes.load();
+        context.closeWith(mutes.connect());
         alerts.mutesFrom(mutes);
-        evidence = new EvidenceLog(context.dataFolder(), settings.current().evidencePerPlayer());
+        evidence = new EvidenceLog(database, bus, settings.current().evidencePerPlayer());
+        evidence.importLegacy(new YamlStore(context.dataFolder().resolve("evidence.yml")));
         evidence.load();
+        context.closeWith(evidence.connect(bus));
+        ViolationLedger ledger = new ViolationLedger(database, System::currentTimeMillis);
         replays = new de.raindancer.modules.anticheat.store.ReplayStore(context.dataFolder(),
                 new de.raindancer.modules.anticheat.model.Replays(5));
         replays.load();
         PunishService punishments = new PunishService(context.plugin(), context.core(), messages, alerts);
         ViolationService violations = new ViolationService(new ActionRule(), alerts, punishments, evidence);
         violations.replaysTo(replays);
+        violations.ledgerTo(ledger);
         AutoReportService autoReports = new AutoReportService(System::currentTimeMillis);
         violations.reportsTo(autoReports);
         MovementEngine engine = new MovementEngine(context.plugin(), context.log(), tracks, violations);
@@ -117,13 +128,17 @@ public final class AntiCheatModule implements FlexModule {
 
         var digests = Scheduling.asyncTimer(context.plugin(), 20, 20, task -> alerts.flushDigests());
         context.closeWith(digests::cancel);
-        var writing = Scheduling.asyncTimer(context.plugin(), 60, 60, task -> {
+        // What the network shares is written often, so staff on other servers see it soon.
+        var sharing = Scheduling.asyncTimer(context.plugin(), 5, 5, task -> {
             mutes.flush();
             evidence.flush();
-            replays.flush();
+            ledger.flush();
         });
+        context.closeWith(sharing::cancel);
+        var writing = Scheduling.asyncTimer(context.plugin(), 60, 60, task -> replays.flush());
         context.closeWith(writing::cancel);
         context.closeWith(evidence::flush);
+        context.closeWith(ledger::flush);
         context.closeWith(mutes::flush);
         context.closeWith(replays::flush);
         context.closeWith(() -> context.plugin().getServer().getOnlinePlayers().forEach(tap::eject));

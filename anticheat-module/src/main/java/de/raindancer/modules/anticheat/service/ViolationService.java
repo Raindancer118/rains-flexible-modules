@@ -28,6 +28,7 @@ public final class ViolationService implements IAntiCheatService {
 
     private volatile de.raindancer.modules.anticheat.store.ReplayStore replays;
     private volatile AutoReportService reports;
+    private volatile de.raindancer.modules.anticheat.store.ViolationLedger ledger;
     private final java.util.Map<String, Long> lastReplay = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ViolationService(ActionRule rule, AlertService alerts, PunishService punishments, EvidenceLog evidence) {
@@ -56,6 +57,7 @@ public final class ViolationService implements IAntiCheatService {
         }
         AntiCheatSettings now = settings;
         double level = track.violations().add(check, flag.weight());
+        gather(track.id(), check, Math.max(0, flag.weight()));
         ActionRule.Decision decision = rule.decide(check, level, now);
         if (now.evidence()) {
             Location at = player.getLocation();
@@ -70,10 +72,10 @@ public final class ViolationService implements IAntiCheatService {
         }
         if (decision.ban()) {
             punishments.atBanLevel(player, track, check, level);
-            track.violations().scale(check, 0.5);
+            halve(track, check);
         } else if (decision.kick()) {
             punishments.kick(player, track, check, level);
-            track.violations().scale(check, 0.5);
+            halve(track, check);
         }
         if (check != CheckType.IMPROBABLE) {
             judgeImprobable(player, track);
@@ -87,6 +89,24 @@ public final class ViolationService implements IAntiCheatService {
                             + " " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ());
         }
         return decision;
+    }
+
+    private void halve(PlayerTrack track, CheckType check) {
+        double before = track.violations().level(check);
+        track.violations().scale(check, 0.5);
+        gather(track.id(), check, track.violations().level(check) - before);
+    }
+
+    /** For tests that hold no player: what a flag would have gathered for the network. */
+    void gatherForTest(java.util.UUID player, CheckType check, double delta) {
+        gather(player, check, delta);
+    }
+
+    private void gather(java.util.UUID player, CheckType check, double delta) {
+        de.raindancer.modules.anticheat.store.ViolationLedger network = ledger;
+        if (network != null) {
+            network.add(player, check, delta);
+        }
     }
 
     /** What the checks of one kind hold against them together, after decay. */
@@ -113,6 +133,30 @@ public final class ViolationService implements IAntiCheatService {
         }
     }
 
+    /** Where levels go to be shared with the other servers of the network; without one, they stay on this server. */
+    public void ledgerTo(de.raindancer.modules.anticheat.store.ViolationLedger network) {
+        this.ledger = network;
+    }
+
+    /**
+     * A player arrived: what the network already holds against them (from the servers they were on) becomes their level
+     * here. Reads the database — off the server's threads.
+     */
+    public void arrived(PlayerTrack track) {
+        de.raindancer.modules.anticheat.store.ViolationLedger network = ledger;
+        if (network != null) {
+            network.levels(track.id()).ifPresent(levels -> levels.forEach((check, level) -> track.violations().raiseTo(check, level)));
+        }
+    }
+
+    /** A player left: what this server gathered about them goes to the network now, for the server they hop to. Off the server's threads. */
+    public void departed() {
+        de.raindancer.modules.anticheat.store.ViolationLedger network = ledger;
+        if (network != null) {
+            network.flush();
+        }
+    }
+
     public void forget(java.util.UUID player) {
         lastImprobable.remove(player);
         AutoReportService toReport = reports;
@@ -130,6 +174,7 @@ public final class ViolationService implements IAntiCheatService {
         if (track != null) {
             track.violations().resetAll();
         }
+        gatherClear(player);
         evidence.clear(player);
         de.raindancer.modules.anticheat.store.ReplayStore store = replays;
         if (store != null) {
@@ -150,8 +195,16 @@ public final class ViolationService implements IAntiCheatService {
         if (track != null) {
             track.measureAfresh();
         }
+        gatherClear(player);
         evidence.measureFrom(player, nowMillis);
         forget(player);
+    }
+
+    private void gatherClear(java.util.UUID player) {
+        de.raindancer.modules.anticheat.store.ViolationLedger network = ledger;
+        if (network != null) {
+            network.clear(player);
+        }
     }
 
     /** Where movement flags go to be weighed for a staff report; without one, none is filed. */

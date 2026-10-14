@@ -77,9 +77,12 @@ public final class LinkService implements IVoiceBridgeService {
         pending.values().removeIf(link -> now >= link.expiresAt());
         for (PendingLink link : pending.values()) {
             if (rule.accepts(link, typed, now)) {
+                if (!store.link(discordUser, link.player())) {
+                    // The database could not be written: the code stays good, and this is not a wrong guess.
+                    return Optional.empty();
+                }
                 pending.remove(link.player());
                 guesses.remove(discordUser);
-                store.link(discordUser, link.player());
                 return Optional.of(link.player());
             }
         }
