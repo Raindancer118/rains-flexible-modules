@@ -34,7 +34,7 @@ import java.util.List;
  */
 public final class JobsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.9.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("jobs", "Jobs", "0.9.2")
             .describedAs("The job board — goals everybody delivers or fishes towards, paid by their share — personal daily quests, harder and better paid the richer you are, and orders: name what you want to earn and race the clock")
             .by("Raindancer118");
 
@@ -174,10 +174,13 @@ public final class JobsModule implements FlexModule {
         SaleStops.provide(context.plugin(), goals);
         context.closeWith(() -> SaleStops.retract(goals));
         context.listener(new FishListener(services));
-        var minutes = Scheduling.globalTimer(context.plugin(), 20L * 5, 20L * 60, task -> {
+        // Off the server's threads: paying what is owed and writing the books are database work.
+        var minutes = Scheduling.asyncTimer(context.plugin(), 5, 60, task -> {
             goals.tick();
             quests.tick();
-            orders.tick();
+            for (org.bukkit.entity.Player ended : orders.tick()) {
+                Scheduling.entity(context.plugin(), ended, () -> orders.hide(ended));
+            }
         });
         if (minutes != null) {
             context.closeWith(minutes::cancel);

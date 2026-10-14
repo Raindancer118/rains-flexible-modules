@@ -334,9 +334,15 @@ public final class OrderService {
         messages.send(player, "jobs.order.owed", "work", order.says(), "amount", Fees.format(order.pay()));
     }
 
-    /** Ends orders out of time and pays what is owed. Once a minute. */
-    public synchronized void tick() {
+    /**
+     * Ends orders out of time and pays what is owed. Once a minute, off the server's threads (it reads and writes the
+     * database).
+     *
+     * @return the players online whose order ran out: their bar is hidden on their own thread by the caller
+     */
+    public synchronized java.util.List<Player> tick() {
         long now = clock.getAsLong();
+        java.util.List<Player> ended = new java.util.ArrayList<>();
         book.actionable(now).forEach((player, ledger) -> {
             Order order = ledger.order();
             if (order == null) {
@@ -346,7 +352,7 @@ public final class OrderService {
                 if (book.putNow(player, ledger.with(order.in(Order.State.FAILED)))) {
                     Player online = server.getPlayer(player);
                     if (online != null) {
-                        hide(online);
+                        ended.add(online);
                     }
                     notices.tell(player, "jobs.order.failed", "work", order.says(),
                             "progress", String.valueOf(order.progress()), "units", String.valueOf(order.units()));
@@ -367,6 +373,7 @@ public final class OrderService {
             }
         });
         book.flush();
+        return ended;
     }
 
     /** A payment that throws is a payment that failed: what was marked paid must not be lost with it. */

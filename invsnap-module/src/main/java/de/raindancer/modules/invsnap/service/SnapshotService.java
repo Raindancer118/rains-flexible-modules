@@ -41,21 +41,43 @@ public final class SnapshotService implements IInvSnapService {
         this.settings = settings;
     }
 
+    /** Where snapshots are written: off the server's threads on a live server, in place in a test. */
+    private volatile java.util.function.Consumer<Runnable> writer = Runnable::run;
+    /** One write per player at a time, so two snapshots taken close together both stay. */
+    private final java.util.Map<UUID, Object> writing = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Writes from now on go through {@code writer} — the module hands it an off-thread runner. */
+    public void writeWith(java.util.function.Consumer<Runnable> writer) {
+        this.writer = writer == null ? Runnable::run : writer;
+    }
+
     @Override
     public void settings(InvSnapSettings settings) {
         this.settings = settings;
     }
 
-    /** Takes a snapshot of this player right now, prunes to the retention window, and saves it. */
+    /**
+     * Takes a snapshot of this player right now — on their thread, which reads the inventory — and saves it, pruned
+     * to the retention window, where the writer runs: the database is no work for the server's threads.
+     */
     public Snapshot takeAndStore(Player player) {
         Snapshot snapshot = liveSnapshotOf(player);
-        List<Snapshot> kept = retentionRule.applying(
-                store.load(player.getUniqueId()), snapshot, settings.retentionCountClamped(),
-                settings.retentionAge(), Instant.now());
-        if (!store.saveAll(player.getUniqueId(), kept)) {
-            log.warn("Could not save a snapshot for {}.", player.getName());
-        }
+        store(snapshot);
         return snapshot;
+    }
+
+    /** Saves a snapshot taken already, pruned to the retention window, where the writer runs it. */
+    public void store(Snapshot snapshot) {
+        writer.accept(() -> {
+            synchronized (writing.computeIfAbsent(snapshot.playerId(), id -> new Object())) {
+                List<Snapshot> kept = retentionRule.applying(
+                        store.load(snapshot.playerId()), snapshot, settings.retentionCountClamped(),
+                        settings.retentionAge(), Instant.now());
+                if (!store.saveAll(snapshot.playerId(), kept)) {
+                    log.warn("Could not save a snapshot for {}.", snapshot.playerName());
+                }
+            }
+        });
     }
 
     /**

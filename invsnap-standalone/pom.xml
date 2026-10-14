@@ -43,7 +43,8 @@
              files; snapshots older than snapshot.retention-days (7) are dropped, also those of players who left.
              1.9.0: network — death insurance opt-ins and item policies are the network's documents, items waiting to
              be collected are one shared table claimed exactly once on any server; a premium is taken by one server. -->
-        <plugin.version>1.9.0</plugin.version>
+        <!-- 1.9.1: snapshots are written, pruned and premiums charged off the server thread (the capture stays on the player's). -->
+        <plugin.version>1.9.1</plugin.version>
     </properties>
 
     <dependencies>

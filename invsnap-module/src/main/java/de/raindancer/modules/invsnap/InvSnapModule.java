@@ -51,7 +51,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.9.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.9.1")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -59,7 +59,7 @@ public final class InvSnapModule implements FlexModule {
     /** Asked once a second — see {@code SnapshotDueRule} for why a fixed short poll beats scheduling
      *  the timer itself at the configured interval. */
     private static final long TICK_PERIOD_TICKS = 20L;
-    private static final long PRUNE_PERIOD_TICKS = 6L * 60 * 60 * 20;
+    private static final long PRUNE_PERIOD_SECONDS = 6L * 60 * 60;
 
     private LogChannel log;
     private SettingsStore<InvSnapSettings> settings;
@@ -90,6 +90,7 @@ public final class InvSnapModule implements FlexModule {
         SnapshotStore store = new SnapshotStore(context.dataFolder());
         SnapshotService snapshotService = new SnapshotService(log, store, new RetentionRule(),
                 settings.current());
+        snapshotService.writeWith(write -> Scheduling.async(context.plugin(), write));
         AutoSnapshotService autoSnapshotService = new AutoSnapshotService(snapshotService,
                 new SnapshotDueRule(), settings.current());
 
@@ -140,12 +141,13 @@ public final class InvSnapModule implements FlexModule {
         ProfileExtensions.register(profile);
         context.closeWith(() -> ProfileExtensions.unregister(profile));
 
-        // Premiums fall due on a minute's poll; whoever is online when one lapses is told at once.
-        var renewals = Scheduling.globalTimer(context.plugin(), 200L, 1200L, task -> {
+        // Premiums fall due on a minute's poll, off the server's threads (money and the database); whoever is
+        // online when one lapses is told at once, on their own thread.
+        var renewals = Scheduling.asyncTimer(context.plugin(), 10, 60, task -> {
             for (ItemPolicy lapsed : itemInsurance.renewDue()) {
                 Player owner = server.getPlayer(lapsed.owner());
                 if (owner != null) {
-                    joined.announce(owner);
+                    Scheduling.entity(context.plugin(), owner, () -> joined.announce(owner));
                 }
             }
         });
@@ -154,7 +156,7 @@ public final class InvSnapModule implements FlexModule {
         }
 
         // A sweep, because pruning on a player's own snapshot never reaches one who has stopped playing.
-        var pruning = Scheduling.globalTimer(context.plugin(), 600L, PRUNE_PERIOD_TICKS,
+        var pruning = Scheduling.asyncTimer(context.plugin(), 30, PRUNE_PERIOD_SECONDS,
                 task -> snapshotService.pruneExpired());
         if (pruning != null) {
             context.closeWith(pruning::cancel);

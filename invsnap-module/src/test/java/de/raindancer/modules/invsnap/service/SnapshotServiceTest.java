@@ -38,6 +38,25 @@ class SnapshotServiceTest {
     }
 
     @Test
+    @DisplayName("a snapshot is written where the writer runs it, not on the caller's thread, and none of a player's is lost")
+    void writtenOffTheCallersThread() {
+        SnapshotStore store = new SnapshotStore(folder);
+        SnapshotService service = serviceOver(store);
+        java.util.List<Runnable> later = new java.util.ArrayList<>();
+        service.writeWith(later::add);
+        UUID player = UUID.randomUUID();
+        Instant first = Instant.now().minusSeconds(60).truncatedTo(ChronoUnit.MILLIS);
+        Instant second = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+
+        service.store(new Snapshot(player, "Someone", first, List.of(), List.of(), null));
+        service.store(new Snapshot(player, "Someone", second, List.of(), List.of(), null));
+        assertThat(store.load(player)).as("nothing written on the caller's thread").isEmpty();
+
+        later.forEach(Runnable::run);
+        assertThat(store.load(player)).extracting(Snapshot::takenAt).containsExactlyInAnyOrder(first, second);
+    }
+
+    @Test
     @DisplayName("nobody tracked yet is an empty roster, not an error")
     void trackedStartsEmpty() {
         assertThat(serviceOver(new SnapshotStore(folder)).tracked()).isEmpty();

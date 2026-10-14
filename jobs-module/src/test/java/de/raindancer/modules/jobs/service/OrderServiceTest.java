@@ -164,7 +164,10 @@ class OrderServiceTest {
         service.accept(player, offer);
         now.addAndGet(offer.time().toMillis() + 1);
         service.progress(player, QuestTask.KILL, "ZOMBIE", offer.units());
-        service.tick();
+        // Off the server's threads: the player is handed back for their own thread, never touched here.
+        assertThat(service.tick()).containsExactly(player);
+        org.mockito.Mockito.verify(player, org.mockito.Mockito.never())
+                .hideBossBar(org.mockito.ArgumentMatchers.any(net.kyori.adventure.bossbar.BossBar.class));
         assertThat(service.current(ana).orElseThrow().state()).isEqualTo(Order.State.FAILED);
         assertThat(bank.balance(ana)).isEqualTo(Money.ZERO);
     }
