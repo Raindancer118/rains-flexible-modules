@@ -22,12 +22,12 @@ import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
 /**
- * Asking somebody to a fight, here or across on the survival server.
+ * Asking somebody to a fight, here or across on a survival server.
  *
  * <p>Both here: an accepted invite is an agreed fight and goes ahead of the queue. The other one on survival: the invite
- * goes over the link and they answer there; on yes, the survival server sends them here, and the fight starts once they
- * have arrived. An invite from survival to somebody here works the same way round: on yes, the survival server is asked
- * to send the one who asked.
+ * goes to the survival server they are on and they answer there; on yes, that server sends them here, and the fight
+ * starts once they have arrived. An invite from survival to somebody here works the same way round: on yes, the
+ * survival server of the one who asked is asked to send them.
  */
 public final class InviteService {
 
@@ -44,6 +44,8 @@ public final class InviteService {
     private final InviteRule rule = new InviteRule();
     private final Map<String, Invite> open = new ConcurrentHashMap<>();
     private final AnsweredInvites answered = new AnsweredInvites();
+    /** The survival server the other end of an open invite is on, by invite id. */
+    private final Map<String, String> across = new ConcurrentHashMap<>();
     private volatile long mostStake;
 
     public InviteService(Server server, Messages messages, ArenaLink link, QueueService queue, AgreedFights agreedFights,
@@ -79,17 +81,19 @@ public final class InviteService {
             refused(from, null, targetName, spec, false);
             return;
         }
-        link.ask(ArenaProtocol.WHERE, Map.of("name", targetName)).whenComplete((answer, failure) -> {
-            if (failure != null || !"true".equals(answer.get("online"))) {
+        link.find(targetName).whenComplete((found, failure) -> {
+            if (failure != null || found.isEmpty()) {
                 refused(from, null, targetName, spec, false);
                 return;
             }
-            UUID target = UUID.fromString(answer.get("player"));
-            String name = answer.getOrDefault("name", targetName);
+            UUID target = found.get().id();
+            String name = found.get().name();
+            String peer = found.get().server();
             if (refused(from, target, name, spec, true)) {
                 return;
             }
             Invite invite = create(from, target, name, spec);
+            across.put(invite.id(), peer);
             queue.agreed(from.getUniqueId(), spec);
             Map<String, String> data = new HashMap<>(SpecCodec.encode(spec));
             data.put("id", invite.id());
@@ -97,7 +101,7 @@ public final class InviteService {
             data.put("fromName", from.getName());
             data.put("to", target.toString());
             data.put("toName", name);
-            link.ask(ArenaProtocol.INVITE, data).whenComplete((sent, failed) -> {
+            link.ask(peer, ArenaProtocol.INVITE, data).whenComplete((sent, failed) -> {
                 if (failed != null || !"true".equals(sent.get("ok"))) {
                     open.remove(invite.id());
                     messages.send(from, "arena.invite.refuse.unknown", "player", name);
@@ -108,8 +112,8 @@ public final class InviteService {
         });
     }
 
-    /** An invite from somebody on survival to somebody here. @return the answer for the link */
-    public Map<String, String> fromAcross(Map<String, String> data) {
+    /** An invite from somebody on survival (the server {@code peer}) to somebody here. @return the answer */
+    public Map<String, String> fromAcross(String peer, Map<String, String> data) {
         // From survival only the name comes: this server knows its own players by it.
         String to = data.get("to");
         Player target = to != null && !to.isBlank() ? server.getPlayer(UUID.fromString(to))
@@ -124,13 +128,18 @@ public final class InviteService {
         Invite invite = new Invite(data.get("id"), UUID.fromString(data.get("from")), data.get("fromName"),
                 target.getUniqueId(), target.getName(), spec, clock.getAsLong() + LIFETIME);
         open.put(invite.id(), invite);
+        across.put(invite.id(), peer);
         offer(target, invite);
         return Map.of("ok", "true");
     }
 
     /** The answer, given on survival, to an invite from here. */
-    public Map<String, String> answeredAcross(Map<String, String> data) {
-        Invite invite = open.remove(data.getOrDefault("id", ""));
+    public Map<String, String> answeredAcross(String peer, Map<String, String> data) {
+        String id = data.getOrDefault("id", "");
+        if (!answeredBy(id, peer)) {
+            return Map.of("ok", "false");
+        }
+        Invite invite = open.remove(id);
         if (invite == null || invite.isExpired(clock.getAsLong())) {
             return Map.of("ok", "false");
         }
@@ -157,6 +166,7 @@ public final class InviteService {
             return;
         }
         Invite invite = found.get();
+        String peer = across.getOrDefault(invite.id(), "");
         open.remove(invite.id());
         answered.remember(invite.id(), player.getUniqueId(), clock.getAsLong());
         queue.agreed(player.getUniqueId(), invite.spec());
@@ -174,7 +184,8 @@ public final class InviteService {
         // The one who asked is on survival: they are sent over, and the fight starts once they are here.
         agreedFights.agree(invite.id(), invite.spec(), sides(invite));
         agreedFights.arrived(invite.id(), player.getUniqueId());
-        link.ask(ArenaProtocol.SUMMON, Map.of("player", invite.from().toString(), "agreed", invite.id()))
+        link.ask(peer, ArenaProtocol.SUMMON,
+                Map.of("player", invite.from().toString(), "agreed", invite.id()))
                 .whenComplete((answer, failure) -> {
                     if (failure != null || !"true".equals(answer.get("ok"))) {
                         messages.send(player, "arena.invite.gone");
@@ -194,20 +205,22 @@ public final class InviteService {
             return;
         }
         Invite invite = found.get();
+        String peer = across.getOrDefault(invite.id(), "");
         open.remove(invite.id());
         messages.send(player, "arena.invite.you-cancelled", "player", invite.toName());
         Player target = server.getPlayer(invite.to());
         if (target != null) {
             messages.send(target, "arena.invite.cancelled", "player", invite.fromName());
         } else {
-            link.tell(ArenaProtocol.INVITE_CANCEL, Map.of("id", invite.id(), "from", invite.from().toString()));
+            link.tell(peer, ArenaProtocol.INVITE_CANCEL,
+                    Map.of("id", invite.id(), "from", invite.from().toString()));
         }
     }
 
     /** Somebody on survival took back an invite they made to somebody here. */
-    public Map<String, String> cancelledAcross(Map<String, String> data) {
+    public Map<String, String> cancelledAcross(String peer, Map<String, String> data) {
         Invite invite = open.get(data.getOrDefault("id", ""));
-        if (invite == null || !invite.from().toString().equals(data.get("from"))) {
+        if (invite == null || !invite.from().toString().equals(data.get("from")) || !answeredBy(invite.id(), peer)) {
             return Map.of("ok", "false");
         }
         open.remove(invite.id());
@@ -219,8 +232,7 @@ public final class InviteService {
     }
 
     public List<Invite> madeBy(UUID player) {
-        long now = clock.getAsLong();
-        open.values().removeIf(invite -> invite.isExpired(now));
+        expire();
         return open.values().stream().filter(invite -> invite.from().equals(player)).toList();
     }
 
@@ -241,8 +253,7 @@ public final class InviteService {
     }
 
     public List<Invite> openFor(UUID player) {
-        long now = clock.getAsLong();
-        open.values().removeIf(invite -> invite.isExpired(now));
+        expire();
         return open.values().stream().filter(invite -> invite.to().equals(player)).toList();
     }
 
@@ -284,8 +295,7 @@ public final class InviteService {
     }
 
     private boolean refused(Player from, UUID target, String name, MatchSpec spec, boolean known) {
-        long now = clock.getAsLong();
-        open.values().removeIf(invite -> invite.isExpired(now));
+        expire();
         boolean asked = target != null && open.values().stream()
                 .anyMatch(invite -> invite.from().equals(from.getUniqueId()) && invite.to().equals(target));
         Optional<String> refusal = rule.refusal(new InviteRule.Facts(target != null && target.equals(from.getUniqueId()),
@@ -293,6 +303,17 @@ public final class InviteService {
                 mostStake, spec.isOwnGear() || kitKnown.test(spec.kit())));
         refusal.ifPresent(key -> messages.send(from, key, "player", name, "kit", spec.kit(), "most", mostStake));
         return refusal.isPresent();
+    }
+
+    /** Only the survival server an invite went to (or came from) answers or takes back for it. */
+    private boolean answeredBy(String id, String peer) {
+        return peer.equals(across.getOrDefault(id, peer));
+    }
+
+    private void expire() {
+        long now = clock.getAsLong();
+        open.values().removeIf(invite -> invite.isExpired(now));
+        across.keySet().retainAll(open.keySet());
     }
 
     private static List<Set<UUID>> sides(Invite invite) {

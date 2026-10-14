@@ -41,4 +41,24 @@ class OriginsTest {
         origins.forget(player);
         assertEquals(Origins.HUB, origins.backTo(player, "lillyxoxo"));
     }
+
+    @Test
+    void goesBackToTheSurvivalServerThatSentThem() {
+        origins.arrived(player, true, "smp-2");
+        assertEquals("smp-2", origins.backTo(player, "lillyxoxo"));
+        assertEquals("smp-2", origins.homeOf(player).orElseThrow());
+    }
+
+    @Test
+    void aLinkSendsNoNameAndSoTheConfiguredServerIsUsed() {
+        origins.arrived(player, true, "");
+        assertEquals("lillyxoxo", origins.backTo(player, "lillyxoxo"));
+        assertEquals("", origins.homeOf(player).orElseThrow());
+    }
+
+    @Test
+    void nobodySentThemMeansNoHome() {
+        origins.arrived(player, false, "smp-2");
+        assertFalse(origins.homeOf(player).isPresent());
+    }
 }

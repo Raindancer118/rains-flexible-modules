@@ -5,7 +5,6 @@ import de.raindancer.core.social.economy.Economies;
 import de.raindancer.core.social.economy.Economy;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.modules.arena.ArenaServices;
-import de.raindancer.modules.arena.api.ArenaProtocol;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -22,7 +21,7 @@ import java.util.stream.Stream;
 
 /**
  * {@code /balance} and {@code /pay <player> <amount>} here — the survival server's money, through RainsCore's linked
- * economy: one balance on both servers. Somebody on survival can be paid by name. Off the server thread, since every
+ * economy (on a network, its bank): one balance everywhere. Somebody on survival can be paid by name. Off the server thread, since every
  * call asks survival.
  */
 public final class WalletCommand implements IArenaCommand {
@@ -63,8 +62,8 @@ public final class WalletCommand implements IArenaCommand {
             return;
         }
         boolean confirmed = args.length > 2 && args[2].equalsIgnoreCase("confirm");
-        Optional<de.raindancer.core.platform.link.ServerLink> link = live.core().link();
-        if (link.isEmpty()) {
+        Optional<String> bank = bank(live);
+        if (bank.isEmpty()) {
             live.messages().send(player, "arena.wallet.unavailable");
             return;
         }
@@ -75,7 +74,7 @@ public final class WalletCommand implements IArenaCommand {
             }
             Who to = target.get();
             // Run on survival by its economy, under every rule a /pay there has — never a raw transfer from here.
-            return link.get().request(de.raindancer.core.social.economy.LinkedEconomy.PAY, Map.of(
+            return live.link().ask(bank.get(), de.raindancer.core.social.economy.LinkedEconomy.PAY, Map.of(
                             "payer", player.getUniqueId().toString(), "payerName", player.getName(),
                             "target", to.id().toString(), "amount", String.valueOf(amount.get().minor()),
                             "confirmed", String.valueOf(confirmed)), java.time.Duration.ofSeconds(6))
@@ -112,7 +111,16 @@ public final class WalletCommand implements IArenaCommand {
     private record Who(UUID id, String name) {
     }
 
-    /** Somebody here, or somebody on survival — asked over the link by name. */
+    /** The server that keeps the money: a link's one other end, or the one holding the network's bank role. */
+    private static Optional<String> bank(ArenaServices live) {
+        if (!live.link().isUp()) {
+            return Optional.empty();
+        }
+        return live.link().onlyPeer().or(() -> live.core().networkRoles()
+                .flatMap(roles -> roles.holder(de.raindancer.core.social.economy.NetworkEconomy.ROLE)));
+    }
+
+    /** Somebody here, or somebody on survival — found by name, over the link or in the network's presence. */
     private static CompletableFuture<Optional<Who>> whom(ArenaServices live, Player asking, String name) {
         Player here = live.server().getPlayerExact(name);
         if (here != null && live.core().vanish().canSee(asking.getUniqueId(), here.getUniqueId())) {
@@ -121,10 +129,7 @@ public final class WalletCommand implements IArenaCommand {
         if (!live.link().isUp()) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
-        return live.link().ask(ArenaProtocol.WHERE, Map.of("name", name)).thenApply(answer ->
-                "true".equals(answer.get("online"))
-                        ? Optional.of(new Who(UUID.fromString(answer.get("player")), answer.getOrDefault("name", name)))
-                        : Optional.<Who>empty());
+        return live.link().find(name).thenApply(found -> found.map(who -> new Who(who.id(), who.name())));
     }
 
     @Override
@@ -135,7 +140,7 @@ public final class WalletCommand implements IArenaCommand {
         ArenaServices live = services.get();
         String typed = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         return Stream.concat(live.server().getOnlinePlayers().stream().map(Player::getName),
-                        live.core().playersElsewhere().stream()).distinct()
+                        live.link().names().stream()).distinct()
                 .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed)).sorted().toList();
     }
 

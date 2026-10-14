@@ -1,8 +1,11 @@
 package de.raindancer.modules.arena.api;
 
 /**
- * The words the arena server and the survival server say to each other over RainsCore's server link. The arena server
- * hosts the link, the survival server is its guest; each topic says who asks and who answers.
+ * The words the arena server and the survival server say to each other — over RainsCore's server link (one survival
+ * server, the arena hosts the link) or, on a network, over its calls (any number of survival servers, one arena; see
+ * {@link de.raindancer.modules.arena.api.wire.Wire}). Each topic says who asks and who answers; "survival" means the
+ * survival server the player belongs to. Money topics are idempotent by their {@code fight} id: asking twice moves
+ * money once.
  */
 public final class ArenaProtocol {
 
@@ -30,7 +33,10 @@ public final class ArenaProtocol {
     /** Arena → survival: take the stake from each of these players and hold it. Answer: {@code ok}, or {@code who}. */
     public static final String STAKE_HOLD = "stake.hold";
 
-    /** Arena → survival: pay the held pot out as given. Answer: {@code ok}. */
+    /**
+     * Arena → survival: pay the held pot out as given ({@code payouts}); {@code participants} names everybody of the
+     * fight, because on a network the winner may belong to another survival server than the pot does. Answer: {@code ok}.
+     */
     public static final String STAKE_PAY = "stake.pay";
 
     /** Arena → survival: give every held stake of the fight back. Answer: {@code ok}. */

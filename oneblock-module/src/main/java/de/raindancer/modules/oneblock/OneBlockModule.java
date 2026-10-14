@@ -3,6 +3,7 @@ package de.raindancer.modules.oneblock;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.link.ServerLink;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkCalls;
 import de.raindancer.core.platform.proxy.ProxyTransfer;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.api.FlexModule;
@@ -39,7 +40,7 @@ import java.util.concurrent.Executor;
  */
 public final class OneBlockModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("oneblock", "OneBlock", "0.2.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("oneblock", "OneBlock", "0.3.0")
             .describedAs("OneBlock islands on their own server, with /island and invites from anywhere on the network.")
             .by("Raindancer118");
 
@@ -72,8 +73,12 @@ public final class OneBlockModule implements FlexModule {
         ProxyTransfer.register(context.plugin());
 
         Executor onServer = task -> Scheduling.global(context.plugin(), task);
+        // On a network the link stands down: every question goes over Core's calls, and who is where is its presence.
+        Optional<NetworkCalls> calls = context.core().network().isNetwork() ? context.core().networkCalls()
+                : Optional.empty();
         NetworkDelivery delivery = new NetworkDelivery(context.plugin(), server, context.core().messages(),
-                context.core()::links, player -> context.core().vanish().isVanished(player.getUniqueId()));
+                context.core()::links, calls.isPresent() ? context.core()::networkPlayers : Optional::empty,
+                player -> context.core().vanish().isVanished(player.getUniqueId()));
         Optional<IslandHost> host = IslandHosts.on(server, log, () -> settings.current().gameMode(),
                 context.core().vanish()::isVanished);
 
@@ -87,7 +92,7 @@ public final class OneBlockModule implements FlexModule {
             invites = Optional.of(service);
             gateway = new LocalGateway(service, host.get(), onServer);
             List<ServerLink> links = new ArrayList<>(context.core().links().all().values());
-            endpoint = new IslandEndpoint(service, links);
+            endpoint = new IslandEndpoint(service, links, calls);
             endpoint.listen();
             var timer = Scheduling.globalTimer(context.plugin(), SWEEP_TICKS, SWEEP_TICKS, task -> service.sweep());
             if (timer != null) {
@@ -102,11 +107,14 @@ public final class OneBlockModule implements FlexModule {
                 context.closeWith(drawing::cancel);
             }
             context.closeWith(() -> server.getOnlinePlayers().forEach(online -> board.forget(online.getUniqueId())));
-            log.info("This is the island server ({}): answering invites over {} link(s).", settings.current().gameMode(),
-                    links.size());
-            if (links.isEmpty()) {
+            log.info("This is the island server ({}): answering invites over {}.", settings.current().gameMode(),
+                    calls.isPresent() ? "the network" : links.size() + " link(s)");
+            if (links.isEmpty() && calls.isEmpty()) {
                 log.warn("No links in RainsCore's link.yml — invites work only between players on this server.");
             }
+        } else if (calls.isPresent()) {
+            // The island server's network id is the proxy's name for it, the one setting both agree on.
+            gateway = RemoteGateway.overNetwork(calls.get(), () -> settings.current().proxyServer());
         } else {
             gateway = new RemoteGateway(() -> context.core().links().named(settings.current().islandServer()));
             if (context.core().links().named(settings.current().islandServer()).isEmpty()) {

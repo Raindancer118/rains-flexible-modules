@@ -43,6 +43,7 @@ public final class ArenaService implements IArenaService {
     };
     private final HoldBook held = new HoldBook();
     private final Origins origins = new Origins();
+    private volatile java.util.function.BiConsumer<Player, String> transfer;
     private volatile java.util.function.Predicate<java.util.UUID> fighting = player -> false;
 
     public ArenaService(Plugin plugin, Server server, Messages messages, Effects effects, ArenaWorldService worlds,
@@ -54,6 +55,17 @@ public final class ArenaService implements IArenaService {
         this.worlds = worlds;
         this.layout = layout;
         this.settings = settings;
+        this.transfer = (player, target) -> ProxyTransfer.send(plugin, player, target);
+    }
+
+    /** How somebody is sent to another server — the proxy by default, the network's travel on a network. */
+    public void transfer(java.util.function.BiConsumer<Player, String> how) {
+        this.transfer = how;
+    }
+
+    /** The survival server somebody was sent over from, when they were. */
+    public java.util.Optional<String> homeOf(java.util.UUID player) {
+        return origins.homeOf(player);
     }
 
     @Override
@@ -100,12 +112,15 @@ public final class ArenaService implements IArenaService {
 
     /**
      * Survival is back: everybody held goes back to it, a moment apart so the proxy is not asked for all of them at
-     * once. Somebody in a fight stays held and goes when the fight is over.
+     * once. Somebody in a fight stays held and goes when the fight is over. With several survival servers only the ones
+     * that belong to {@code survival} go — each says for itself when it is up.
      *
+     * @param survival the survival server that is up; {@code null} for all of them (an admin's /arena admin return)
      * @return how many were sent
      */
-    public int returnHeld() {
-        List<java.util.UUID> leaving = held.takeAllBut(fighting);
+    public int returnHeld(String survival) {
+        List<java.util.UUID> leaving = held.takeAllBut(player -> fighting.test(player)
+                || survival != null && !homeIs(player, survival));
         int sent = 0;
         for (java.util.UUID id : leaving) {
             Player player = server.getPlayer(id);
@@ -116,10 +131,19 @@ public final class ArenaService implements IArenaService {
             de.raindancer.core.platform.util.Scheduling.entityLater(plugin, player, delay, () -> {
                 messages.send(player, "arena.update.back");
                 returning.accept(player.getUniqueId());
-                ProxyTransfer.send(plugin, player, settings.lobbyOrDefault());
+                transfer.accept(player, survivalFor(player.getUniqueId()));
             });
         }
         return sent;
+    }
+
+    /** A held player of a server other than the one that is up stays; one nobody sent (or a link's) goes with any. */
+    private boolean homeIs(java.util.UUID player, String survival) {
+        return origins.homeOf(player).filter(home -> !home.isEmpty()).map(survival::equals).orElse(true);
+    }
+
+    private String survivalFor(java.util.UUID player) {
+        return origins.homeOf(player).filter(home -> !home.isEmpty()).orElse(settings.lobbyOrDefault());
     }
 
     /** After a fight: somebody held through it goes back now. */
@@ -130,7 +154,7 @@ public final class ArenaService implements IArenaService {
             if (online != null) {
                 messages.send(online, "arena.update.back");
                 returning.accept(player);
-                ProxyTransfer.send(plugin, online, settings.lobbyOrDefault());
+                transfer.accept(online, survivalFor(player));
             }
         }
     }
@@ -152,8 +176,8 @@ public final class ArenaService implements IArenaService {
     }
 
     /** Somebody has come over — from the survival server when it announced them, else from the hub. On their own thread. */
-    public void arrived(Player player, boolean announcedBySurvival) {
-        origins.arrived(player.getUniqueId(), announcedBySurvival);
+    public void arrived(Player player, boolean announcedBySurvival, String home) {
+        origins.arrived(player.getUniqueId(), announcedBySurvival, home);
         HubState.apply(player, settings);
         hub().ifPresentOrElse(hub -> player.teleportAsync(hub).thenAccept(moved -> {
             effects.play(player.getUniqueId(), Cues.ENTER);
@@ -169,7 +193,7 @@ public final class ArenaService implements IArenaService {
         if (origins.cameFromSurvival(player.getUniqueId())) {
             returning.accept(player.getUniqueId());
         }
-        ProxyTransfer.send(plugin, player, target);
+        transfer.accept(player, target);
     }
 
     public void forgetOrigin(java.util.UUID player) {

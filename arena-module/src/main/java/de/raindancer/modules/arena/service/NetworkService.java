@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * What the survival server tells the arena over the link: who is on the way and what for, invites from over there,
+ * What the survival servers tell the arena: who is on the way and what for, invites from over there,
  * and answers given over there to invites from here.
  */
 public final class NetworkService {
@@ -41,7 +41,7 @@ public final class NetworkService {
      * Somebody is about to be sent over: {@code player}, {@code kind} (hub, queue, waves, agreed), the spec, and for an
      * agreed fight its {@code agreed} id and {@code sides} ({@code uuid,uuid|uuid}).
      */
-    private Map<String, String> intent(Map<String, String> data) {
+    private Map<String, String> intent(String peer, Map<String, String> data) {
         try {
             UUID player = UUID.fromString(data.get("player"));
             IntentBook.Kind kind = IntentBook.Kind.valueOf(data.getOrDefault("kind", "HUB").toUpperCase(Locale.ROOT));
@@ -50,7 +50,7 @@ public final class NetworkService {
             if (kind == IntentBook.Kind.AGREED && agreedId != null && data.containsKey("sides")) {
                 agreed.agree(agreedId, spec, sides(data.get("sides")));
             }
-            intents.put(player, kind, spec, agreedId);
+            intents.put(player, kind, spec, agreedId, peer);
             return Map.of("ok", "true");
         } catch (RuntimeException garbled) {
             return Map.of("ok", "false");

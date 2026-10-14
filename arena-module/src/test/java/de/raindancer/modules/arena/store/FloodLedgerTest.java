@@ -37,8 +37,11 @@ class FloodLedgerTest {
     void damaged() throws Exception {
         FloodLedger ledger = new FloodLedger(folder.resolve("floods"));
         ledger.write("pit2", List.of(new FloodLedger.Change("arena_2", 1, 2, 3, "minecraft:air")));
-        java.nio.file.Files.writeString(folder.resolve("floods").resolve("pit2.flood"), "garbage line\n",
-                java.nio.file.StandardOpenOption.APPEND);
+        new de.raindancer.core.data.store.YamlStore(folder.resolve("floods").resolve("pit2.yml")).update(yaml -> {
+            List<String> lines = new java.util.ArrayList<>(yaml.getStringList("changes"));
+            lines.add("garbage line");
+            yaml.set("changes", lines);
+        });
         assertThat(ledger.read("pit2")).hasSize(1);
     }
 }

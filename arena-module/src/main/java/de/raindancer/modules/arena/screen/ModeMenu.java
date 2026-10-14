@@ -59,7 +59,7 @@ public final class ModeMenu extends Menu implements IArenaScreen {
                         "<gray>Pick somebody — here or on survival —", "<gray>then the fight, the kit and the stake.",
                         "<gray>They get a minute to accept."),
                 click -> new de.raindancer.core.ui.choose.PlayerChooser(viewer, services.brand(), this, "Challenge whom?",
-                        de.raindancer.modules.arena.util.OnlinePlayers.reachable(services.server(), services.core()::playersElsewhere),
+                        de.raindancer.modules.arena.util.OnlinePlayers.reachable(services.server(), services.link()::names),
                         java.util.List.of(viewer.getUniqueId()), entry -> new ChallengeMenu(services, viewer, this, entry.name()).open()).open());
     }
 

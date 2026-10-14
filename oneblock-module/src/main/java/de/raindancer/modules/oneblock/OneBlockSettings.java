@@ -20,12 +20,14 @@ public record OneBlockSettings(
 
         @In("oneblock") @Title("Island server's link")
         @Describe("On the other servers: the island server's name in link.yml (its key under peers:, or the "
-                + "server-name it gives itself). Invites typed here are sent there.")
+                + "server-name it gives itself). Invites typed here are sent there. Not used on a network, where "
+                + "'Island server on the proxy' is also the island server's id.")
         @Key("island-server")
         String islandServer,
 
         @In("oneblock") @Title("Island server on the proxy")
-        @Describe("The proxy's name for the island server — where /island and an accepted invite send people.")
+        @Describe("The proxy's name for the island server — where /island and an accepted invite send people. "
+                + "On a network it must be the island server's id in network.yml, which is how invites reach it.")
         @Key("proxy-server")
         String proxyServer,
 

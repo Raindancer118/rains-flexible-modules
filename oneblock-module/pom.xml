@@ -47,6 +47,13 @@
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
+        <!-- The driver Paper ships, for tests only: the network delivery is tested against real SQLite (and PostgreSQL). -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.49.1.0</version>
+            <scope>test</scope>
+        </dependency>
         <!-- The island server's own plugin, there at runtime; only BentoIslands names its types. -->
         <dependency>
             <groupId>world.bentobox</groupId>

@@ -255,7 +255,8 @@ public final class MatchService implements IArenaService {
             if (failure != null || refused.isPresent()) {
                 String why = failure != null ? "the survival server" : refused.get();
                 tellAll(fight, "arena.fight.called-off", "who", why);
-                if (spec.stake() > 0 && (failure != null || !why.equals("the survival server"))) {
+                if (spec.stake() > 0) {
+                    // Even when the answer was lost: a server that did hold is told to give back, until it says it did.
                     stakes.refund(fight.id());
                 }
                 dissolve(fight);
@@ -271,7 +272,7 @@ public final class MatchService implements IArenaService {
         gear.put(fight.id(), copies);
         List<CompletableFuture<Optional<String>>> asked = new ArrayList<>();
         for (UUID player : fight.players()) {
-            asked.add(link.ask(ArenaProtocol.GEAR, Map.of("player", player.toString())).handle((answer, failure) -> {
+            asked.add(link.askHome(player, ArenaProtocol.GEAR, Map.of("player", player.toString())).handle((answer, failure) -> {
                 if (failure != null || !"true".equals(answer.get("ok"))) {
                     return Optional.of(name(player));
                 }

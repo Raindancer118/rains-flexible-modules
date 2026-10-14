@@ -1,12 +1,12 @@
 package de.raindancer.modules.arenagate.service;
 
-import de.raindancer.core.platform.link.ServerLink;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.arena.api.ArenaProtocol;
 import de.raindancer.modules.arena.api.MatchSpec;
 import de.raindancer.modules.arena.api.Mode;
 import de.raindancer.modules.arena.api.SpecCodec;
+import de.raindancer.modules.arena.api.wire.Wire;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -19,21 +19,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * The survival side of the arena link: holding and settling stakes, copying gear, finding players by name, invites
- * from the arena, sending somebody over who is waited for, and knowing who is coming back.
+ * The survival side of the way to the arena: holding and settling stakes, copying gear, finding players by name,
+ * invites from the arena, sending somebody over who is waited for, and knowing who is coming back. Over the server
+ * link or, on a network, to the one arena server the settings name — any number of survival servers can share it.
  *
- * <p>Handlers run on the link's threads; anything that touches a player hops to that player's own.
+ * <p>Handlers run on the wire's threads, never the bus's; anything that touches a player hops to that player's own.
  */
 public final class GateNetwork {
 
     private final Plugin plugin;
     private final Server server;
     private final Messages messages;
-    private final ServerLink link;
+    private final Wire wire;
+    private final java.util.function.Supplier<String> arena;
     private final EscrowService escrow;
     private final GearService gear;
     private final GateInvites invites;
@@ -45,7 +48,9 @@ public final class GateNetwork {
             new de.raindancer.modules.arenagate.rules.InviteMissRule();
     private volatile java.util.function.Function<String, Optional<String>> whereElse = name -> Optional.empty();
 
-    public GateNetwork(Plugin plugin, Server server, Messages messages, ServerLink link, EscrowService escrow,
+    /** @param arena the network id (or proxy name) of the arena server, as the settings say it now */
+    public GateNetwork(Plugin plugin, Server server, Messages messages, Wire wire,
+                       java.util.function.Supplier<String> arena, EscrowService escrow,
                        GearService gear, GateInvites invites, GateService gate, GateConsents consents,
                        java.util.function.Predicate<UUID> hidden) {
         this.consents = consents;
@@ -53,7 +58,8 @@ public final class GateNetwork {
         this.plugin = plugin;
         this.server = server;
         this.messages = messages;
-        this.link = link;
+        this.wire = wire;
+        this.arena = arena;
         this.escrow = escrow;
         this.gear = gear;
         this.invites = invites;
@@ -66,17 +72,13 @@ public final class GateNetwork {
     }
 
     public void listen() {
-        link.on(ArenaProtocol.STAKE_HOLD, this::hold);
-        link.on(ArenaProtocol.STAKE_PAY, this::pay);
-        link.on(ArenaProtocol.STAKE_REFUND, data -> Map.of("ok", String.valueOf(escrow.refund(data.get("fight")))));
-        link.on(ArenaProtocol.GEAR, data -> {
-            try {
-                return consents.takeGear(UUID.fromString(data.get("player"))) ? gear.copy(data) : Map.of("ok", "false");
-            } catch (RuntimeException garbled) {
-                return Map.of("ok", "false");
-            }
-        });
-        link.on(ArenaProtocol.CONSENT, data -> {
+        // Money and gear wait on the bank, the database and the world: answered later, off the bus's thread.
+        wire.onLater(ArenaProtocol.STAKE_HOLD, (peer, data) -> CompletableFuture.completedFuture(hold(data)));
+        wire.onLater(ArenaProtocol.STAKE_PAY, (peer, data) -> CompletableFuture.completedFuture(pay(data)));
+        wire.onLater(ArenaProtocol.STAKE_REFUND, (peer, data) -> CompletableFuture.completedFuture(
+                Map.of("ok", String.valueOf(escrow.refund(data.get("fight"))))));
+        wire.onLater(ArenaProtocol.GEAR, (peer, data) -> CompletableFuture.completedFuture(gear(data)));
+        wire.on(ArenaProtocol.CONSENT, (peer, data) -> {
             try {
                 consents.agree(UUID.fromString(data.get("player")), Long.parseLong(data.getOrDefault("stake", "0")),
                         "true".equals(data.get("gear")));
@@ -85,8 +87,8 @@ public final class GateNetwork {
             }
             return null;
         });
-        link.on(ArenaProtocol.WHERE, this::where);
-        link.on(ArenaProtocol.GROUP, data -> {
+        wire.on(ArenaProtocol.WHERE, (peer, data) -> where(data));
+        wire.on(ArenaProtocol.GROUP, (peer, data) -> {
             try {
                 return de.raindancer.core.social.team.Groups.of(UUID.fromString(data.get("player"))).stream().findFirst()
                         .map(group -> Map.of("id", group.id(), "tag", group.tag(), "name", group.name()))
@@ -95,9 +97,9 @@ public final class GateNetwork {
                 return Map.of("id", "");
             }
         });
-        link.on(ArenaProtocol.INVITE, this::inviteFromArena);
-        link.on(ArenaProtocol.SUMMON, this::summon);
-        link.on(ArenaProtocol.INVITE_CANCEL, data -> {
+        wire.on(ArenaProtocol.INVITE, (peer, data) -> inviteFromArena(data));
+        wire.on(ArenaProtocol.SUMMON, (peer, data) -> summon(data));
+        wire.on(ArenaProtocol.INVITE_CANCEL, (peer, data) -> {
             java.util.Optional<GateInvites.Pending> taken;
             try {
                 taken = invites.cancel(UUID.fromString(data.get("from")), data.get("id"));
@@ -112,7 +114,7 @@ public final class GateNetwork {
             });
             return Map.of("ok", String.valueOf(taken.isPresent()));
         });
-        link.on(ArenaProtocol.RETURNING, data -> {
+        wire.on(ArenaProtocol.RETURNING, (peer, data) -> {
             try {
                 returning.add(UUID.fromString(data.get("player")));
             } catch (RuntimeException garbled) {
@@ -123,10 +125,14 @@ public final class GateNetwork {
     }
 
     public void stop() {
-        for (String topic : List.of(ArenaProtocol.STAKE_HOLD, ArenaProtocol.STAKE_PAY, ArenaProtocol.STAKE_REFUND,
-                ArenaProtocol.GEAR, ArenaProtocol.WHERE, ArenaProtocol.INVITE, ArenaProtocol.SUMMON,
-                ArenaProtocol.RETURNING, ArenaProtocol.CONSENT, ArenaProtocol.INVITE_CANCEL)) {
-            link.off(topic);
+        wire.close();
+    }
+
+    private Map<String, String> gear(Map<String, String> data) {
+        try {
+            return consents.takeGear(UUID.fromString(data.get("player"))) ? this.gear.copy(data) : Map.of("ok", "false");
+        } catch (RuntimeException garbled) {
+            return Map.of("ok", "false");
         }
     }
 
@@ -148,6 +154,9 @@ public final class GateNetwork {
     private Map<String, String> pay(Map<String, String> data) {
         try {
             Map<UUID, Long> payouts = new LinkedHashMap<>();
+            String everybody = data.getOrDefault("participants", "");
+            Set<UUID> participants = everybody.isBlank() ? null : Arrays.stream(everybody.split(","))
+                    .map(UUID::fromString).collect(Collectors.toSet());
             String text = data.getOrDefault("payouts", "");
             for (String pair : text.split(",")) {
                 if (pair.isBlank()) {
@@ -156,7 +165,7 @@ public final class GateNetwork {
                 String[] parts = pair.split("=");
                 payouts.merge(UUID.fromString(parts[0]), Long.parseLong(parts[1]), Long::sum);
             }
-            return Map.of("ok", String.valueOf(escrow.pay(data.get("fight"), payouts)));
+            return Map.of("ok", String.valueOf(escrow.pay(data.get("fight"), payouts, participants)));
         } catch (RuntimeException garbled) {
             return Map.of("ok", "false");
         }
@@ -215,8 +224,8 @@ public final class GateNetwork {
         invites.take(player.getUniqueId(), id).ifPresentOrElse(pending -> {
             consents.agree(player.getUniqueId(), pending.spec().stake(), pending.spec().isOwnGear());
             if (pending.fromArena()) {
-                link.request(ArenaProtocol.INVITE_ANSWER, Map.of("id", pending.id(), "accepted", "true",
-                        "player", player.getUniqueId().toString()), java.time.Duration.ofSeconds(8))
+                wire.ask(arena.get(), ArenaProtocol.INVITE_ANSWER, Map.of("id", pending.id(), "accepted", "true",
+                        "player", player.getUniqueId().toString()))
                         .whenComplete((answer, failure) -> Scheduling.entity(plugin, player, () -> {
                             if (failure != null || !"true".equals(answer.get("ok"))) {
                                 messages.send(player, "arenagate.invite.gone");
@@ -258,7 +267,7 @@ public final class GateNetwork {
             messages.send(player, "arenagate.invite.nothing-to-cancel");
             return;
         }
-        link.send(ArenaProtocol.INVITE_CANCEL, Map.of("id", id, "from", player.getUniqueId().toString()));
+        wire.tell(arena.get(), ArenaProtocol.INVITE_CANCEL, Map.of("id", id, "from", player.getUniqueId().toString()));
         messages.send(player, "arenagate.invite.you-cancelled");
     }
 
@@ -266,7 +275,7 @@ public final class GateNetwork {
         invites.take(player.getUniqueId(), id).ifPresentOrElse(pending -> {
             messages.send(player, "arenagate.invite.you-declined", "player", pending.fromName());
             if (pending.fromArena()) {
-                link.send(ArenaProtocol.INVITE_ANSWER, Map.of("id", pending.id(), "accepted", "false"));
+                wire.tell(arena.get(), ArenaProtocol.INVITE_ANSWER, Map.of("id", pending.id(), "accepted", "false"));
             } else {
                 Player inviter = server.getPlayer(pending.from());
                 if (inviter != null) {
@@ -295,7 +304,7 @@ public final class GateNetwork {
             offer(target, pending);
             return;
         }
-        if (!link.isConnected()) {
+        if (!wire.reachable(arena.get())) {
             messages.send(from, "arenagate.unreachable");
             return;
         }
@@ -307,7 +316,7 @@ public final class GateNetwork {
         data.put("fromName", from.getName());
         // Only the name: the arena knows its own players and finds them by it.
         data.put("toName", targetName);
-        link.request(ArenaProtocol.INVITE, data, java.time.Duration.ofSeconds(8))
+        wire.ask(arena.get(), ArenaProtocol.INVITE, data)
                 .whenComplete((answer, failure) -> Scheduling.entity(plugin, from, () -> {
                     if (failure == null && "true".equals(answer.get("ok"))) {
                         messages.send(from, "arenagate.invite.sent-arena", "player", targetName, "id", id);

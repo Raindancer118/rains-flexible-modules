@@ -79,7 +79,7 @@ public final class PvpCommand implements IArenaCommand {
         ArenaServices live = services.get();
         if (args[0].equalsIgnoreCase("invite") && args.length == 2) {
             return Stream.concat(live.server().getOnlinePlayers().stream().map(Player::getName),
-                            live.core().playersElsewhere().stream()).distinct()
+                            live.link().names().stream()).distinct()
                     .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(last)).sorted().toList();
         }
         if (args[0].equalsIgnoreCase("join") && args.length == 2) {

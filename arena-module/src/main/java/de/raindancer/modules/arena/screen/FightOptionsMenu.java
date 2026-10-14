@@ -87,7 +87,7 @@ public final class FightOptionsMenu extends Menu implements IArenaScreen {
                         "<gray>Somebody here in the arena, or on survival."),
                 "Teams and free for all come together in the queue.",
                 click -> new PlayerChooser(viewer, services.brand(), this, "Ask whom?",
-                        de.raindancer.modules.arena.util.OnlinePlayers.reachable(services.server(), services.core()::playersElsewhere),
+                        de.raindancer.modules.arena.util.OnlinePlayers.reachable(services.server(), services.link()::names),
                         List.of(viewer.getUniqueId()), entry -> {
                             viewer.closeInventory();
                             services.invites().invite(viewer, entry.name(), spec);

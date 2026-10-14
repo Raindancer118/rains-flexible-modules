@@ -1,6 +1,7 @@
 package de.raindancer.modules.oneblock.command;
 
 import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.core.platform.network.Presence;
 import de.raindancer.core.platform.proxy.ProxyTransfer;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.modules.oneblock.OneBlockServices;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -79,7 +81,10 @@ public final class IslandCommand implements IOneBlockCommand {
             live.messages().send(player, reply.key(), reply.values().toArray());
         }
         if (reply.transfer()) {
-            ProxyTransfer.send(live.plugin(), player, live.config().proxyServer());
+            String island = live.config().proxyServer();
+            live.core().networkTravel().ifPresentOrElse(
+                    travel -> travel.send(player, island, Optional.empty()),
+                    () -> ProxyTransfer.send(live.plugin(), player, island));
         }
     }
 
@@ -97,9 +102,16 @@ public final class IslandCommand implements IOneBlockCommand {
         List<String> names = new ArrayList<>(PlayerTargets.suggest(live.server(), source.getSender(), typed,
                 online -> !online.equals(player)));
         String lowered = typed.toLowerCase(Locale.ROOT);
-        live.core().playersElsewhere().stream().filter(name -> name.toLowerCase(Locale.ROOT).startsWith(lowered))
+        elsewhere(live).stream().filter(name -> name.toLowerCase(Locale.ROOT).startsWith(lowered))
                 .filter(name -> !names.contains(name)).sorted().forEach(names::add);
         return names;
+    }
+
+    /** Everybody online on another server — the network's presence, or the link's roster. */
+    private static Collection<String> elsewhere(OneBlockServices live) {
+        return live.core().networkPlayers().<Collection<String>>map(players -> players.everyone(false).stream()
+                        .filter(there -> !there.server().equals(players.self())).map(Presence.Here::name).toList())
+                .orElseGet(() -> live.core().playersElsewhere());
     }
 
     @Override

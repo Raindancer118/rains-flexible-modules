@@ -16,8 +16,11 @@ public final class IntentBook {
 
     public enum Kind { HUB, QUEUE, WAVES, AGREED }
 
-    /** @param agreed the agreed fight's id, for {@link Kind#AGREED} */
-    public record Intent(Kind kind, MatchSpec spec, String agreed, long expires) {
+    /**
+     * @param agreed the agreed fight's id, for {@link Kind#AGREED}
+     * @param home   the survival server that sent them; empty on a link
+     */
+    public record Intent(Kind kind, MatchSpec spec, String agreed, String home, long expires) {
     }
 
     private static final long LIFETIME = 120_000;
@@ -29,8 +32,8 @@ public final class IntentBook {
         this.clock = clock;
     }
 
-    public void put(UUID player, Kind kind, MatchSpec spec, String agreed) {
-        waiting.put(player, new Intent(kind, spec, agreed, clock.getAsLong() + LIFETIME));
+    public void put(UUID player, Kind kind, MatchSpec spec, String agreed, String home) {
+        waiting.put(player, new Intent(kind, spec, agreed, home == null ? "" : home, clock.getAsLong() + LIFETIME));
     }
 
     /** The intent, removed as it is handed out. */

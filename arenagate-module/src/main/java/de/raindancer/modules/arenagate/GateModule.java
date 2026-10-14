@@ -2,7 +2,6 @@ package de.raindancer.modules.arenagate;
 
 import de.raindancer.core.data.nbt.ItemText;
 import de.raindancer.core.data.settings.SettingsStore;
-import de.raindancer.core.platform.link.ServerLink;
 import de.raindancer.core.platform.proxy.ProxyTransfer;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.economy.Economies;
@@ -12,6 +11,9 @@ import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
+import de.raindancer.modules.arena.api.wire.NetworkWire;
+import de.raindancer.modules.arena.api.wire.Wire;
+import de.raindancer.modules.arena.api.wire.Wires;
 import de.raindancer.modules.arenagate.listener.ArrivalListener;
 import de.raindancer.modules.arenagate.service.EscrowService;
 import de.raindancer.modules.arenagate.service.GateInvites;
@@ -31,7 +33,7 @@ import java.util.List;
  */
 public final class GateModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.7.3")
+    private static final ModuleInfo INFO = ModuleInfo.of("arenagate", "Arena Gate", "0.8.0")
             .describedAs("/arena and /pvp: off to the arena server, invites across both servers, stakes held here.")
             .by("Raindancer118");
 
@@ -52,13 +54,15 @@ public final class GateModule implements FlexModule {
         PermissionNodes.register(context.plugin().getServer());
         ProxyTransfer.register(context.plugin());
 
-        ServerLink link = context.core().link().orElse(null);
+        Wire wire = Wires.of(context.core(), context.plugin());
+        boolean onNetwork = wire instanceof NetworkWire;
+        boolean wired = onNetwork || context.core().link().isPresent();
         Travel travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         context.listener(new TravelListener(travel, true));
         GateService gate = new GateService(context.plugin(), context.core().messages(), travel, settings.current(),
-                link);
+                wire);
 
-        if (link != null) {
+        if (wired) {
             var database = context.core().databases().of(EscrowDatabase.NAME, EscrowDatabase.SCHEMA);
             EscrowService escrow = new EscrowService(Economies::current, new EscrowStore(database),
                     System::currentTimeMillis, id -> {
@@ -68,30 +72,37 @@ public final class GateModule implements FlexModule {
             settings.onChange(escrow::settings);
             consents = new de.raindancer.modules.arenagate.service.GateConsents(System::currentTimeMillis);
             escrow.consents(consents::takeStake);
+            // Money moves through Core's Economy; on a network that is the bank, and none of it moves without one.
+            context.core().networkRoles().ifPresent(roles -> escrow.bank(() ->
+                    roles.holder(de.raindancer.core.social.economy.NetworkEconomy.ROLE).isPresent()));
             GearService gear = new GearService(context.plugin(), context.plugin().getServer(),
                     context.core().inventories(), ItemText.ofTheServer());
-            network = new GateNetwork(context.plugin(), context.plugin().getServer(), context.core().messages(), link,
-                    escrow, gear, new GateInvites(System::currentTimeMillis), gate, consents,
+            network = new GateNetwork(context.plugin(), context.plugin().getServer(), context.core().messages(), wire,
+                    () -> settings.current().arenaOrDefault(), escrow, gear, new GateInvites(System::currentTimeMillis), gate, consents,
                     context.core().vanish()::isVanished);
-            network.whereElse(name -> context.core().links().serverOf(name));
+            network.whereElse(name -> onNetwork
+                    ? context.core().networkPlayers().flatMap(players -> players.named(name, false))
+                            .map(de.raindancer.core.platform.network.Presence.Here::server)
+                    : context.core().links().serverOf(name));
             network.listen();
-            context.listener(new de.raindancer.modules.arenagate.listener.ReadyListener(context.plugin(), link));
+            context.listener(new de.raindancer.modules.arenagate.listener.ReadyListener(context.plugin(), wire,
+                    () -> settings.current().arenaOrDefault()));
             var sweep = Scheduling.asyncTimer(context.plugin(), 300, 300, task -> escrow.sweep());
             if (sweep != null) {
                 context.closeWith(sweep::cancel);
             }
         } else {
-            context.log().warn("There is no server link (RainsCore link.yml): /arena works, invites, queues, stakes "
-                    + "and own gear do not.");
+            context.log().warn("There is no server link (RainsCore link.yml) and this is not a network: /arena works, "
+                    + "invites, queues, stakes and own gear do not.");
         }
         settings.onChange(gate::settings);
 
         GateServices services = new GateServices(context.plugin(), context.core().messages(), gate, network, consents,
-                context.core()::playersElsewhere);
+                wire::names);
         context.listener(new ArrivalListener(services));
         GateCommands.ready(services);
-        context.log().info("Arena gate is up: /arena goes to '{}', link {}.", settings.current().arenaOrDefault(),
-                link == null ? "missing" : "present");
+        context.log().info("Arena gate is up: /arena goes to '{}', {}.", settings.current().arenaOrDefault(),
+                !wired ? "no way to reach it" : onNetwork ? "over the network" : "over the server link");
     }
 
     @Override

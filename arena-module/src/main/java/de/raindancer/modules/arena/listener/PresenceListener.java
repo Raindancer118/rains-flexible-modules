@@ -34,7 +34,7 @@ public final class PresenceListener implements IArenaListener {
                 return;
             }
             var announced = services.intents().take(player.getUniqueId());
-            services.arena().arrived(player, announced.isPresent());
+            services.arena().arrived(player, announced.isPresent(), announced.map(IntentBook.Intent::home).orElse(""));
             announced.ifPresent(intent -> act(player, intent));
         });
         // Later, so it is not lost among the arrival lines: the fights waiting for more people.

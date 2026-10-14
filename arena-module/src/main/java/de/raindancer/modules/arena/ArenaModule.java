@@ -66,7 +66,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.13.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.14.0")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -121,11 +121,19 @@ public final class ArenaModule implements FlexModule {
                 context.dataFolder().resolve("boards.yml"));
 
         NpcService npcs = new NpcService(context.plugin(), role -> settings.current().npcSkin());
-        link = new ArenaLink(context.core()::link);
-        arena.returning(player -> link.tell(de.raindancer.modules.arena.api.ArenaProtocol.RETURNING,
+        de.raindancer.modules.arena.api.wire.Wire wire = de.raindancer.modules.arena.api.wire.Wires.of(context.core(),
+                context.plugin());
+        link = new ArenaLink(wire, arena::homeOf);
+        arena.transfer(link::send);
+        log.info("Reaching the survival servers over {}.", wire instanceof de.raindancer.modules.arena.api.wire.NetworkWire
+                ? "the network" : "the server link");
+        arena.returning(player -> link.tellHome(player, de.raindancer.modules.arena.api.ArenaProtocol.RETURNING,
                 java.util.Map.of("player", player.toString())));
         StakeService stakes = new StakeService(link,
-                new SettlementBook(context.dataFolder().resolve("settlements.yml")));
+                new SettlementBook(context.dataFolder().resolve("settlements.yml")), id -> {
+                    String name = server.getOfflinePlayer(id).getName();
+                    return name == null ? id.toString().substring(0, 8) : name;
+                });
 
         matches = new MatchService(context.plugin(), server, context.core().messages(), context.core().effects(), arena,
                 kits, stakes, link, stats, settings.current());
@@ -145,7 +153,7 @@ public final class ArenaModule implements FlexModule {
         queue = new QueueService(context.plugin(), server, context.core().messages(), context.core().actionBars(), arena,
                 matches, System::currentTimeMillis, settings.current(), id -> kits.get(id).isPresent(), link::isUp);
         matches.afterFight(queue::tick);
-        queue.groups(player -> link.ask(de.raindancer.modules.arena.api.ArenaProtocol.GROUP,
+        queue.groups(player -> link.askHome(player, de.raindancer.modules.arena.api.ArenaProtocol.GROUP,
                 java.util.Map.of("player", player.toString())).thenApply(answer -> {
                     String id = answer == null ? "" : answer.getOrDefault("id", "");
                     if (answer == null || !answer.containsKey("id")) {
@@ -157,7 +165,7 @@ public final class ArenaModule implements FlexModule {
                 }));
         queue.consent((player, spec) -> {
             if (spec.stake() > 0 || spec.isOwnGear()) {
-                link.tell(de.raindancer.modules.arena.api.ArenaProtocol.CONSENT, java.util.Map.of(
+                link.tellHome(player, de.raindancer.modules.arena.api.ArenaProtocol.CONSENT, java.util.Map.of(
                         "player", player.toString(), "stake", String.valueOf(spec.stake()),
                         "gear", String.valueOf(spec.isOwnGear())));
             }
@@ -173,10 +181,10 @@ public final class ArenaModule implements FlexModule {
                 settings.current().mostStake());
         new NetworkService(link, intents, invites, agreed).listen();
         arena.fighting(matches::inFight);
-        link.on(de.raindancer.modules.arena.api.ArenaProtocol.SMP_READY, data -> {
+        link.on(de.raindancer.modules.arena.api.ArenaProtocol.SMP_READY, (peer, data) -> {
             // A breath first: survival takes logins the moment it says so, but the proxy may not have noticed yet.
             Scheduling.globalLater(context.plugin(), 60L, () -> {
-                int sent = arena.returnHeld();
+                int sent = arena.returnHeld(peer.isEmpty() ? null : peer);
                 if (sent > 0) {
                     log.info("Survival is back: {} player(s) who waited in the hub are on their way.", sent);
                 }

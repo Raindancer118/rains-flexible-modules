@@ -138,7 +138,7 @@ public final class ArenaCommand implements IArenaCommand {
                 }
                 live.messages().send(sender, "arena.admin.held", "count", count);
             }
-            case "return" -> live.messages().send(sender, "arena.admin.returned", "count", live.arena().returnHeld());
+            case "return" -> live.messages().send(sender, "arena.admin.returned", "count", live.arena().returnHeld(null));
             case "kit" -> kit(live, sender, args);
             case "npc" -> npc(live, sender, args);
             case "flood", "drain" -> flood(live, sender, args);

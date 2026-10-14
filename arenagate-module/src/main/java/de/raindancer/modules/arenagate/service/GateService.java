@@ -1,11 +1,11 @@
 package de.raindancer.modules.arenagate.service;
 
-import de.raindancer.core.platform.proxy.ProxyTransfer;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelReason;
 import de.raindancer.core.world.teleport.TravelWatcher;
 import de.raindancer.core.world.teleport.Trip;
+import de.raindancer.modules.arena.api.wire.Wire;
 import de.raindancer.modules.arenagate.GateSettings;
 import de.raindancer.modules.arenagate.rules.GoRule;
 import de.raindancer.modules.arenagate.util.PermissionNodes;
@@ -29,13 +29,12 @@ public final class GateService implements IGateService {
     private final Messages messages;
     private final Travel travel;
     private final GoRule rule = new GoRule();
-    private final de.raindancer.core.platform.link.ServerLink link;
+    private final Wire wire;
     private final java.util.Set<java.util.UUID> leaving = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private volatile GateSettings settings;
 
-    public GateService(Plugin plugin, Messages messages, Travel travel, GateSettings settings,
-                       de.raindancer.core.platform.link.ServerLink link) {
-        this.link = link;
+    public GateService(Plugin plugin, Messages messages, Travel travel, GateSettings settings, Wire wire) {
+        this.wire = wire;
         this.plugin = plugin;
         this.messages = messages;
         this.travel = travel;
@@ -56,7 +55,7 @@ public final class GateService implements IGateService {
      * the countdown, then the proxy. Told nothing, they simply arrive in the hub.
      */
     public void go(Player player, java.util.Map<String, String> intent) {
-        if (intent != null && (link == null || !link.isConnected())) {
+        if (intent != null && !wire.reachable(settings.arenaOrDefault())) {
             messages.send(player, "arenagate.unreachable");
             return;
         }
@@ -74,7 +73,7 @@ public final class GateService implements IGateService {
         }
         java.util.Map<String, String> data = new java.util.HashMap<>(intent);
         data.put("player", player.getUniqueId().toString());
-        link.request(de.raindancer.modules.arena.api.ArenaProtocol.INTENT, data, java.time.Duration.ofSeconds(8))
+        wire.ask(now.arenaOrDefault(), de.raindancer.modules.arena.api.ArenaProtocol.INTENT, data)
                 .whenComplete((answer, failure) -> de.raindancer.core.platform.util.Scheduling.entity(plugin, player, () -> {
                     if (failure != null || !"true".equals(answer.get("ok"))) {
                         messages.send(player, "arenagate.unreachable");
@@ -125,7 +124,7 @@ public final class GateService implements IGateService {
     private void send(Player player, GateSettings now) {
         messages.send(player, "arenagate.sending");
         leaving.add(player.getUniqueId());
-        ProxyTransfer.send(plugin, player, now.arenaOrDefault());
+        wire.send(player, now.arenaOrDefault());
     }
 
     /** Whether this player is leaving for the arena — their quit is "went to the arena", not "left the game". */

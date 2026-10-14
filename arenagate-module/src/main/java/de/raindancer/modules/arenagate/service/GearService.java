@@ -41,7 +41,7 @@ public final class GearService {
         this.codec = codec;
     }
 
-    /** For the link: called on its thread, so waiting here for the server thread is safe. */
+    /** Called off the server thread (a link or wire worker), so waiting here for it is safe. */
     public Map<String, String> copy(Map<String, String> data) {
         try {
             UUID player = UUID.fromString(data.get("player"));

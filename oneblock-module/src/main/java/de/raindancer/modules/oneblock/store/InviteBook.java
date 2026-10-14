@@ -10,8 +10,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The open invites, by whom they are for. In memory only: an invite lives minutes, and one lost to a restart of the
- * island server is asked again. At most one per inviter and invitee — a second replaces the first.
+ * The open invites, by whom they are for. In memory only, and rightly so: this is the island server's own book —
+ * the other servers only forward over the network to it, so no invite is ever read by two servers — and every invite
+ * here has a twin that is BentoBox's own pending team invite, which is memory too. A restored invite could not be
+ * accepted through BentoBox, so one lost to a restart (it lives minutes) is simply asked again. At most one per
+ * inviter and invitee — a second replaces the first.
  */
 public final class InviteBook {
 
