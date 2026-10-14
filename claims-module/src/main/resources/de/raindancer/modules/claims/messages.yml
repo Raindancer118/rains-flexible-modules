@@ -168,6 +168,7 @@ entry-fee:
 
 pantry:
   fed: "<gray><claim>'s pantry fed you <white><food></white>."
+  empty-notice: "<yellow><white><claim></white>'s pantry is empty. <gray>Visitors will have to bring their own snacks."
 
 equip:
   given: "<gray><claim> handed you <white><amount>x <item></white> for your <white><where></white>."
@@ -175,6 +176,7 @@ equip:
 
 effect:
   added: "<green>Granted <white><effect></white> in <white><claim></white>."
+  out-of-potions: "<yellow><effect></yellow> <gray>in <white><claim></white> ran out of potions and stopped. Top them up to bring them back."
   removed: "<gray>Removed <white><effect></white> from <white><claim></white>."
 
 fence:

@@ -24,3 +24,6 @@ error:
 
 
 
+
+pantry:
+  empty-notice: "<yellow><white><claim></white>'s pantry is empty."

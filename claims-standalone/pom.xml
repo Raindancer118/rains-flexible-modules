@@ -60,7 +60,8 @@
         <!-- 2.12.0: claims, no-claim zones and feature policies are documents in Core's database (per server) instead of files; 1.x files are brought in on first read (RainsCore 2.0). -->
         <!-- 2.13.0: a guild can pay a claim's upkeep from its bank (/claim guild pays [off], opt-in per claim, started by its leader); the owner's bill stays counted over all their land, the guild pays its claims' part, an empty guild bank leaves it to the owner. -->
         <!-- 2.13.1: only the guild leader starts the guild paying (an officer may not take from the bank); handing a claim on ends it (security review). -->
-        <plugin.version>2.13.1</plugin.version>
+        <!-- 2.13.2: owners are told again that a pantry is empty or claim effects ran out of potions (both messages were missing); the key test also checks keys passed through notifyOwners. -->
+        <plugin.version>2.13.2</plugin.version>
     </properties>
 
     <dependencies>

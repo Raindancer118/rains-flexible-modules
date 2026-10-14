@@ -47,7 +47,9 @@ class EveryMessageExistsTest {
                     // The recipient, when there is one, is a plain name — viewer, player, sender. Allowing
                     // a call there instead made the pattern swallow `raw(flag.nameKey()), "value"` and report
                     // the placeholder NAME as a missing key.
-                    + "\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*\\s*,\\s*)?\"([a-z][a-z0-9.-]*)\"");
+                    + "\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*\\s*,\\s*)?\"([a-z][a-z0-9.-]*)\""
+                    // The helpers that pass a key on to the messages: the claim first, then the key.
+                    + "|notifyOwners\\s*\\(\\s*[A-Za-z_][A-Za-z0-9_]*\\s*,\\s*\"([a-z][a-z0-9.-]*)\"");
 
     private static Set<String> keysUsedInCode() {
         Set<String> used = new LinkedHashSet<>();
@@ -55,7 +57,7 @@ class EveryMessageExistsTest {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 Matcher matcher = USED.matcher(Files.readString(file));
                 while (matcher.find()) {
-                    used.add(matcher.group(1));
+                    used.add(matcher.group(1) != null ? matcher.group(1) : matcher.group(2));
                 }
             }
         } catch (IOException unreadable) {
