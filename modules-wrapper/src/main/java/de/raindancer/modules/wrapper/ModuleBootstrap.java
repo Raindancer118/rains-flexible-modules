@@ -78,6 +78,8 @@ public final class ModuleBootstrap implements PluginBootstrap {
             // And one /documents (alias /files): every plugin's settings and texts are kept in the database
             // from RainsCore 2.0.0 — exported to edit by hand, imported back. Op-only through rainscore.documents.
             de.raindancer.core.platform.command.CoreCommands.documents(event.registrar());
+            // And one /network: the network's servers, and which one is the bank. Op-only through rainscore.network.
+            de.raindancer.core.platform.command.CoreCommands.network(event.registrar());
         });
     }
 }
