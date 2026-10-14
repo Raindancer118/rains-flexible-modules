@@ -4,6 +4,7 @@ import de.raindancer.core.RainsCore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.twitch.service.Announcer;
+import de.raindancer.modules.twitch.service.TwitchLoginStore;
 import de.raindancer.modules.twitch.service.TwitchPoller;
 import de.raindancer.modules.twitch.service.WatchRole;
 import org.bukkit.Server;
@@ -22,5 +23,6 @@ public record TwitchServices(
         Announcer announcer,
         java.util.function.Supplier<TwitchPoller> poller,
         WatchRole role,
-        Runnable reloadLogin) {
+        Runnable reloadLogin,
+        TwitchLoginStore logins) {
 }

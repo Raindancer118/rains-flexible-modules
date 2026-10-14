@@ -1,12 +1,23 @@
 # Rain's Twitch — every line this module says. Offered as a floor: anything in an owner's own messages.yml wins.
 twitch:
-  usage: "<gray>/twitch status · /twitch test live|ended <dark_gray>(shows it to you only)</dark_gray> · /twitch test live|ended all <dark_gray>(tells the whole network)</dark_gray> · /twitch reload"
+  usage: "<gray>/twitch status · /twitch test live|ended <dark_gray>(shows it to you only)</dark_gray> · /twitch test live|ended all <dark_gray>(tells the whole network)</dark_gray> · /twitch reload · /twitch login|logout <dark_gray>(console only)</dark_gray>"
   not-allowed: "<red>That is for staff."
   reloaded: "<green>The Twitch login was read again."
   status:
     watching: "<gray>Watching <white><channel></white>: <white><seen></white>."
-    listening: "<gray>This server does not ask Twitch for <white><channel></white> (no login in credentials.yml, or announcements are off) — it shows what a watching server tells it."
+    listening: "<gray>This server does not ask Twitch for <white><channel></white> (no login, or announcements are off) — it shows what a watching server tells it."
     elsewhere: "<gray>This server does not ask Twitch for <white><channel></white> — <white><server></white> does, and tells this one."
+    login:
+      environment: "<gray>Twitch login: present, from the environment variables."
+      database: "<gray>Twitch login: present, from the network's secret store."
+      none: "<yellow>Twitch login: none. From the console: /twitch login <client-id> <client-secret>, or set RAINS_TWITCH_CLIENT_ID and RAINS_TWITCH_CLIENT_SECRET."
+  login:
+    console-only: "<red>The Twitch login can only be set or removed from the server console: what you type in the game is written to the server log."
+    usage: "<gray>/twitch login <client-id> <client-secret>"
+    stored: "<green>The Twitch login was stored in the network's secret store."
+    stored-environment-wins: "<yellow>The Twitch login was stored, but the environment variables are set and win over it."
+    cleared: "<green>The stored Twitch login was removed."
+    failed: "<red>The database could not be written; nothing was changed. See the server log."
   live:
     rule: "<gradient:#9146FF:#E0A8FF>━━━━━━━━━━━━━━ ✦ ━━━━━━━━━━━━━━</gradient>"
     head: "   <red><bold>●</bold></red> <gradient:#9146FF:#E0A8FF><bold>LIVE ON TWITCH</bold></gradient>"

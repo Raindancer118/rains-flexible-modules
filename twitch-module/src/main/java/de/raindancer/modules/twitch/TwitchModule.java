@@ -12,6 +12,7 @@ import de.raindancer.modules.twitch.rules.LiveTrackerRule;
 import de.raindancer.modules.twitch.service.Announcer;
 import de.raindancer.modules.twitch.service.TwitchClient;
 import de.raindancer.modules.twitch.service.TwitchLogin;
+import de.raindancer.modules.twitch.service.TwitchLoginStore;
 import de.raindancer.modules.twitch.service.TwitchPoller;
 import de.raindancer.modules.twitch.service.WatchRole;
 import de.raindancer.modules.twitch.util.PermissionNodes;
@@ -23,13 +24,12 @@ import java.util.List;
  * A banner in chat on every server of the network when a Twitch channel goes live, and another when the stream ends.
  *
  * <p>On a network exactly one server asks Twitch — whichever holds the {@code twitch} role, and another takes over when
- * it stops — and tells the rest over the network bus. The login ({@code credentials.yml}) and what was announced are
- * documents of the network. The login is an app login (client credentials): it reads public live status and can do
- * nothing else.
+ * it stops — and tells the rest over the network bus. What was announced is a document of the network; the login (an app login: it reads public live status and can
+ * do nothing else) is a secret of the network, never a document.
  */
 public final class TwitchModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("twitch", "Twitch", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("twitch", "Twitch", "0.3.0")
             .describedAs("A chat announcement on every server when the channel goes live, and when the stream ends.")
             .by("Raindancer118");
 
@@ -37,7 +37,8 @@ public final class TwitchModule implements FlexModule {
     private ModuleContext context;
     private SettingsStore<TwitchSettings> settings;
     private Announcer announcer;
-    private YamlStore loginStore;
+    private TwitchLoginStore logins;
+    private YamlStore loginDocument;
     private YamlStore memory;
     private WatchRole role;
     private volatile TwitchLogin login = TwitchLogin.NONE;
@@ -65,17 +66,18 @@ public final class TwitchModule implements FlexModule {
         announcer.listen();
         context.closeWith(announcer::stop);
 
-        loginStore = YamlStore.network(context.dataFolder().resolve("credentials.yml"));
+        loginDocument = YamlStore.network(context.dataFolder().resolve("credentials.yml"));
+        logins = new TwitchLoginStore(context.core().secrets(), loginDocument, System::getenv, log);
         memory = YamlStore.network(context.dataFolder().resolve("announced.yml"));
         role = new WatchRole(context.core().networkRoles().orElse(null),
                 () -> login.present() && settings.current().enabled(), this::beginWatching, this::endWatching);
-        context.closeWith(loginStore.onChange(() -> Scheduling.async(context.plugin(), this::reloadLogin)));
+        context.closeWith(loginDocument.onChange(() -> Scheduling.async(context.plugin(), this::reloadLogin)));
 
         TwitchServices services = new TwitchServices(context.plugin(), context.plugin().getServer(), log,
                 context.core().messages(), context.core(), settings::current, announcer, () -> poller, role,
-                this::reloadLogin);
+                this::reloadLogin, logins);
         TwitchCommands.ready(services);
-        TwitchLogin.ensureTemplate(loginStore);
+        logins.ensureTemplate();
         reloadLogin();
         roleTimer = Scheduling.asyncTimer(context.plugin(), 1, 5, task -> {
             try {
@@ -85,12 +87,12 @@ public final class TwitchModule implements FlexModule {
             }
         });
         log.info("Twitch announcements are up for '{}'{}.", settings.current().channelClean(),
-                login.present() ? "" : " (listening only: no login in credentials.yml)");
+                login.present() ? "" : " (listening only: no login: see /twitch login)");
     }
 
     /** Reads the login again and lets the watch follow it. */
     private void reloadLogin() {
-        login = TwitchLogin.read(loginStore);
+        login = logins.read();
         role.refresh();
     }
 

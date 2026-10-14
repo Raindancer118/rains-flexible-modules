@@ -24,7 +24,7 @@ public final class VoiceBridgeCommands {
                         .aliased("vb", "discordvoice")
                         .taking("join", "leave", "status", "link", "unlink", "groups",
                                 "group join <name> [password]", "group leave", "group create <name> [password] [type]",
-                                "invite <player>", "reconnect"));
+                                "invite <player>", "reconnect", "token add <token>", "token clear"));
     }
 
     static void ready(VoiceBridgeServices live) {

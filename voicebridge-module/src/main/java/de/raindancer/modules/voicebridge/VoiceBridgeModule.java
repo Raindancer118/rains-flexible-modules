@@ -52,7 +52,7 @@ import java.util.UUID;
  */
 public final class VoiceBridgeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("voicebridge", "Voice Bridge", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("voicebridge", "Voice Bridge", "0.4.0")
             .describedAs("A Discord voice channel joined to a Simple Voice Chat group.")
             .by("Raindancer118");
 
@@ -85,7 +85,8 @@ public final class VoiceBridgeModule implements FlexModule {
         context.core().messages().seriousFrom(VoiceBridgeModule.class.getResourceAsStream("messages-serious.yml"));
         PermissionNodes.register(context.plugin().getServer());
 
-        BotTokens tokens = BotTokens.in(context.dataFolder());
+        BotTokens tokens = BotTokens.in(context.dataFolder(), context.core().secrets(),
+                context.core().network().serverId(), log);
         Server server = context.plugin().getServer();
         SpeakerMixer<UUID> toDiscord = new SpeakerMixer<>(live.prebufferFrames(), live.bufferFramesClamped(),
                 SPEAKER_IDLE_MILLIS, System::currentTimeMillis);

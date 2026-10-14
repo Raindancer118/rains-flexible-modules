@@ -4,10 +4,13 @@ import de.raindancer.modules.twitch.TwitchServices;
 import de.raindancer.modules.twitch.model.Observation;
 import de.raindancer.modules.twitch.model.StreamEvent;
 import de.raindancer.modules.twitch.service.StreamParser;
+import de.raindancer.modules.twitch.service.TwitchLoginStore;
 import de.raindancer.modules.twitch.service.TwitchPoller;
 import de.raindancer.modules.twitch.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-/** {@code /twitch status}, {@code /twitch test live|ended}, {@code /twitch reload}. */
+/** {@code /twitch status}, {@code test live|ended}, {@code reload}, and, from the console only, {@code login} and {@code logout}. */
 public final class TwitchCommand implements ITwitchCommand {
 
     private final Supplier<TwitchServices> services;
@@ -36,7 +39,10 @@ public final class TwitchCommand implements ITwitchCommand {
         }
         String first = args.length == 0 ? "status" : args[0].toLowerCase(Locale.ROOT);
         switch (first) {
-            case "status" -> status(live, sender);
+            case "status" -> {
+                status(live, sender);
+                live.messages().send(sender, "twitch.status.login." + live.logins().source().name().toLowerCase(Locale.ROOT));
+            }
             case "test" -> {
                 String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
                 boolean everybody = args.length > 2 && args[2].equalsIgnoreCase("all");
@@ -55,7 +61,39 @@ public final class TwitchCommand implements ITwitchCommand {
                 live.reloadLogin().run();
                 live.messages().send(sender, "twitch.reloaded");
             }
+            case "login" -> login(live, sender, args);
+            case "logout" -> logout(live, sender);
             default -> live.messages().send(sender, "twitch.usage");
+        }
+    }
+
+    private static boolean isConsole(CommandSender sender) {
+        return sender instanceof ConsoleCommandSender || sender instanceof RemoteConsoleCommandSender;
+    }
+
+    /** Console only: what a player types is written to the server log and kept in their chat history. */
+    private void login(TwitchServices live, CommandSender sender, String[] args) {
+        if (!isConsole(sender)) {
+            live.messages().send(sender, "twitch.login.console-only");
+        } else if (args.length != 3) {
+            live.messages().send(sender, "twitch.login.usage");
+        } else if (!live.logins().set(args[1], args[2])) {
+            live.messages().send(sender, "twitch.login.failed");
+        } else {
+            live.reloadLogin().run();
+            live.messages().send(sender, live.logins().source() == TwitchLoginStore.Source.ENVIRONMENT
+                    ? "twitch.login.stored-environment-wins" : "twitch.login.stored");
+        }
+    }
+
+    private void logout(TwitchServices live, CommandSender sender) {
+        if (!isConsole(sender)) {
+            live.messages().send(sender, "twitch.login.console-only");
+        } else if (!live.logins().clear()) {
+            live.messages().send(sender, "twitch.login.failed");
+        } else {
+            live.reloadLogin().run();
+            live.messages().send(sender, "twitch.login.cleared");
         }
     }
 
@@ -86,7 +124,7 @@ public final class TwitchCommand implements ITwitchCommand {
         }
         String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         if (args.length <= 1) {
-            return List.of("status", "test", "reload").stream().filter(option -> option.startsWith(last)).toList();
+            return List.of("status", "test", "reload", "login", "logout").stream().filter(option -> option.startsWith(last)).toList();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("test")) {
             return List.of("live", "ended").stream().filter(option -> option.startsWith(last)).toList();

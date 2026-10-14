@@ -70,7 +70,7 @@ public record VoiceBridgeSettings(
         @Describe("Linked Discord users who play without the mod talk and listen through their own "
                 + "player, exactly as if they had Simple Voice Chat: people near them hear them, they "
                 + "hear people near them, and they can use voice chat groups. Needs one extra bot "
-                + "token per Discord user at the same time (see discord-tokens.yml).")
+                + "token per Discord user at the same time (/voicebridge token add).")
         @Key("proximity.enabled")
         boolean proximityEnabled,
 

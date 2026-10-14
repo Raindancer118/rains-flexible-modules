@@ -3,13 +3,13 @@
 # Offered as a floor: anything an owner already has in their own messages.yml wins.
 voicebridge:
 
-  usage: "<gray>/voicebridge  ·  join  ·  leave  ·  status  ·  reconnect"
+  usage: "<gray>/voicebridge  ·  join  ·  leave  ·  status  ·  reconnect  ·  token add|clear <dark_gray>(console only)</dark_gray>"
   only-a-player: "<red>Only a player in the game can join or leave a voice chat group."
   not-allowed: "<red>You may not use the Discord voice bridge."
 
   not-ready:
     switched-off: "<gray>The Discord bridge is switched off in /settings."
-    no-token: "<yellow>No Discord bot token yet. Put it into the discord-tokens.yml document (/documents export, edit, /documents import) or the RAINS_VOICEBRIDGE_TOKEN variable, then /voicebridge reconnect."
+    no-token: "<yellow>No Discord bot token yet. From the server console: /voicebridge token add <token> (or set the RAINS_VOICEBRIDGE_TOKEN variable), then /voicebridge reconnect."
     no-server: "<yellow>No Discord server id yet. Set it in /settings under Discord voice bridge."
     bad-server: "<red>The Discord server id in /settings is not an id. Right click the server icon, Copy Server ID."
     no-channel: "<yellow>No Discord voice channel id yet. Set it in /settings under Discord voice bridge."
@@ -17,7 +17,7 @@ voicebridge:
     bad-lobby: "<red>The proximity lobby id in /settings is not an id. Right click the channel, Copy Channel ID."
 
   failed:
-    token: "<red>Discord refused the bot token. Put a fresh one into the discord-tokens.yml document (/documents export, edit, /documents import), then /voicebridge reconnect."
+    token: "<red>Discord refused the bot token. From the server console: /voicebridge token clear, /voicebridge token add <fresh token>, then /voicebridge reconnect."
     dave: "<red>Discord voice encryption could not start on this server's system. See the server log."
     discord: "<red>The Discord bot could not start. See the server log."
     no-server: "<red>The bot is not on that Discord server. Invite it first, then /voicebridge reconnect."
@@ -50,6 +50,14 @@ voicebridge:
     connecting: "<yellow>Connecting to Discord…"
     lobby-only: "<green>The Discord bot is logged in. <gray>No group bridge channel is set, only proximity mode."
     proximity: "<gray>Proximity mode: <white><lines></white> player(s) talking through Discord right now."
+
+  token:
+    console-only: "<red>Bot tokens can only be set from the server console: what you type in the game is written to the server log."
+    usage: "<gray>/voicebridge token add <token>  ·  /voicebridge token clear"
+    added: "<green>The bot token was stored in the network's secret store. /voicebridge reconnect to use it."
+    added-environment-wins: "<yellow>The bot token was stored, but RAINS_VOICEBRIDGE_TOKEN is set and wins over it."
+    cleared: "<green>This server's stored bot tokens were removed."
+    failed: "<red>The database could not be written; nothing was changed. See the server log."
 
   reconnect:
     not-allowed: "<red>Only staff can reconnect the Discord bot."

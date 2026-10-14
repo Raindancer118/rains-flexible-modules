@@ -25,7 +25,8 @@
         <!-- 0.1.0: one Discord voice channel joined to one Simple Voice Chat group.
              0.2.0: proximity mode — linked Discord users stand in the world as their player.
              0.3.0: network-ready — Discord links shared by the whole network in the database, bot tokens a document (discord-tokens.yml) instead of discord-token.txt; 1.x files come across by themselves. -->
-        <plugin.version>0.3.0</plugin.version>
+        <!-- 0.4.0: bot tokens are a secret in the network database (/voicebridge token add from the console), no longer a document; discord-tokens.yml and discord-token.txt are moved over and emptied. -->
+        <plugin.version>0.4.0</plugin.version>
     </properties>
 
     <dependencies>

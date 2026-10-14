@@ -6,6 +6,8 @@ import de.raindancer.modules.voicebridge.service.GroupService;
 import de.raindancer.modules.voicebridge.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -19,12 +21,12 @@ import java.util.function.Supplier;
  * {@code /voicebridge} opens the page. {@code join}/{@code leave} because typing beats a menu
  * mid-conversation; {@code status} because the console has no menu; {@code reconnect} because after
  * pasting a token there is nothing to click; {@code link} because the code has to be read and typed
- * elsewhere; {@code group …} and {@code invite} take names and passwords a menu cannot ask for.
+ * elsewhere; {@code token} (console only) keeps the bot tokens out of the chat log; {@code group …} and {@code invite} take names and passwords a menu cannot ask for.
  */
 public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
 
     private static final List<String> SUBCOMMANDS = List.of("join", "leave", "status", "link", "unlink",
-            "groups", "group", "invite", "reconnect");
+            "groups", "group", "invite", "reconnect", "token");
     private static final List<String> GROUP_SUBCOMMANDS = List.of("join", "leave", "create");
 
     private final Supplier<VoiceBridgeServices> services;
@@ -42,6 +44,7 @@ public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
         switch (sub) {
             case "status" -> status(live, sender);
             case "reconnect" -> reconnect(live, sender);
+            case "token" -> token(live, sender, args);
             case "" -> {
                 if (!(sender instanceof Player player)) {
                     status(live, sender);
@@ -149,6 +152,30 @@ public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
         }
     }
 
+    private static boolean isConsole(CommandSender sender) {
+        return sender instanceof ConsoleCommandSender || sender instanceof RemoteConsoleCommandSender;
+    }
+
+    /** Console only: what a player types is written to the server log and kept in their chat history. */
+    private static void token(VoiceBridgeServices live, CommandSender sender, String[] args) {
+        String action = args.length < 2 ? "" : args[1].toLowerCase(Locale.ROOT);
+        if (!isConsole(sender)) {
+            live.messages().send(sender, "voicebridge.token.console-only");
+        } else if (action.equals("add") && args.length == 3) {
+            if (!live.tokens().add(args[2])) {
+                live.messages().send(sender, "voicebridge.token.failed");
+            } else {
+                live.messages().send(sender, live.tokens().environmentSet()
+                        ? "voicebridge.token.added-environment-wins" : "voicebridge.token.added");
+            }
+        } else if (action.equals("clear") && args.length == 2) {
+            live.messages().send(sender, live.tokens().clear()
+                    ? "voicebridge.token.cleared" : "voicebridge.token.failed");
+        } else {
+            live.messages().send(sender, "voicebridge.token.usage");
+        }
+    }
+
     private static void reconnect(VoiceBridgeServices live, CommandSender sender) {
         if (!sender.hasPermission(PermissionNodes.ADMIN)) {
             live.messages().send(sender, "voicebridge.reconnect.not-allowed");
@@ -164,6 +191,9 @@ public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
             String started = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
             List<String> matching = new ArrayList<>();
             for (String sub : SUBCOMMANDS) {
+                if (sub.equals("token") && !isConsole(source.getSender())) {
+                    continue;
+                }
                 if (sub.equals("reconnect") && !source.getSender().hasPermission(PermissionNodes.ADMIN)) {
                     continue;
                 }
@@ -174,6 +204,9 @@ public final class VoiceBridgeCommand implements IVoiceBridgeCommand {
             return matching;
         }
         String first = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 2 && first.equals("token") && isConsole(source.getSender())) {
+            return List.of("add", "clear").stream().filter(sub -> sub.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
+        }
         if (args.length == 2 && first.equals("group")) {
             return GROUP_SUBCOMMANDS.stream().filter(sub -> sub.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
