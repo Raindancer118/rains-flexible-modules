@@ -33,6 +33,14 @@
             <version>${modules-api.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- RainsCore's testkit: the stores are tested against the real database, on both dialects. -->
+        <dependency>
+            <groupId>de.raindancer</groupId>
+            <artifactId>RainsCore</artifactId>
+            <version>${rainscore.version}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
         <!-- Paper ships the driver; tests run the real store, so they need it too. -->
         <dependency>
             <groupId>org.xerial</groupId>

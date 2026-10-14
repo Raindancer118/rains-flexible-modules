@@ -11,9 +11,17 @@ import java.util.UUID;
  * @param xp          guild experience they earned for it
  * @param takenToday  what they took out on {@code takenOn}, for the rank's daily limit
  * @param takenOn     the day (epoch day) {@code takenToday} counts
+ * @param seen        when they were last on any server of the network, epoch millis; 0 for not known — what a
+ *                    guild's succession reads, since a server only knows when somebody was last on <em>it</em>
  */
 public record Member(UUID player, String rank, long joined, long deposited, long withdrawn, long xp,
-                     long takenToday, long takenOn) {
+                     long takenToday, long takenOn, long seen) {
+
+    public Member(UUID player, String rank, long joined, long deposited, long withdrawn, long xp, long takenToday,
+                  long takenOn) {
+        this(player, rank, joined, deposited, withdrawn, xp, takenToday, takenOn, 0);
+    }
+
 
     public Member {
         Objects.requireNonNull(player, "player");
@@ -21,22 +29,26 @@ public record Member(UUID player, String rank, long joined, long deposited, long
     }
 
     public static Member joining(UUID player, String rank, long now) {
-        return new Member(player, rank, now, 0, 0, 0, 0, 0);
+        return new Member(player, rank, now, 0, 0, 0, 0, 0, now);
     }
 
     public Member withRank(String newRank) {
-        return new Member(player, newRank, joined, deposited, withdrawn, xp, takenToday, takenOn);
+        return new Member(player, newRank, joined, deposited, withdrawn, xp, takenToday, takenOn, seen);
     }
 
     public Member depositing(long minor) {
-        return new Member(player, rank, joined, Math.addExact(deposited, minor), withdrawn, xp, takenToday, takenOn);
+        return new Member(player, rank, joined, Math.addExact(deposited, minor), withdrawn, xp, takenToday, takenOn, seen);
     }
 
     /** Taking out on {@code day}: the day's count starts again when the day is a new one. */
     public Member withdrawing(long minor, long day) {
         long today = day == takenOn ? takenToday : 0;
         return new Member(player, rank, joined, deposited, Math.addExact(withdrawn, minor), xp,
-                Math.addExact(today, minor), day);
+                Math.addExact(today, minor), day, seen);
+    }
+
+    public Member withSeen(long when) {
+        return new Member(player, rank, joined, deposited, withdrawn, xp, takenToday, takenOn, Math.max(seen, when));
     }
 
     public long takenOn(long day) {

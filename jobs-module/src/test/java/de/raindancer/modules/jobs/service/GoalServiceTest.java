@@ -1,6 +1,8 @@
 package de.raindancer.modules.jobs.service;
 
+import de.raindancer.core.data.sql.Database;
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Economies;
@@ -12,6 +14,7 @@ import de.raindancer.modules.jobs.JobsSettings;
 import de.raindancer.modules.jobs.model.Goal;
 import de.raindancer.modules.jobs.model.GoalKind;
 import de.raindancer.modules.jobs.store.GoalBook;
+import de.raindancer.modules.jobs.store.JobsDatabase;
 import de.raindancer.modules.jobs.store.TemplateCatalogue;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -39,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@org.junit.jupiter.api.Tag("database")
 class GoalServiceTest {
 
     private static final long DAY = Duration.ofDays(1).toMillis();
@@ -55,6 +59,8 @@ class GoalServiceTest {
     private final UUID gone = UUID.randomUUID();
     private GoalService service;
     private GoalBook book;
+    private Database database;
+    private TemplateCatalogue templates;
 
     /** An economy in a map. */
     private static final class Bank implements Economy {
@@ -111,7 +117,7 @@ class GoalServiceTest {
         OfflinePlayer[] everybody = {seen(ana, now.get()), seen(bo, now.get() - DAY), seen(gone, now.get() - 400 * DAY)};
         when(server.getOfflinePlayers()).thenReturn(everybody);
         when(server.getOnlinePlayers()).thenAnswer(call -> List.of());
-        TemplateCatalogue templates = new TemplateCatalogue(new YamlStore(folder.resolve("jobs.yml")), () ->
+        templates = new TemplateCatalogue(new YamlStore(folder.resolve("jobs.yml")), () ->
                 new ByteArrayInputStream("""
                         goals:
                           cod:
@@ -140,7 +146,8 @@ class GoalServiceTest {
                             days: 4
                         """.getBytes(StandardCharsets.UTF_8)));
         templates.reload();
-        book = new GoalBook(new YamlStore(folder.resolve("goals.yml")));
+        database = TestDatabases.open(folder.resolve("jobs.db"), JobsDatabase.SCHEMA);
+        book = new GoalBook(database);
         book.load();
         service = new GoalService(server, templates, book, messages, Log.of("jobs"), now::get, new Random(7),
                 new JobsSettings(3, 100, 30, "0", "", true, true, 100));
@@ -148,6 +155,7 @@ class GoalServiceTest {
 
     @AfterEach
     void stop() {
+        database.close();
         Economies.clear();
     }
 
@@ -286,5 +294,23 @@ class GoalServiceTest {
         service.tick();
         assertThat(bank.balance(ana)).isEqualTo(Money.of(3_000));
         assertThat(book.owed()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a goal that two servers see reached and end at once is paid out once")
+    void paidOnceOnTwoServers() {
+        service.tick();
+        Goal goal = service.goals().getFirst();
+        book.add(goal.number(), ana, goal.amount());
+        GoalBook otherBook = new GoalBook(database);
+        otherBook.load();
+        GoalService other = new GoalService(server, templates, otherBook, messages, Log.of("jobs"), now::get,
+                new Random(7), new JobsSettings(3, 100, 30, "0", "", true, true, 100));
+        assertThat(otherBook.goal(goal.number())).isPresent();
+
+        service.end(goal.number());
+        other.end(goal.number());
+
+        assertThat(bank.balance(ana)).as("paid by the one that ended it").isEqualTo(Money.of(1_000 + 2_000));
     }
 }

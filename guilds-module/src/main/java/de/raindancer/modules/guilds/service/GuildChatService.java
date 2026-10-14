@@ -1,5 +1,6 @@
 package de.raindancer.modules.guilds.service;
 
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.core.ui.chat.ChatChannel;
 import de.raindancer.core.ui.chat.ChatChannels;
 import de.raindancer.core.ui.identity.NameBadges;
@@ -49,8 +50,12 @@ public final class GuildChatService implements IGuildsService {
         }
     }
 
+    private static final String TOPIC = "guilds-chat";
+    private static final char SEPARATOR = '\u001F';
+
     private final GuildBook book;
     private final GuildNotifier notify;
+    private volatile NetworkBus bus = NetworkBus.NONE;
     private final List<Channel> channels = List.of(new Channel(Kind.GUILD), new Channel(Kind.OFFICER), new Channel(Kind.ALLY));
     private volatile GuildsSettings settings;
 
@@ -67,6 +72,27 @@ public final class GuildChatService implements IGuildsService {
         if (was != settings.tagInNames()) {
             badges(settings.tagInNames());
         }
+    }
+
+    /**
+     * Carries what is said on a channel to the members on the network's other servers, who hear it as if it were
+     * said there. Close to stop.
+     */
+    public NetworkBus.Subscription network(NetworkBus shared) {
+        this.bus = shared == null ? NetworkBus.NONE : shared;
+        return bus.subscribe(TOPIC, event -> {
+            String[] parts = event.payload().split(String.valueOf(SEPARATOR), 4);
+            if (parts.length < 4) {
+                return;
+            }
+            try {
+                Kind kind = Kind.valueOf(parts[0]);
+                UUID speaker = UUID.fromString(parts[1]);
+                heard(kind, speaker, parts[2], parts[3]);
+            } catch (IllegalArgumentException unknown) {
+                // A channel or a speaker this version does not know: nobody to say it to.
+            }
+        });
     }
 
     public void open() {
@@ -125,7 +151,25 @@ public final class GuildChatService implements IGuildsService {
         for (UUID listener : heard.get()) {
             notify.tell(listener, line);
         }
+        bus.publish(TOPIC, guild.get().id().value(), kind.name() + SEPARATOR + speaker.getUniqueId() + SEPARATOR
+                + notify.name(speaker.getUniqueId()).replace(SEPARATOR, ' ') + SEPARATOR + text.strip());
         return true;
+    }
+
+    /** Says what a member said on another server to those of the audience who are here. */
+    private void heard(Kind kind, UUID speaker, String name, String text) {
+        Optional<Set<UUID>> audience = audience(kind, speaker);
+        Optional<Guild> guild = book.guildOf(speaker);
+        if (audience.isEmpty() || guild.isEmpty()) {
+            return;
+        }
+        Component line = notify.messages().get(kind.key, "tag", GuildNotifier.tag(guild.get()),
+                "player", name, "message", text);
+        for (UUID listener : audience.get()) {
+            if (notify.online(listener).isPresent()) {
+                notify.tell(listener, line);
+            }
+        }
     }
 
     private final class Channel implements ChatChannel {

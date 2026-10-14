@@ -1,6 +1,7 @@
 package de.raindancer.modules.guilds.service;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.guilds.GuildProgressSettings;
@@ -14,8 +15,6 @@ import de.raindancer.modules.guilds.model.Rank;
 import de.raindancer.modules.guilds.store.GuildBook;
 import de.raindancer.modules.guilds.store.GuildsDatabase;
 import de.raindancer.modules.guilds.store.ProgressBook;
-import de.raindancer.modules.guilds.store.SqliteGuildStorage;
-import de.raindancer.modules.guilds.store.SqliteProgressStorage;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
@@ -41,6 +40,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** The vault's two promises from the security review: nothing goes in while a disband runs, and taking is asked fresh. */
+@org.junit.jupiter.api.Tag("database")
 class VaultTest {
 
     @TempDir
@@ -53,22 +53,15 @@ class VaultTest {
     private final AtomicLong clock = new AtomicLong(1_000_000_000L);
 
     private static ItemStack dirt(int amount) {
-        ItemStack item = mock(ItemStack.class);
-        when(item.getType()).thenReturn(Material.DIRT);
-        when(item.getAmount()).thenReturn(amount);
-        when(item.getMaxStackSize()).thenReturn(64);
-        when(item.isEmpty()).thenReturn(amount <= 0);
-        when(item.asQuantity(anyInt())).thenAnswer(call -> dirt(call.getArgument(0)));
-        when(item.isSimilar(any())).thenReturn(false);
-        return item;
+        return TestVaults.stack(Material.DIRT, amount);
     }
 
     @BeforeEach
     void setUp() {
-        database = Database.open(folder.resolve("guilds.db"), GuildsDatabase.SCHEMA, () -> false);
-        book = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
+        database = TestDatabases.open(folder.resolve("guilds.db"), GuildsDatabase.SCHEMA);
+        book = new GuildBook(database, problem -> { });
         book.load();
-        ProgressBook progress = new ProgressBook(new SqliteProgressStorage(database));
+        ProgressBook progress = new ProgressBook(database);
         progress.load();
         Server server = mock(Server.class);
         when(server.getOfflinePlayer(any(UUID.class))).thenAnswer(call -> {
@@ -78,7 +71,7 @@ class VaultTest {
             return player;
         });
         GuildNotifier notify = new GuildNotifier(server, new Messages(folder.resolve("messages.yml")));
-        perks = new PerkService(book, progress, notify, TestVaults.in(folder),
+        perks = new PerkService(book, progress, notify, TestVaults.in(database),
                 clock::get, GuildsSettings.DEFAULTS, GuildProgressSettings.DEFAULTS);
         guilds = new GuildService(book, notify, Log.of("test"), clock::get, who -> OptionalLong.empty(), GuildsSettings.DEFAULTS);
         bank = new BankService(book, notify, Log.of("test"), clock::get, Optional::empty, GuildsSettings.DEFAULTS);
@@ -137,12 +130,10 @@ class VaultTest {
     }
 
     @Test
-    @DisplayName("a vault whose file cannot be read is never taken for empty: no disband, no deposits")
-    void unreadableFailsClosed() throws Exception {
-        Path file = folder.resolve("vaults").resolve(PerkService.vaultOwner(elves()) + ".yml");
-        java.nio.file.Files.createDirectories(file.getParent());
-        java.nio.file.Files.writeString(file, "items: [unclosed\n  : : :\n");
-        assertThat(perks.vaultItems(elves())).as("it loads empty").isEmpty();
+    @DisplayName("a vault that cannot be read is never taken for empty: no disband, no deposits")
+    void unreadableFailsClosed() {
+        database.close();
+        assertThat(perks.vaultItems(elves())).as("nothing to show").isEmpty();
         assertThat(perks.vaultEmpty(elves())).isFalse();
         assertThat(perks.sealForDisband(elves())).isEqualTo(GuildOutcome.VAULT_UNREADABLE);
         assertThat(perks.deposit(elves(), dirt(4))).as("would live only until the next restart").isZero();

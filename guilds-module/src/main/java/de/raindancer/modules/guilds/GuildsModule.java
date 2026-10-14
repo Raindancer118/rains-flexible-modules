@@ -1,6 +1,8 @@
 package de.raindancer.modules.guilds;
 
 import de.raindancer.core.data.settings.SettingsStore;
+import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.social.presence.Away;
 import de.raindancer.core.world.teleport.Travel;
@@ -20,21 +22,22 @@ import de.raindancer.modules.guilds.service.HomeService;
 import de.raindancer.modules.guilds.service.RelationService;
 import de.raindancer.modules.guilds.service.XpService;
 import de.raindancer.modules.guilds.store.GuildBook;
+import de.raindancer.modules.guilds.store.GuildMigration;
+import de.raindancer.modules.guilds.store.VaultImport;
+import de.raindancer.modules.guilds.store.VaultStore;
 import de.raindancer.modules.guilds.store.GuildsDatabase;
-import de.raindancer.modules.guilds.store.SqliteGuildStorage;
 import de.raindancer.modules.guilds.store.ProgressBook;
-import de.raindancer.modules.guilds.store.SqliteProgressStorage;
 import de.raindancer.modules.guilds.service.PositionService;
 import de.raindancer.modules.guilds.service.PerkService;
 import de.raindancer.modules.guilds.listener.PerkListener;
 import de.raindancer.modules.guilds.model.GuildOutcome;
+import de.raindancer.modules.guilds.model.Member;
 import de.raindancer.modules.guilds.model.Activity;
 import de.raindancer.modules.guilds.model.XpSource;
 import de.raindancer.modules.guilds.rules.ActivityRule;
 import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.world.blocks.PlacedBlocks;
 import de.raindancer.modules.guilds.util.PermissionNodes;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
@@ -50,7 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class GuildsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.9.0")
             .describedAs("Guilds founded by players: a ladder of ranks with their own permissions, a bank with daily "
                     + "limits, levels earned by playing that unlock members, allies and a guild home, alliances and "
                     + "rivals, guild, officer and ally chat, and the guild's tag in front of every member's name")
@@ -83,30 +86,56 @@ public final class GuildsModule implements FlexModule {
             context.log().info("{} permission(s) registered.", registered);
         }
 
-        var database = context.core().databases().of(GuildsDatabase.NAME, GuildsDatabase.SCHEMA);
-        book = new GuildBook(new SqliteGuildStorage(database, problem -> context.log().warn("guilds.db: {}", problem)));
+        var databases = context.core().databases();
+        // This server's own database first: it is where a 1.x guilds.db is brought in, and what the guilds of a
+        // server that ran before the network kept. The network's one database is the one the guilds live in.
+        Database own = databases.of(GuildsDatabase.NAME, GuildsDatabase.SCHEMA);
+        Database database = databases.shared(GuildsDatabase.NAME, GuildsDatabase.SCHEMA);
+        boolean network = context.core().network().isNetwork();
+        String serverId = network ? context.core().network().serverId() : "";
+        if (own != database) {
+            GuildMigration.Report moved = GuildMigration.run(own, database, serverId,
+                    problem -> context.log().warn("guilds: {}", problem), System::currentTimeMillis);
+            if (moved.failed()) {
+                context.log().error("This server's own guilds could not all be brought into the network's database; "
+                        + "they are tried again at the next start.");
+            } else if (moved.brought() > 0 || moved.left() > 0) {
+                context.log().info("Guilds of this server in the network's database now: {} brought, {} left where they were.",
+                        moved.brought(), moved.left());
+            }
+        }
+        book = new GuildBook(database, problem -> context.log().warn("guilds: {}", problem));
         GuildBook loading = book;
-        offTheServerThread("load", () -> loading.load().forEach(problem -> context.log().warn("guilds.db: {}", problem)));
+        offTheServerThread("load", loading::load);
+        context.closeWith(book.connect(context.core().bus()));
         if (!book.readable()) {
-            context.log().error("guilds.db could not be read. Every guild is held as it is and no change is accepted "
-                    + "until it is fixed — saving now would replace everybody's guilds with nobody's.");
+            context.log().error("The guilds database could not be read. Every guild is held as it is and no change is "
+                    + "accepted until it can be — saving now would replace everybody's guilds with nobody's.");
+        }
+        int vaults = VaultImport.run(database, book.all(),
+                owner -> new YamlStore(context.dataFolder().resolve("vaults").resolve(owner + ".yml")), serverId,
+                problem -> context.log().warn("guilds: {}", problem));
+        if (vaults > 0) {
+            context.log().info("{} guild vault(s) of this server are in the database now.", vaults);
         }
 
         SettingsStore<GuildProgressSettings> progressSettings = context.settings(GuildProgressSettings.class,
                 GuildProgressSettings.DEFAULTS);
-        progress = new ProgressBook(new SqliteProgressStorage(database));
+        progress = new ProgressBook(database);
         ProgressBook loadingProgress = progress;
         offTheServerThread("load", loadingProgress::load);
+        context.closeWith(progress.connect(context.core().bus()));
         if (!progress.readable()) {
-            context.log().error("The experience tables of guilds.db could not be read; contracts and the breakdown "
-                    + "by source are held as they are until it is fixed.");
+            context.log().error("The experience tables of the guilds database could not be read; contracts and the "
+                    + "breakdown by source are held as they are until they can be.");
         }
         book.onDisband(loadingProgress::forget);
 
         GuildsSettings now = settings.current();
         GuildNotifier notifier = new GuildNotifier(server, context.core().messages(), () -> context.core().buttons());
+        context.closeWith(notifier.network(context.core().bus(), context.core()::networkPlayers));
         GuildService guilds = new GuildService(book, notifier, context.log(), System::currentTimeMillis,
-                player -> lastSeen(server, player), now);
+                player -> lastSeen(context, book, player), now);
         BankService bank = new BankService(book, notifier, context.log(), System::currentTimeMillis, BankService.current(), now);
         RelationService relations = new RelationService(book, notifier, System::currentTimeMillis, now);
         PositionService positions = new PositionService(progressSettings.current());
@@ -115,9 +144,9 @@ public final class GuildsModule implements FlexModule {
         progressSettings.onChange(xp::progressSettings);
         progressSettings.onChange(positions::progressSettings);
         PerkService perks = new PerkService(book, progress, notifier,
-                new de.raindancer.core.data.stash.StashStore(context.dataFolder().resolve("vaults"),
-                        de.raindancer.core.data.nbt.ItemText.ofTheServer()),
+                new VaultStore(database, de.raindancer.core.data.nbt.ItemText.ofTheServer()),
                 System::currentTimeMillis, now, progressSettings.current());
+        xp.afterwards(task -> Scheduling.global(context.plugin(), task));
         settings.onChange(perks::settings);
         progressSettings.onChange(perks::progressSettings);
         xp.perks(perks);
@@ -128,7 +157,9 @@ public final class GuildsModule implements FlexModule {
         Travel travel = new Travel(context.plugin(), context.core().safety(), context.core().audit());
         context.closeWith(travel::clear);
         HomeService homes = new HomeService(book, notifier, server, travel, System::currentTimeMillis, now);
+        homes.network(() -> serverId, context.core()::networkTravel);
         GuildChatService chat = new GuildChatService(book, notifier, now);
+        context.closeWith(chat.network(context.core().bus()));
         FriendlyFireService fire = new FriendlyFireService(book);
         for (var service : List.of(notifier, guilds, bank, relations, xp, homes, chat, fire)) {
             settings.onChange(service::settings);
@@ -180,7 +211,6 @@ public final class GuildsModule implements FlexModule {
         var flush = Scheduling.asyncTimer(context.plugin(), 2, 2, task -> {
             book.flush();
             loadingProgress.flush();
-            perks.flushVaults();
         });
         var perkEffects = Scheduling.globalTimer(context.plugin(), 200L, 200L, task -> {
             for (Player online : server.getOnlinePlayers()) {
@@ -205,6 +235,7 @@ public final class GuildsModule implements FlexModule {
         AtomicInteger minutes = new AtomicInteger();
         var minute = Scheduling.globalTimer(context.plugin(), 20L * 60, 20L * 60, task -> {
             for (Player online : server.getOnlinePlayers()) {
+                book.seen(online.getUniqueId(), System.currentTimeMillis());
                 if (!Away.isAway(online.getUniqueId())) {
                     xp.activity(online.getUniqueId(), Activity.of(XpSource.PLAY, 1));
                 }
@@ -221,19 +252,25 @@ public final class GuildsModule implements FlexModule {
         context.closeWith(() -> offTheServerThread("save", () -> {
             loading.flush();
             loadingProgress.flush();
-            perks.flushVaults();
         }));
         GuildsCommands.ready(services);
         context.log().info("Guilds are up: {} guild(s).", book.count());
     }
 
-    /** When somebody was last on: now for anybody online, Paper's record otherwise; empty when it has none. */
-    private static OptionalLong lastSeen(Server server, UUID player) {
-        if (server.getPlayer(player) != null) {
+    /**
+     * When somebody was last on anywhere on the network: now for anybody online on any server, otherwise the
+     * latest of this server's record and the guild's own (which every server keeps up for its players); empty
+     * when nobody knows.
+     */
+    private static OptionalLong lastSeen(ModuleContext context, GuildBook book, UUID player) {
+        Server server = context.plugin().getServer();
+        if (server.getPlayer(player) != null
+                || context.core().networkPlayers().flatMap(players -> players.where(player, true)).isPresent()) {
             return OptionalLong.of(System.currentTimeMillis());
         }
-        OfflinePlayer known = server.getOfflinePlayer(player);
-        long seen = known.getLastSeen();
+        long here = server.getOfflinePlayer(player).getLastSeen();
+        long shared = book.guildOf(player).flatMap(guild -> guild.member(player)).map(Member::seen).orElse(0L);
+        long seen = Math.max(here, shared);
         return seen > 0 ? OptionalLong.of(seen) : OptionalLong.empty();
     }
 

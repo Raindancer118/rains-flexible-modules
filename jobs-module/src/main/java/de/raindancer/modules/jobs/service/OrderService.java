@@ -72,6 +72,7 @@ public final class OrderService {
     private final Map<UUID, BossBar> bars = new ConcurrentHashMap<>();
     /** The offers each player was last made, so only one of those can be taken. */
     private final Map<UUID, java.util.List<Offer>> offered = new ConcurrentHashMap<>();
+    private final Notices notices;
     private volatile OrderSettings settings;
 
     public OrderService(Server server, WorkCatalogue works, OrderBook book, Messages messages, LogChannel log,
@@ -84,7 +85,22 @@ public final class OrderService {
         this.clock = clock;
         this.zone = zone;
         this.random = random;
+        this.notices = new Notices(server, messages);
         settings(settings);
+    }
+
+    public Notices notices() {
+        return notices;
+    }
+
+    /** Reads a player's ledger, so it is at hand when they ask. Off the server's threads. */
+    public void preload(UUID player) {
+        book.refresh(player);
+    }
+
+    /** A player left this server: what they counted is written and their ledger is let go. Off the server's threads. */
+    public void release(UUID player) {
+        book.forget(player);
     }
 
     public void settings(OrderSettings updated) {
@@ -305,8 +321,10 @@ public final class OrderService {
                     "left", Times.describe(Duration.ofMillis(order.endsAt() - clock.getAsLong())));
             return;
         }
-        if (!book.putNow(id, paid.with(moved.in(Order.State.OWED)))) {
-            book.put(id, paid.with(moved.in(Order.State.OWED)));
+        OrderBook.Ledger owed = paid.with(moved.in(Order.State.OWED));
+        if (!book.putNow(id, owed) && !book.putNow(id, owed)) {
+            log.error("{} was not paid for an order and it could not be recorded as owed: it is lost unless paid by hand.",
+                    player.getName());
         }
         log.warn("{} could not be paid for an order: {} — kept as owed.", player.getName(), result.outcome());
         messages.send(player, "jobs.order.owed", "work", order.says(), "amount", Fees.format(order.pay()));
@@ -315,16 +333,18 @@ public final class OrderService {
     /** Ends orders out of time and pays what is owed. Once a minute. */
     public synchronized void tick() {
         long now = clock.getAsLong();
-        book.all().forEach((player, ledger) -> {
+        book.actionable(now).forEach((player, ledger) -> {
             Order order = ledger.order();
             if (order == null) {
                 return;
             }
-            Player online = server.getPlayer(player);
             if (order.state() == Order.State.OPEN && now >= order.endsAt()) {
-                if (book.putNow(player, ledger.with(order.in(Order.State.FAILED))) && online != null) {
-                    hide(online);
-                    messages.send(online, "jobs.order.failed", "work", order.says(),
+                if (book.putNow(player, ledger.with(order.in(Order.State.FAILED)))) {
+                    Player online = server.getPlayer(player);
+                    if (online != null) {
+                        hide(online);
+                    }
+                    notices.tell(player, "jobs.order.failed", "work", order.says(),
                             "progress", String.valueOf(order.progress()), "units", String.valueOf(order.units()));
                 }
             } else if (order.state() == Order.State.OWED) {
@@ -334,8 +354,8 @@ public final class OrderService {
                 EconomyResult result = Fees.pay(player, order.pay(), "Order: " + order.says() + " (owed)", SOURCE);
                 if (!result.succeeded()) {
                     book.putNow(player, ledger);
-                } else if (online != null) {
-                    messages.send(online, "jobs.order.paid-late", "amount", Fees.format(result.amount()));
+                } else {
+                    notices.tell(player, "jobs.order.paid-late", "amount", Fees.format(result.amount()));
                 }
             }
         });

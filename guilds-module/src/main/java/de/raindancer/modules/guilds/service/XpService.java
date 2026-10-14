@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.ToIntBiFunction;
 
@@ -59,6 +59,16 @@ public final class XpService implements IGuildsService {
     private volatile LevelRule levels;
     private volatile TogetherRule together;
     private volatile PerkService perks;
+    /** Where what the database reports later — a level reached, a contract finished — is said to the players. */
+    private volatile Consumer<Runnable> afterwards = Runnable::run;
+
+    /**
+     * Says what a flush reports (it runs on the flush thread) on the thread the module chooses — Folia's global
+     * one, for chat lines and sounds.
+     */
+    public void afterwards(Consumer<Runnable> run) {
+        this.afterwards = run == null ? Runnable::run : run;
+    }
 
     /** The perks: their experience bonus, and the point every level up brings. Set once the module has them. */
     public void perks(PerkService perks) {
@@ -78,6 +88,10 @@ public final class XpService implements IGuildsService {
         rivalKills.every(Duration.ofHours(1));
         settings(settings);
         progressSettings(more);
+        // The level a guild reaches is read from the database's own count when experience is written, so two
+        // servers earning at once cannot both announce the same level.
+        book.onExperience((guild, was, now) -> afterwards.accept(() -> levelled(guild, was, now)));
+        progress.onContractFinished(contract -> afterwards.accept(() -> pay(new TeamId(contract.guild()), contract)));
     }
 
     @Override
@@ -169,7 +183,7 @@ public final class XpService implements IGuildsService {
         return counted;
     }
 
-    /** Adds experience to a guild — and to the member, when one earned it — and tells everybody of a new level. */
+    /** Counts experience for a guild — and the member, when one earned it. The level it brings is told once it is written. */
     private void credit(TeamId id, UUID member, XpSource source, long counted) {
         PerkService honours = perks;
         Optional<Guild> was = book.guild(id);
@@ -177,33 +191,33 @@ public final class XpService implements IGuildsService {
             // Made from the level before this experience, so the level up below is counted exactly once.
             honours.standing(was.get());
         }
-        AtomicInteger before = new AtomicInteger();
-        AtomicInteger after = new AtomicInteger();
-        book.update(id, guild -> {
-            before.set(levels.levelOf(guild.xp()));
-            long xp = guild.xp() > Long.MAX_VALUE - counted ? Long.MAX_VALUE : guild.xp() + counted;
-            after.set(levels.levelOf(xp));
-            Guild changed = guild.withXp(xp);
-            return member == null ? changed
-                    : changed.member(member).map(each -> changed.withMember(each.earning(counted))).orElse(changed);
-        });
+        book.addXp(id, member, counted);
         progress.add(id.value(), source, counted, ContractRule.weekOf(now()));
-        if (after.get() > before.get() && honours != null && was.isPresent()) {
-            honours.levelledUp(was.get(), after.get() - before.get());
+    }
+
+    /**
+     * A guild's experience went from {@code before} to {@code after} in a write: tells everybody of each level it
+     * went up. Called with the database's totals, so a stretch of experience is announced by the one server that
+     * wrote it.
+     */
+    public void levelled(String guildId, long before, long after) {
+        int from = levels.levelOf(before);
+        int to = levels.levelOf(after);
+        Optional<Guild> found = book.guild(guildId);
+        if (to <= from || found.isEmpty()) {
+            return;
         }
-        if (after.get() > before.get()) {
-            Guild guild = book.guild(id).orElse(null);
-            if (guild == null) {
-                return;
-            }
-            book.log(GuildEvent.of(guild.id().value(), now(), GuildEvent.Kind.LEVEL_UP, member, null, 0,
-                    String.valueOf(after.get())));
-            notify.members(guild, "guilds.level.up", "guild", GuildNotifier.title(guild), "level", after.get(),
-                    "members", levels.memberCap(after.get()), "allies", levels.allySlots(after.get()));
-            guild.members().keySet().forEach(each -> effects.play(each, Cues.REWARD));
-            if (levels.hasHome(after.get()) && !levels.hasHome(before.get())) {
-                notify.members(guild, "guilds.level.home-unlocked");
-            }
+        Guild guild = found.get();
+        PerkService honours = perks;
+        if (honours != null) {
+            honours.levelledUp(guild.withXp(before), to - from);
+        }
+        book.log(GuildEvent.of(guildId, now(), GuildEvent.Kind.LEVEL_UP, null, null, 0, String.valueOf(to)));
+        notify.members(guild, "guilds.level.up", "guild", GuildNotifier.title(guild), "level", to,
+                "members", levels.memberCap(to), "allies", levels.allySlots(to));
+        guild.members().keySet().forEach(each -> effects.play(each, Cues.REWARD));
+        if (levels.hasHome(to) && !levels.hasHome(from)) {
+            notify.members(guild, "guilds.level.home-unlocked");
         }
     }
 

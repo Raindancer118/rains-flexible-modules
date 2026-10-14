@@ -1,6 +1,7 @@
 package de.raindancer.modules.guilds.service;
 
 import de.raindancer.core.data.sql.Database;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.effect.Effects;
@@ -24,9 +25,7 @@ import de.raindancer.modules.guilds.model.XpSource;
 import de.raindancer.modules.guilds.store.GuildBook;
 import de.raindancer.modules.guilds.store.ProgressBook;
 import de.raindancer.modules.guilds.model.Perk;
-import de.raindancer.modules.guilds.store.SqliteProgressStorage;
 import de.raindancer.modules.guilds.store.GuildsDatabase;
-import de.raindancer.modules.guilds.store.SqliteGuildStorage;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.junit.jupiter.api.AfterEach;
@@ -55,6 +54,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@org.junit.jupiter.api.Tag("database")
 class ServicesTest {
 
     private static final UUID ALICE = Fixtures.player("alice");
@@ -82,8 +82,8 @@ class ServicesTest {
 
     @BeforeEach
     void setUp() {
-        database = Database.open(folder.resolve("guilds.db"), GuildsDatabase.SCHEMA, () -> false);
-        book = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
+        database = TestDatabases.open(folder.resolve("guilds.db"), GuildsDatabase.SCHEMA);
+        book = new GuildBook(database, problem -> { });
         book.load();
         economy = FakeEconomy.install();
         Server server = mock(Server.class);
@@ -101,12 +101,12 @@ class ServicesTest {
                 who -> seen.containsKey(who) ? OptionalLong.of(seen.get(who)) : OptionalLong.empty(), settings);
         bank = new BankService(book, notify, Log.of("guilds-test"), clock::get, BankService.current(), settings);
         relations = new RelationService(book, notify, clock::get, settings);
-        progress = new ProgressBook(new SqliteProgressStorage(database));
+        progress = new ProgressBook(database);
         progress.load();
         book.onDisband(progress::forget);
         xp = new XpService(book, progress, notify, mock(Effects.class), clock::get, settings,
                 GuildProgressSettings.DEFAULTS, (player, guild) -> near.getOrDefault(player, 0));
-        perks = new PerkService(book, progress, notify, TestVaults.in(folder), clock::get, settings, GuildProgressSettings.DEFAULTS);
+        perks = new PerkService(book, progress, notify, TestVaults.in(database), clock::get, settings, GuildProgressSettings.DEFAULTS);
         xp.perks(perks);
         guilds.extraMembers(perks::extraMembers);
         relations.extraAllies(perks::extraAllies);
@@ -569,7 +569,7 @@ class ServicesTest {
             xp.activity(ALICE, new Activity(XpSource.BOSS, "wither", 4));
             guilds.style(ALICE, false, gold);
             assertThat(book.flush()).isTrue();
-            GuildBook again = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
+            GuildBook again = new GuildBook(database, problem -> { });
             again.load();
             assertThat(again.guildOf(ALICE).orElseThrow().nameStyle()).isEqualTo(gold);
         }
@@ -697,7 +697,7 @@ class ServicesTest {
             xp.contracts(guild(ALICE));
             xp.boost(25, Duration.ofHours(3), ALICE);
             assertThat(progress.flush()).isTrue();
-            ProgressBook again = new ProgressBook(new SqliteProgressStorage(database));
+            ProgressBook again = new ProgressBook(database);
             again.load();
             assertThat(again.totals(elves.id().value())).containsEntry(XpSource.FISH, 12L);
             assertThat(again.boost().percent()).isEqualTo(25);
@@ -706,7 +706,7 @@ class ServicesTest {
             guilds.disband(ALICE, elves.id(), false, bank);
             assertThat(progress.totals(elves.id().value())).isEmpty();
             progress.flush();
-            ProgressBook third = new ProgressBook(new SqliteProgressStorage(database));
+            ProgressBook third = new ProgressBook(database);
             third.load();
             assertThat(third.totals(elves.id().value())).isEmpty();
         }
@@ -759,6 +759,8 @@ class ServicesTest {
             long needed = xp.levels().toReach(level) - guild(guild.leader()).xp();
             if (needed > 0) {
                 xp.grant(guild.id(), needed, null);
+                // The level is told from the database's count, when the experience is written.
+                book.flush();
             }
         }
 
@@ -870,7 +872,7 @@ class ServicesTest {
             clock.addAndGet(Duration.ofDays(7).toMillis());
             perks.settle();
             assertThat(progress.flush()).isTrue();
-            ProgressBook again = new ProgressBook(new SqliteProgressStorage(database));
+            ProgressBook again = new ProgressBook(database);
             again.load();
             var standing = again.standing(elves.id().value(), () -> 0);
             assertThat(standing.rank(Perk.HASTE)).isEqualTo(1);
@@ -888,7 +890,7 @@ class ServicesTest {
         economy.give(ALICE, 100);
         bank.deposit(ALICE, Money.of(100));
         assertThat(book.flush()).isTrue();
-        GuildBook again = new GuildBook(new SqliteGuildStorage(database, problem -> { }));
+        GuildBook again = new GuildBook(database, problem -> { });
         again.load();
         assertThat(again.guildOf(BOB).map(Guild::bank)).contains(100L);
         assertThat(Optional.of(again.all().size())).contains(1);

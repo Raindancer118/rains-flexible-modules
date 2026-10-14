@@ -31,11 +31,28 @@ public final class WorkCatalogue {
         this.shipped = shipped;
     }
 
-    public int reload() {
+    /**
+     * Reads the document again — one that cannot be read leaves the works held as they are: not read is not "there
+     * are none". @return how many there are
+     */
+    public synchronized int reload() {
         // Written out once; after that, what a newer version ships is merged in without undoing the owner's edits.
-        lastMerge = de.raindancer.core.data.store.ShippedEntries.bringUp(store.file(), shipped, "work", java.util.Set.of());
-        works = parse(store.read());
+        lastMerge = de.raindancer.core.data.store.ShippedEntries.bringUp(store, shipped, "work", java.util.Set.of());
+        store.readIfReadable().ifPresent(yaml -> works = parse(yaml));
         return works.size();
+    }
+
+    /** Reads again when another server writes the document. Close to stop. */
+    public de.raindancer.core.platform.network.NetworkBus.Subscription watch() {
+        return watch(() -> { });
+    }
+
+    /** As {@link #watch()}, then running {@code afterwards} — for what depends on what the document says. */
+    public de.raindancer.core.platform.network.NetworkBus.Subscription watch(Runnable afterwards) {
+        return store.onChange(() -> {
+            reload();
+            afterwards.run();
+        });
     }
 
     public List<Work> all() {

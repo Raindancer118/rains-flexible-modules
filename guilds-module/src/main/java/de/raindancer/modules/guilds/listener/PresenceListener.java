@@ -77,6 +77,7 @@ public final class PresenceListener implements IGuildsListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         UUID player = event.getPlayer().getUniqueId();
+        services.book().seen(player, System.currentTimeMillis());
         forget(player);
         for (IGuildsListener other : others) {
             other.forget(player);

@@ -1,6 +1,8 @@
 package de.raindancer.modules.jobs.service;
 
+import de.raindancer.core.data.sql.Database;
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Economies;
@@ -14,6 +16,7 @@ import de.raindancer.modules.jobs.QuestSettings;
 import de.raindancer.modules.jobs.model.Quest;
 import de.raindancer.modules.jobs.model.QuestDay;
 import de.raindancer.modules.jobs.model.QuestTask;
+import de.raindancer.modules.jobs.store.JobsDatabase;
 import de.raindancer.modules.jobs.store.QuestBook;
 import de.raindancer.modules.jobs.store.QuestCatalogue;
 import org.bukkit.Server;
@@ -40,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@org.junit.jupiter.api.Tag("database")
 class QuestServiceTest {
 
     private static final long DAY = Duration.ofDays(1).toMillis();
@@ -55,6 +59,7 @@ class QuestServiceTest {
     private final Player player = mock(Player.class);
     private QuestService service;
     private QuestBook book;
+    private Database database;
 
     private static final class Bank implements Economy {
         final Map<UUID, Money> balances = new HashMap<>();
@@ -113,7 +118,8 @@ class QuestServiceTest {
                           blazes: { task: kill, things: [ blaze ], amount: 5, pay: 200, role: mage }
                         """.getBytes(StandardCharsets.UTF_8)));
         catalogue.reload();
-        book = new QuestBook(new YamlStore(folder.resolve("quest-progress.yml")));
+        database = TestDatabases.open(folder.resolve("jobs.db"), JobsDatabase.SCHEMA);
+        book = new QuestBook(database);
         book.load();
         service = new QuestService(server, catalogue, book, messages, Log.of("jobs"), now::get, ZoneOffset.UTC,
                 new Random(5), new QuestSettings(true, 3, 2, "5000", 35, 60, 8, 25, 100, true, 1));
@@ -121,6 +127,7 @@ class QuestServiceTest {
 
     @AfterEach
     void stop() {
+        database.close();
         Economies.clear();
         PlayerRoles.clear();
     }

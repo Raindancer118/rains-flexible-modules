@@ -1,5 +1,7 @@
 package de.raindancer.modules.guilds.service;
 
+import de.raindancer.core.platform.network.Arrivals;
+import de.raindancer.core.platform.network.NetworkTravel;
 import de.raindancer.core.platform.util.Cooldowns;
 import de.raindancer.core.platform.util.Times;
 import de.raindancer.core.world.teleport.Companions;
@@ -26,8 +28,13 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
-/** The guild home: unlocked by level, set by those allowed, reached through Core's {@code Travel}. */
+/**
+ * The guild home: unlocked by level, set by those allowed, reached through Core's {@code Travel}. A home is in a
+ * world of one server and carries that server's id; from another server of the network it is reached by sending
+ * the player there, to land at it.
+ */
 public final class HomeService implements IGuildsService {
 
     private final GuildBook book;
@@ -39,6 +46,17 @@ public final class HomeService implements IGuildsService {
     private final Cooldowns<UUID> waits;
     private volatile GuildsSettings settings;
     private volatile LevelRule levels;
+    private volatile Supplier<String> self = () -> "";
+    private volatile Supplier<Optional<NetworkTravel>> networkTravel = Optional::empty;
+
+    /**
+     * Makes homes the network's: a home set here carries {@code self}, and one on another server is reached
+     * through {@code travel}. {@code self} is blank on a server of its own, where every world is here.
+     */
+    public void network(Supplier<String> self, Supplier<Optional<NetworkTravel>> travel) {
+        this.self = self == null ? () -> "" : self;
+        this.networkTravel = travel == null ? Optional::empty : travel;
+    }
 
     public HomeService(GuildBook book, GuildNotifier notify, Server server, Travel travel, LongSupplier clock,
                        GuildsSettings settings) {
@@ -87,7 +105,8 @@ public final class HomeService implements IGuildsService {
             return GuildOutcome.HOME_LOCKED;
         }
         Location at = player.getLocation();
-        HomeSpot spot = new HomeSpot(at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch());
+        HomeSpot spot = new HomeSpot(at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch(),
+                self.get());
         GuildOutcome changed = book.update(guild.id(), now -> now.withHome(Optional.of(spot)));
         if (changed.isSuccess()) {
             book.log(GuildEvent.of(guild.id().value(), clock.getAsLong(), GuildEvent.Kind.HOME_SET,
@@ -124,6 +143,9 @@ public final class HomeService implements IGuildsService {
             return GuildOutcome.SUCCESS;
         }
         HomeSpot home = guild.home().get();
+        if (!home.isOn(self.get())) {
+            return goThere(player, guild, home);
+        }
         World world = server.getWorld(home.world());
         if (world == null) {
             return GuildOutcome.NO_HOME;
@@ -131,6 +153,19 @@ public final class HomeService implements IGuildsService {
         Location destination = new Location(world, home.x(), home.y(), home.z(), home.yaw(), home.pitch());
         Trip trip = Trip.to(guild.name()).after(settings.homeWarmup() * share / 100).bringing(Companions.WHAT_YOU_LEAD);
         travel.go(player, destination, trip, new Arriving(guild));
+        return GuildOutcome.SUCCESS;
+    }
+
+    /** A home in a world of another server: the player is sent there, to land at it. */
+    private GuildOutcome goThere(Player player, Guild guild, HomeSpot home) {
+        Optional<NetworkTravel> network = networkTravel.get();
+        if (network.isEmpty()) {
+            return GuildOutcome.NO_HOME;
+        }
+        waits.start(player.getUniqueId());
+        network.get().send(player, home.server(), Optional.of(new Arrivals.Destination(home.world(), home.x(), home.y(),
+                home.z(), home.yaw(), home.pitch())));
+        notify.tell(player.getUniqueId(), "guilds.home.arrived", "guild", GuildNotifier.title(guild));
         return GuildOutcome.SUCCESS;
     }
 

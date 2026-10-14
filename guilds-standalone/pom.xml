@@ -35,7 +35,8 @@
         <!-- 0.7.1: the vault is sealed from the empty check to the end of a disband; vault keyed by founding time; taking asks the guild as it is now (security review). -->
         <!-- 0.7.2: a vault whose file cannot be read is never taken for empty — no disband, no deposits (RainsCore 1.132.0 StashStore.isReadable; security review). -->
         <!-- 0.8.0: the guild choices menu paints the tag and the name in the colour editor, from the level the server set. -->
-        <plugin.version>0.8.0</plugin.version>
+        <!-- 0.9.0: a network's guilds (RainsCore 2.0): one namespace of names and tags, members on any server, bank and experience written as additions, vault as rows, home with its server, chat and notices across servers; the per-server data comes into the shared database. -->
+        <plugin.version>0.9.0</plugin.version>
     </properties>
 
     <dependencies>

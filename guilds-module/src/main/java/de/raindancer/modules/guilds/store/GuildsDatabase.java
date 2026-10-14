@@ -2,7 +2,7 @@ package de.raindancer.modules.guilds.store;
 
 import de.raindancer.core.data.sql.Schema;
 
-/** guilds.db, through Core's Databases. Steps are only ever appended: a written step is a migration somebody ran. */
+/** The guilds database — the network's one, or this server's guilds.db. Steps are only ever appended: a written step is a migration somebody ran. */
 public final class GuildsDatabase {
 
     public static final String NAME = "guilds";
@@ -157,6 +157,44 @@ public final class GuildsDatabase {
                 week INTEGER NOT NULL,
                 settled_week INTEGER NOT NULL
             )
+            """,
+            // The server whose world the home is in; '' is a server of its own, where it is wherever it is.
+            """
+            ALTER TABLE guild ADD COLUMN home_server TEXT NOT NULL DEFAULT ''
+            """,
+            // Every name, tag and id a guild holds, one word one guild: the network's one namespace, decided by the
+            // primary key when two servers found a guild at once.
+            """
+            CREATE TABLE guild_word (
+                word TEXT NOT NULL PRIMARY KEY,
+                guild TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE INDEX guild_word_guild ON guild_word (guild)
+            """,
+            // One row per stack: a stack leaves the vault by deleting its row, so it leaves once, on one server.
+            """
+            CREATE TABLE guild_vault (
+                id TEXT NOT NULL PRIMARY KEY,
+                vault TEXT NOT NULL,
+                slot TEXT NOT NULL,
+                pos INTEGER NOT NULL,
+                item TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE INDEX guild_vault_vault ON guild_vault (vault)
+            """,
+            """
+            CREATE TABLE guild_migration (
+                source TEXT NOT NULL PRIMARY KEY,
+                at INTEGER NOT NULL
+            )
+            """,
+            // When a member was last on any server: what a leader's absence is measured by.
+            """
+            ALTER TABLE member ADD COLUMN seen INTEGER NOT NULL DEFAULT 0
             """);
 
     private GuildsDatabase() {

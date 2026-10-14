@@ -154,6 +154,12 @@ public final class QuestListener implements IJobsListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        // Their day and order as the network has them, read before anything is counted: they may have just come
+        // from another server.
+        de.raindancer.core.platform.util.Scheduling.async(services.plugin(), () -> {
+            services.quests().preload(player.getUniqueId());
+            services.orders().preload(player.getUniqueId());
+        });
         de.raindancer.core.platform.util.Scheduling.entityLater(services.plugin(), player, 20L * 10, () -> {
             if (!player.isOnline() || !services.quests().settings().enabled() || !services.quests().settings().tellOnJoin()
                     || !player.hasPermission(PermissionNodes.USE)) {
@@ -170,7 +176,13 @@ public final class QuestListener implements IJobsListener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
-        forget(event.getPlayer().getUniqueId());
+        UUID player = event.getPlayer().getUniqueId();
+        forget(player);
+        // What they counted here is written now, for the server they go to next.
+        de.raindancer.core.platform.util.Scheduling.async(services.plugin(), () -> {
+            services.quests().release(player);
+            services.orders().release(player);
+        });
     }
 
     /** One sample of where a player is, for travel quests. On the player's own thread. */

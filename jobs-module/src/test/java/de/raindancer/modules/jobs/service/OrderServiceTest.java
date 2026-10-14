@@ -1,6 +1,8 @@
 package de.raindancer.modules.jobs.service;
 
+import de.raindancer.core.data.sql.Database;
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.social.economy.Currency;
 import de.raindancer.core.social.economy.Economies;
@@ -12,6 +14,7 @@ import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.jobs.OrderSettings;
 import de.raindancer.modules.jobs.model.Order;
 import de.raindancer.modules.jobs.model.QuestTask;
+import de.raindancer.modules.jobs.store.JobsDatabase;
 import de.raindancer.modules.jobs.store.OrderBook;
 import de.raindancer.modules.jobs.store.WorkCatalogue;
 import org.bukkit.Server;
@@ -37,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@org.junit.jupiter.api.Tag("database")
 class OrderServiceTest {
 
     private static final long DAY = Duration.ofDays(1).toMillis();
@@ -51,6 +55,7 @@ class OrderServiceTest {
     private final UUID ana = UUID.randomUUID();
     private final Player player = mock(Player.class);
     private OrderService service;
+    private Database database;
     private WorkCatalogue works;
 
     private static final class Bank implements Economy {
@@ -105,7 +110,8 @@ class OrderServiceTest {
                           dragons: { name: Ender Dragons, task: kill, things: [ ender_dragon ], value: 3000, rate: 2, hardness: 1 }
                         """.getBytes(StandardCharsets.UTF_8)));
         works.reload();
-        OrderBook book = new OrderBook(new YamlStore(folder.resolve("order-progress.yml")));
+        database = TestDatabases.open(folder.resolve("jobs.db"), JobsDatabase.SCHEMA);
+        OrderBook book = new OrderBook(database);
         book.load();
         service = new OrderService(server, works, book, messages, Log.of("jobs"), now::get, ZoneOffset.UTC,
                 new Random(4), OrderSettings.DEFAULTS);
@@ -113,6 +119,7 @@ class OrderServiceTest {
 
     @AfterEach
     void stop() {
+        database.close();
         Economies.clear();
     }
 
@@ -187,7 +194,7 @@ class OrderServiceTest {
         }
         service.forget(ana);
         assertThat(service.ask(ana, coins("1000")).refusal()).isEqualTo("jobs.order.no-rerolls");
-        OrderBook reread = new OrderBook(new YamlStore(folder.resolve("order-progress.yml")));
+        OrderBook reread = new OrderBook(database);
         service.flush();
         reread.load();
         OrderService restarted = new OrderService(server, works, reread, messages, Log.of("jobs"), now::get,

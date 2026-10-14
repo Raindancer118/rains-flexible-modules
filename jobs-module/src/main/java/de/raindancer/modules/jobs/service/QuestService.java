@@ -53,6 +53,7 @@ public final class QuestService {
     private final QuestRule rule = new QuestRule();
     /** Blocks travelled but not yet whole, per player. */
     private final Map<UUID, Double> walked = new ConcurrentHashMap<>();
+    private final Notices notices;
     private volatile QuestSettings settings;
 
     public QuestService(Server server, QuestCatalogue catalogue, QuestBook book, Messages messages, LogChannel log,
@@ -65,7 +66,22 @@ public final class QuestService {
         this.clock = clock;
         this.zone = zone;
         this.random = random;
+        this.notices = new Notices(server, messages);
         settings(settings);
+    }
+
+    public Notices notices() {
+        return notices;
+    }
+
+    /** Reads a player's quests, so their day is at hand when they ask. Off the server's threads. */
+    public void preload(UUID player) {
+        book.refresh(player);
+    }
+
+    /** A player left this server: what they counted is written and their day is let go. Off the server's threads. */
+    public void release(UUID player) {
+        book.forget(player);
     }
 
     public void settings(QuestSettings updated) {
@@ -117,6 +133,10 @@ public final class QuestService {
         if (held.isPresent() && held.get().day().equals(today)) {
             return held.get();
         }
+        if (held.isEmpty() && !book.known(player)) {
+            // Not read is not "has none": a day handed out now would be written over the one that is there.
+            return new QuestDay(today, 0, List.of(), List.of());
+        }
         QuestSettings live = settings;
         if (!live.enabled()) {
             return new QuestDay(today, 0, held.map(this::owedOf).orElse(List.of()), List.of());
@@ -136,9 +156,13 @@ public final class QuestService {
         held.map(this::owedOf).ifPresent(quests::addAll);
         QuestDay day = new QuestDay(today, tier, quests, yesterday);
         if (!book.putNow(player, day)) {
-            book.put(player, day);
-            log.warn("The quests of {} could not be written to quest-progress.yml now; tried again with the next save.",
-                    player);
+            // Another server may have handed out today's first: theirs stands.
+            book.refresh(player);
+            Optional<QuestDay> theirs = book.of(player).filter(each -> each.day().equals(today));
+            if (theirs.isPresent()) {
+                return theirs.get();
+            }
+            log.warn("The quests of {} could not be written to the jobs database now.", player);
         }
         return day;
     }
@@ -261,7 +285,7 @@ public final class QuestService {
         Quest quest = day.quests().get(index);
         QuestDay paid = day.with(index, quest.in(Quest.State.PAID));
         if (!book.putNow(id, paid)) {
-            log.error("Quest {} of {} is done but quest-progress.yml cannot be written, so it is not paid yet.",
+            log.error("Quest {} of {} is done but the jobs database cannot be written, so it is not paid yet.",
                     template.id(), player.getName());
             messages.send(player, "jobs.quest.not-saved");
             return day;
@@ -272,8 +296,9 @@ public final class QuestService {
             return paid;
         }
         QuestDay owed = day.with(index, quest.in(Quest.State.OWED));
-        if (!book.putNow(id, owed)) {
-            book.put(id, owed);
+        if (!book.putNow(id, owed) && !book.putNow(id, owed)) {
+            log.error("{} was not paid for quest {} and it could not be recorded as owed: it is lost unless paid by hand.",
+                    player.getName(), template.id());
         }
         log.warn("{} could not be paid for quest {}: {} — kept as owed, retried every minute.", player.getName(),
                 template.id(), result.outcome());
@@ -323,10 +348,7 @@ public final class QuestService {
                     return;
                 }
                 now = paid;
-                Player online = server.getPlayer(player);
-                if (online != null) {
-                    messages.send(online, "jobs.quest.paid-late", "quest", title, "amount", Fees.format(result.amount()));
-                }
+                notices.tell(player, "jobs.quest.paid-late", "quest", title, "amount", Fees.format(result.amount()));
             }
         });
         flush();

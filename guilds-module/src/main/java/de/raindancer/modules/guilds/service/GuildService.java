@@ -536,14 +536,20 @@ public final class GuildService implements IGuildsService {
             return 0;
         }
         int changed = 0;
+        // As the database has the guilds, and with the latest of when everybody was seen: every server runs this.
+        book.refreshAll();
         for (Guild guild : book.all()) {
             Optional<UUID> heir = succession.heir(guild, lastSeen, now(), Duration.ofDays(days));
             if (heir.isEmpty()) {
                 continue;
             }
             UUID old = guild.leader();
-            if (book.update(guild.id(), now -> now.leader().equals(old) && now.isMember(heir.get()) ? crown(now, heir.get()) : now)
-                    .isSuccess()) {
+            // Of the servers that find the leader gone, the first changes the guild; the others find it changed.
+            boolean[] handed = new boolean[1];
+            if (book.update(guild.id(), now -> {
+                handed[0] = now.leader().equals(old) && now.isMember(heir.get());
+                return handed[0] ? crown(now, heir.get()) : now;
+            }).isSuccess() && handed[0]) {
                 log(guild, GuildEvent.Kind.SUCCEEDED, old, heir.get(), 0, days + "");
                 notify.members(guild, "guilds.leader.succeeded", "player", notify.name(heir.get()),
                         "old", notify.name(old), "days", days);

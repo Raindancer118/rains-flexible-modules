@@ -59,6 +59,7 @@ public final class GoalService implements IJobsService, SaleStop {
     private static final int REMEMBERED = 3;
     private static final String SOURCE = "jobs.goal";
     private volatile long poolAt;
+    private final Notices notices;
 
     public GoalService(Server server, TemplateCatalogue templates, GoalBook book, Messages messages, LogChannel log,
                        LongSupplier clock, Random random, JobsSettings settings) {
@@ -70,6 +71,11 @@ public final class GoalService implements IJobsService, SaleStop {
         this.clock = clock;
         this.random = random;
         this.settings = settings == null ? JobsSettings.DEFAULTS : settings;
+        this.notices = new Notices(server, messages);
+    }
+
+    public Notices notices() {
+        return notices;
     }
 
     @Override
@@ -139,27 +145,34 @@ public final class GoalService implements IJobsService, SaleStop {
             boolean fishing = book.active().stream().anyMatch(goal -> goal.kind() == GoalKind.FISH);
             GoalTemplate picked = free.stream().filter(each -> each.kind() == GoalKind.FISH != fishing).findFirst()
                     .orElse(free.getFirst());
-            if (start(picked).isEmpty()) {
+            if (start(picked, wanted).isEmpty()) {
                 return;
             }
         }
     }
 
-    /** Puts one goal of this kind up now. */
+    /** Puts one goal of this kind up now, even where the board is full. */
     public Optional<Goal> start(GoalTemplate template) {
+        return start(template, Integer.MAX_VALUE);
+    }
+
+    /** Puts a goal up unless the board holds {@code cap} already — checked where the goal is written, network-wide. */
+    private Optional<Goal> start(GoalTemplate template, int cap) {
         long now = clock.getAsLong();
         int amount = Math.clamp(book.learned(template.id()).orElse(template.start()), template.least(), template.most());
-        Goal goal = new Goal(book.nextNumber(), template.id(), template.title(), template.icon(), template.kind(),
-                template.items(), amount, now, now + Duration.ofDays(template.days()).toMillis(), Map.of());
-        if (!book.start(goal)) {
-            log.error("A goal could not be saved to goals.yml, so it was not put up.");
+        Optional<Goal> goal = book.start(cap, number -> new Goal(number, template.id(), template.title(), template.icon(),
+                template.kind(), template.items(), amount, now, now + Duration.ofDays(template.days()).toMillis(), Map.of()));
+        if (goal.isEmpty()) {
+            if (book.readable() && book.active().size() < cap && book.active().stream().noneMatch(each -> each.template().equals(template.id()))) {
+                log.error("A goal could not be saved to the jobs database, so it was not put up.");
+            }
             return Optional.empty();
         }
         if (settings.announce()) {
-            server.getOnlinePlayers().forEach(player -> messages.send(player, "jobs.started",
-                    "goal", goal.title(), "amount", String.valueOf(goal.amount()), "days", String.valueOf(template.days())));
+            notices.everybody("jobs.started", "goal", goal.get().title(), "amount", String.valueOf(goal.get().amount()),
+                    "days", String.valueOf(template.days()));
         }
-        return Optional.of(goal);
+        return goal;
     }
 
     /** Ends a goal now: pays for what was reached, learns from it, and puts another up. */
@@ -197,21 +210,18 @@ public final class GoalService implements IJobsService, SaleStop {
                 return;
             }
             var result = Fees.pay(player, money, "Server goal: " + goal.title(), SOURCE);
-            Player online = server.getPlayer(player);
             if (result.succeeded()) {
-                if (online != null) {
-                    int percent = (int) Math.round(goal.givenBy(player) * 100.0 / Math.max(1, progress));
-                    messages.send(online, reached ? "jobs.paid" : "jobs.paid-part", "goal", goal.title(),
-                            "percent", String.valueOf(percent), "amount", Fees.format(result.amount()));
-                }
-            } else if (owe(player, money, result, goal.title()) && online != null) {
-                messages.send(online, "jobs.owed", "goal", goal.title(), "amount", Fees.format(money));
+                int percent = (int) Math.round(goal.givenBy(player) * 100.0 / Math.max(1, progress));
+                notices.tell(player, reached ? "jobs.paid" : "jobs.paid-part", "goal", goal.title(),
+                        "percent", String.valueOf(percent), "amount", Fees.format(result.amount()));
+            } else if (owe(player, money, result, goal.title())) {
+                notices.tell(player, "jobs.owed", "goal", goal.title(), "amount", Fees.format(money));
             }
         });
         if (settings.announce()) {
-            server.getOnlinePlayers().forEach(player -> messages.send(player, reached ? "jobs.reached" : "jobs.missed",
+            notices.everybody(reached ? "jobs.reached" : "jobs.missed",
                     "goal", goal.title(), "progress", String.valueOf(Math.min(progress, goal.amount())),
-                    "amount", String.valueOf(goal.amount()), "players", String.valueOf(paid.size())));
+                    "amount", String.valueOf(goal.amount()), "players", String.valueOf(paid.size()));
         }
     }
 
@@ -225,7 +235,7 @@ public final class GoalService implements IJobsService, SaleStop {
             return false;
         }
         if (!book.owe(player, money)) {
-            log.error("{} is owed {} for goal {} but goals.yml cannot be written, so it will be lost on restart.",
+            log.error("{} is owed {} for goal {} but the jobs database cannot be written, so it will be lost on restart.",
                     player, money, title);
         }
         return true;
@@ -233,16 +243,22 @@ public final class GoalService implements IJobsService, SaleStop {
 
     /** Tries again what the treasury refused earlier. */
     private void payOwed() {
-        book.owed().forEach((player, money) -> {
-            var result = Fees.pay(player, money, "Server goal (owed)", SOURCE);
-            if (!result.succeeded() || !book.settle(player)) {
-                return;
+        for (UUID player : book.owed().keySet()) {
+            // Taken off the books before it is paid: of the servers that try, one pays, and a refusal puts it back.
+            Optional<Money> money = book.claimOwed(player);
+            if (money.isEmpty()) {
+                continue;
             }
-            Player online = server.getPlayer(player);
-            if (online != null) {
-                messages.send(online, "jobs.paid-late", "amount", Fees.format(result.amount()));
+            var result = Fees.pay(player, money.get(), "Server goal (owed)", SOURCE);
+            if (!result.succeeded()) {
+                if (!book.owe(player, money.get())) {
+                    log.error("{} was owed {} for a goal, could not be paid and the debt could not be put back.", player,
+                            money.get());
+                }
+                continue;
             }
-        });
+            notices.tell(player, "jobs.paid-late", "amount", Fees.format(result.amount()));
+        }
     }
 
     // ---------------------------------------------------------------------------- the reward
@@ -312,18 +328,39 @@ public final class GoalService implements IJobsService, SaleStop {
         }
         List<ItemStack> taken = take(player.getInventory(), goal, wanted);
         int count = taken.stream().mapToInt(ItemStack::getAmount).sum();
-        Optional<Goal> now = book.add(number, player.getUniqueId(), count);
+        Optional<GoalBook.Counted> now = book.give(number, player.getUniqueId(), count);
+        // What another server's hand-ins left no room for goes back, as does everything when nothing was written.
+        int refused = now.map(counted -> count - counted.counted()).orElse(count);
+        if (refused > 0) {
+            giveBack(player, taken, refused);
+        }
         if (now.isEmpty()) {
-            player.getInventory().addItem(taken.toArray(ItemStack[]::new)).values()
-                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
             messages.send(player, "jobs.not-saved");
             return;
         }
-        messages.send(player, "jobs.delivered", "count", String.valueOf(count), "goal", goal.title(),
-                "progress", String.valueOf(now.get().progress()), "amount", String.valueOf(goal.amount()));
-        if (now.get().reached()) {
-            finish(now.get(), true);
+        if (now.get().counted() <= 0) {
+            messages.send(player, "jobs.gone");
+            return;
+        }
+        messages.send(player, "jobs.delivered", "count", String.valueOf(now.get().counted()), "goal", goal.title(),
+                "progress", String.valueOf(now.get().goal().progress()), "amount", String.valueOf(goal.amount()));
+        if (now.get().goal().reached()) {
+            finish(now.get().goal(), true);
             fill();
+        }
+    }
+
+    private static void giveBack(Player player, List<ItemStack> taken, int count) {
+        int left = count;
+        for (ItemStack part : taken) {
+            if (left <= 0) {
+                break;
+            }
+            ItemStack back = part.clone();
+            back.setAmount(Math.min(left, part.getAmount()));
+            left -= back.getAmount();
+            player.getInventory().addItem(back).values()
+                    .forEach(over -> player.getWorld().dropItemNaturally(player.getLocation(), over));
         }
     }
 

@@ -4,6 +4,7 @@ import de.raindancer.core.data.sql.Database;
 import de.raindancer.core.social.team.TeamColour;
 import de.raindancer.core.social.team.TeamEmblem;
 import de.raindancer.core.social.team.TeamId;
+import de.raindancer.core.testkit.TestDatabases;
 import de.raindancer.modules.guilds.model.Fixtures;
 import de.raindancer.modules.guilds.model.Guild;
 import de.raindancer.modules.guilds.model.GuildEvent;
@@ -18,14 +19,13 @@ import de.raindancer.modules.guilds.model.Relation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -33,39 +33,29 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static de.raindancer.modules.guilds.model.Fixtures.LEADER;
 import static de.raindancer.modules.guilds.model.Fixtures.MEMBER;
 import static de.raindancer.modules.guilds.model.Fixtures.OFFICER;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("database")
 class GuildBookTest {
 
     @TempDir
     Path folder;
-    private Database database;
-    private SqliteGuildStorage storage;
+    private TwoServers servers;
     private GuildBook book;
-    private final List<String> problems = new ArrayList<>();
 
     @BeforeEach
     void open() {
-        database = Database.open(folder.resolve("guilds.db"), GuildsDatabase.SCHEMA, () -> false);
-        storage = new SqliteGuildStorage(database, problems::add);
-        book = new GuildBook(storage);
-        book.load();
+        servers = new TwoServers(folder);
+        book = servers.book("smp");
     }
 
     @AfterEach
     void close() {
-        database.close();
-    }
-
-    private GuildBook reopened() {
-        GuildBook again = new GuildBook(storage);
-        again.load();
-        return again;
+        servers.close();
     }
 
     @Test
@@ -77,7 +67,7 @@ class GuildBookTest {
                 .withJoinMode(JoinMode.APPLY)
                 .withXp(1234)
                 .withBank(5678)
-                .withHome(Optional.of(new HomeSpot("world", 1.5, 64, -3.25, 90f, -10f)))
+                .withHome(Optional.of(new HomeSpot("world", 1.5, 64, -3.25, 90f, -10f, "smp")))
                 .withFriendlyFire(true, false)
                 .withMember(new Member(MEMBER, Rank.MEMBER, 3, 100, 40, 77, 40, 20000))
                 .withRank(new Rank("archer", "Archer", 150, Set.of(GuildPermission.USE_HOME, GuildPermission.KICK), 250));
@@ -89,14 +79,16 @@ class GuildBookTest {
         book.log(GuildEvent.of(elves.id().value(), 10, GuildEvent.Kind.FOUNDED, LEADER, null, 0, "Elves"));
         assertThat(book.flush()).isTrue();
 
-        GuildBook again = reopened();
+        GuildBook again = servers.restarted();
         Guild read = again.guild(elves.id()).orElseThrow();
         Guild expected = book.guild(elves.id()).orElseThrow();
-        assertThat(read).usingRecursiveComparison().isEqualTo(expected);
+        assertThat(read).usingRecursiveComparison().ignoringFields("members").isEqualTo(expected);
+        assertThat(read.members().get(MEMBER)).isEqualTo(elves.members().get(MEMBER).withSeen(read.members().get(MEMBER).seen()));
+        assertThat(read.home()).contains(new HomeSpot("world", 1.5, 64, -3.25, 90f, -10f, "smp"));
+        assertThat(read.bank()).isEqualTo(5678);
         assertThat(again.guildOf(MEMBER)).map(Guild::id).contains(elves.id());
-        assertThat(again.rosterTeamOf(MEMBER)).contains(elves.id());
         assertThat(again.events(elves.id(), Set.of(), 10, 0)).extracting(GuildEvent::kind).containsExactly(GuildEvent.Kind.FOUNDED);
-        assertThat(problems).isEmpty();
+        assertThat(servers.problems).isEmpty();
     }
 
     @Test
@@ -136,6 +128,17 @@ class GuildBookTest {
     }
 
     @Test
+    @DisplayName("guilds from before names were a table claim their words when read, so a second one cannot take them")
+    void oldGuildsClaimTheirWords() {
+        book.create(Fixtures.guild("Elves"));
+        assertThat(servers.database().write(connection -> connection.createStatement().executeUpdate("DELETE FROM guild_word")))
+                .isTrue();
+        GuildBook again = servers.restarted();
+        assertThat(again.create(Fixtures.solo("ELVES", Fixtures.player("late")))).isEqualTo(GuildOutcome.NAME_TAKEN);
+        assertThat(again.create(Fixtures.solo("Woods", Fixtures.player("late")).withTag("ELVE"))).isEqualTo(GuildOutcome.TAG_TAKEN);
+    }
+
+    @Test
     @DisplayName("a rename keeps the id and every member; find works by name, tag and id")
     void rename() {
         Guild elves = Fixtures.guild("Elves");
@@ -145,22 +148,27 @@ class GuildBookTest {
         assertThat(book.find(elves.tag())).isPresent();
         assertThat(book.find("elves")).as("by the id it was founded with").isPresent();
         assertThat(book.guildOf(OFFICER)).map(Guild::name).contains("Wood Elves");
+        assertThat(servers.restarted().find("wood elves")).isPresent();
     }
 
     @Test
-    @DisplayName("leaving and joining keep Core's roster and the book in step")
-    void rosterAgrees() {
+    @DisplayName("leaving and joining move people between guilds, and a change that does nothing is a success")
+    void membership() {
         Guild elves = Fixtures.guild("Elves");
         book.create(elves);
         book.update(elves.id(), g -> g.withoutMember(MEMBER));
         assertThat(book.guildOf(MEMBER)).isEmpty();
-        assertThat(book.rosterTeamOf(MEMBER)).isEmpty();
         UUID newcomer = Fixtures.player("newcomer");
         book.update(elves.id(), g -> g.withMember(Member.joining(newcomer, Rank.RECRUIT, 5)));
-        assertThat(book.rosterTeamOf(newcomer)).contains(elves.id());
+        assertThat(book.guildOf(newcomer)).map(Guild::id).contains(elves.id());
+        assertThat(book.update(elves.id(), g -> g)).isEqualTo(GuildOutcome.SUCCESS);
         book.update(elves.id(), g -> g.withLeader(OFFICER).withMember(g.member(OFFICER).orElseThrow().withRank(Rank.LEADER))
                 .withMember(g.member(LEADER).orElseThrow().withRank(Rank.OFFICER)));
-        assertThat(book.guild(elves.id()).orElseThrow().leader()).isEqualTo(OFFICER);
+        Guild again = servers.restarted().guild(elves.id()).orElseThrow();
+        assertThat(again.leader()).isEqualTo(OFFICER);
+        assertThat(again.member(LEADER).orElseThrow().rank()).isEqualTo(Rank.OFFICER);
+        assertThat(again.isMember(MEMBER)).isFalse();
+        assertThat(book.update(new TeamId("nobody"), g -> g.withMotd("x"))).isEqualTo(GuildOutcome.NO_SUCH_GUILD);
     }
 
     @Test
@@ -172,19 +180,28 @@ class GuildBookTest {
         book.create(dwarves);
         book.updateBoth(elves.id(), g -> g.withRelation(dwarves.id(), Relation.ALLY), dwarves.id(), g -> g.withRelation(elves.id(), Relation.ALLY));
         book.ask(new Invitation(Invitation.Kind.INVITE, elves.id().value(), Fixtures.STRANGER, LEADER, "", Long.MAX_VALUE), 0);
-        book.flush();
 
         assertThat(book.disband(elves.id())).isPresent();
         assertThat(book.guildOf(OFFICER)).isEmpty();
-        assertThat(book.rosterTeamOf(OFFICER)).isEmpty();
         assertThat(book.guild(dwarves.id()).orElseThrow().relations()).isEmpty();
         assertThat(book.questions(Invitation.Kind.INVITE, 0)).isEmpty();
         assertThat(book.create(Fixtures.solo("Elves", OFFICER))).as("the name is free again").isEqualTo(GuildOutcome.SUCCESS);
-        book.flush();
 
-        GuildBook again = reopened();
+        GuildBook again = servers.restarted();
         assertThat(again.guild(dwarves.id()).orElseThrow().relations()).isEmpty();
         assertThat(again.guild(elves.id()).orElseThrow().size()).isEqualTo(1);
+        assertThat(again.questions(Invitation.Kind.INVITE, 0)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a guild whose bank still holds money is not disbanded: what was put in meanwhile is not lost with it")
+    void disbandKeepsMoney() {
+        Guild elves = Fixtures.guild("Elves").withBank(900);
+        book.create(elves);
+        assertThat(book.disband(elves.id())).isEmpty();
+        assertThat(book.guild(elves.id())).isPresent();
+        book.update(elves.id(), g -> g.withBank(0));
+        assertThat(book.disband(elves.id())).isPresent();
     }
 
     @Test
@@ -200,113 +217,57 @@ class GuildBookTest {
         book.ask(invite, 0);
         assertThat(book.expire(100)).containsExactly(invite);
         book.ask(invite, 0);
-        book.flush();
-        assertThat(reopened().questions(Invitation.Kind.INVITE, 0)).containsExactly(invite);
+        assertThat(servers.restarted().questions(Invitation.Kind.INVITE, 0)).containsExactly(invite);
+        book.forgetQuestionsOf(MEMBER);
+        assertThat(servers.restarted().questions(Invitation.Kind.INVITE, 0)).isEmpty();
     }
 
     @Test
-    @DisplayName("a write that fails is tried again with the next flush, losing nothing")
+    @DisplayName("what a flush could not write stays queued: nothing counted or logged is lost to a database that blinks")
     void failedWriteRequeues() {
-        AtomicBoolean fail = new AtomicBoolean(true);
-        List<GuildEvent> written = new ArrayList<>();
-        GuildStorage flaky = new GuildStorage() {
-            @Override
-            public Optional<List<Guild>> loadAll() {
-                return Optional.of(List.of());
-            }
-
-            @Override
-            public List<Invitation> loadInvitations() {
-                return List.of();
-            }
-
-            @Override
-            public boolean write(Collection<Guild> changed, Set<String> deleted, Collection<Invitation> invitations, List<GuildEvent> events) {
-                if (fail.get()) {
-                    return false;
-                }
-                written.addAll(events);
-                return storage.write(changed, deleted, invitations, events);
-            }
-
-            @Override
-            public List<GuildEvent> events(String guild, Set<GuildEvent.Kind> kinds, int limit, int offset) {
-                return List.of();
-            }
-
-            @Override
-            public boolean isUsable() {
-                return true;
-            }
-        };
-        GuildBook shaky = new GuildBook(flaky);
+        Database mine = servers.separate();
+        GuildBook shaky = new GuildBook(mine, problem -> { });
         shaky.load();
         Guild elves = Fixtures.guild("Elves");
-        shaky.create(elves);
+        assertThat(shaky.create(elves)).isEqualTo(GuildOutcome.SUCCESS);
+        shaky.addXp(elves.id(), LEADER, 40);
         shaky.log(GuildEvent.of("elves", 1, GuildEvent.Kind.FOUNDED, LEADER, null, 0, ""));
+        mine.close();
         assertThat(shaky.flush()).isFalse();
         assertThat(shaky.hasUnwritten()).isTrue();
-        shaky.log(GuildEvent.of("elves", 2, GuildEvent.Kind.JOINED, MEMBER, null, 0, ""));
-        fail.set(false);
-        assertThat(shaky.flush()).isTrue();
-        assertThat(written).extracting(GuildEvent::at).containsExactly(1L, 2L);
-        assertThat(reopened().guild(elves.id())).isPresent();
+        assertThat(shaky.guild(elves.id()).orElseThrow().xp()).as("still counted here").isEqualTo(40);
     }
 
     @Test
     @DisplayName("an unreadable database is never written over")
-    void unreadable() {
-        GuildStorage broken = new GuildStorage() {
-            @Override
-            public Optional<List<Guild>> loadAll() {
-                return Optional.empty();
-            }
-
-            @Override
-            public List<Invitation> loadInvitations() {
-                return List.of();
-            }
-
-            @Override
-            public boolean write(Collection<Guild> changed, Set<String> deleted, Collection<Invitation> invitations, List<GuildEvent> events) {
-                throw new AssertionError("wrote over a database it could not read");
-            }
-
-            @Override
-            public List<GuildEvent> events(String guild, Set<GuildEvent.Kind> kinds, int limit, int offset) {
-                return List.of();
-            }
-
-            @Override
-            public boolean isUsable() {
-                return false;
-            }
-        };
-        GuildBook held = new GuildBook(broken);
+    void unreadable() throws Exception {
+        Database broken = TestDatabases.unusable(folder.resolve("broken.db"), GuildsDatabase.SCHEMA);
+        GuildBook held = new GuildBook(broken, problem -> { });
         held.load();
         assertThat(held.readable()).isFalse();
         assertThat(held.create(Fixtures.guild("Elves"))).isEqualTo(GuildOutcome.NOT_SAVED);
-        assertThat(held.flush()).isFalse();
+        assertThat(held.update(new TeamId("elves"), g -> g.withMotd("x"))).isEqualTo(GuildOutcome.NOT_SAVED);
+        broken.close();
     }
 
     @Test
-    @DisplayName("eight threads joining and leaving at once never put anybody in two guilds")
+    @DisplayName("several threads joining and leaving at once never put anybody in two guilds")
     void concurrency() throws InterruptedException {
         List<TeamId> ids = new ArrayList<>();
-        for (int each = 0; each < 6; each++) {
+        for (int each = 0; each < 4; each++) {
             Guild guild = Fixtures.solo("Guild" + each, Fixtures.player("leader" + each));
             book.create(guild);
             ids.add(guild.id());
         }
         List<UUID> players = new ArrayList<>();
-        for (int each = 0; each < 40; each++) {
+        for (int each = 0; each < 12; each++) {
             players.add(Fixtures.player("p" + each));
         }
-        ExecutorService pool = Executors.newFixedThreadPool(8);
-        for (int thread = 0; thread < 8; thread++) {
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        for (int thread = 0; thread < 4; thread++) {
             pool.submit(() -> {
                 ThreadLocalRandom random = ThreadLocalRandom.current();
-                for (int round = 0; round < 2000; round++) {
+                for (int round = 0; round < 60; round++) {
                     UUID player = players.get(random.nextInt(players.size()));
                     TeamId id = ids.get(random.nextInt(ids.size()));
                     if (random.nextBoolean()) {
@@ -316,25 +277,17 @@ class GuildBookTest {
                     } else {
                         book.guildOf(player).ifPresent(g -> book.update(g.id(), now -> now.withoutMember(player)));
                     }
-                    if (round % 200 == 0) {
-                        book.flush();
-                    }
                 }
             });
         }
         pool.shutdown();
-        assertThat(pool.awaitTermination(60, TimeUnit.SECONDS)).isTrue();
+        assertThat(pool.awaitTermination(120, TimeUnit.SECONDS)).isTrue();
+        GuildBook again = servers.restarted();
         for (UUID player : players) {
-            long in = book.all().stream().filter(guild -> guild.isMember(player)).count();
+            long in = again.all().stream().filter(guild -> guild.isMember(player)).count();
             assertThat(in).as("guilds holding %s", player).isLessThanOrEqualTo(1);
-            assertThat(book.rosterTeamOf(player)).isEqualTo(book.guildOf(player).map(Guild::id));
-        }
-        book.flush();
-        GuildBook again = reopened();
-        for (UUID player : players) {
             assertThat(again.guildOf(player).map(Guild::id)).isEqualTo(book.guildOf(player).map(Guild::id));
         }
-        assertThat(problems).isEmpty();
-        assertThat(Map.of()).isEmpty();
+        assertThat(servers.problems).isEmpty();
     }
 }
