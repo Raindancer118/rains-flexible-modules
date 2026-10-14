@@ -18,7 +18,7 @@ enchants:
   link-missed: "<gray>Your linked chest is full or gone, so what you mined came to you."
   link-elsewhere: "<gray>Your linked chest is not on this server, so what you mined came to you."
   portal-opened: "<light_purple>The portal hums open. <gray>It leads to the shard world, where it is always night."
-  portal-denied: "<red>You cannot open a portal here: this ground is not yours to light."
+  portal-denied: "<red>You cannot open a portal here: you may not build on this ground."
   portal-arrived: "<light_purple>The shard world. <gray>Monsters here drop the enchantments' shards. Any portal takes you back."
   shards-dropped: "<light_purple>+<amount> shard(s): <white><names>"
   shard-given: "<green>Gave <white><player></white> <white><amount></white> shard(s) of <white><name></white>."

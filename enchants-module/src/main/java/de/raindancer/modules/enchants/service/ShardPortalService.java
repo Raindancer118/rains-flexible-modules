@@ -66,6 +66,19 @@ public final class ShardPortalService {
     }
 
     /**
+     * Whether {@code player} may open a portal filling {@code blocks}: wherever they may build. Opening one places
+     * blocks and sets nothing alight, so whoever is trusted on a claim may — fire stays the owner's to allow.
+     */
+    static boolean mayOpen(Land land, Player player, World world, java.util.List<int[]> blocks) {
+        for (int[] at : blocks) {
+            if (!land.can(player, new Location(world, at[0], at[1], at[2]), LandAction.BUILD)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * A right click with the portal key on obsidian. @return true if it opened a portal (the click is used up)
      */
     public boolean ignite(Player player, Block clicked, BlockFace face, ItemStack held) {
@@ -91,13 +104,10 @@ public final class ShardPortalService {
         if (inside.isEmpty()) {
             return false;
         }
-        // Opening a portal is lighting one: refused wherever the player may not light a fire.
-        for (int[] at : inside.get().blocks()) {
-            if (!land.can(player, new Location(world, at[0], at[1], at[2]), LandAction.IGNITE)) {
-                messages.send(player, "enchants.portal-denied");
-                effects.play(player.getUniqueId(), Cues.NO);
-                return true;
-            }
+        if (!mayOpen(land, player, world, inside.get().blocks())) {
+            messages.send(player, "enchants.portal-denied");
+            effects.play(player.getUniqueId(), Cues.NO);
+            return true;
         }
         for (int[] at : inside.get().blocks()) {
             Block block = world.getBlockAt(at[0], at[1], at[2]);
