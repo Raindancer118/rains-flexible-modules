@@ -298,18 +298,29 @@ public final class OrderBook {
                 if (was.progress() == is.progress() && was.state() == is.state()) {
                     return;
                 }
+                if (!allowed(was.state(), is.state())) {
+                    conflict[0] = true;
+                    return;
+                }
+                boolean moves = was.state() != is.state();
                 int more = Math.max(0, is.progress() - was.progress());
+                // A change of state is the write that decides who pays: it must have changed the row, and it
+                // moves rev so a replacement made from the old state is refused.
                 try (PreparedStatement update = connection.prepareStatement("""
                         UPDATE order_ledger SET progress = CASE WHEN progress + ? > units THEN units ELSE progress + ? END,
-                            state = ? WHERE player = ? AND work = ? AND started_at = ? AND state = ?""")) {
+                            state = ?, rev = rev + ? WHERE player = ? AND work = ? AND started_at = ? AND state = ?""")) {
                     update.setInt(1, more);
                     update.setInt(2, more);
                     update.setString(3, is.state().name());
-                    update.setString(4, player.toString());
-                    update.setString(5, was.work());
-                    update.setLong(6, was.startedAt());
-                    update.setString(7, was.state().name());
-                    update.executeUpdate();
+                    update.setInt(4, moves ? 1 : 0);
+                    update.setString(5, player.toString());
+                    update.setString(6, was.work());
+                    update.setLong(7, was.startedAt());
+                    update.setString(8, was.state().name());
+                    if (update.executeUpdate() != 1 && moves) {
+                        connection.rollback();
+                        conflict[0] = true;
+                    }
                 }
                 return;
             }
@@ -381,6 +392,13 @@ public final class OrderBook {
         Order y = b.order();
         return x.work().equals(y.work()) && x.says().equals(y.says()) && x.units() == y.units() && x.pay().equals(y.pay())
                 && x.startedAt() == y.startedAt() && x.endsAt() == y.endsAt();
+    }
+
+    /** OPEN ends once; what was refused is owed and then paid. Nothing is ever open again. */
+    private static boolean allowed(Order.State from, Order.State to) {
+        return from == to || from == Order.State.OPEN
+                || from == Order.State.OWED && to == Order.State.PAID
+                || from == Order.State.PAID && to == Order.State.OWED;
     }
 
     private static boolean onlyCounts(Ledger a, Ledger b) {

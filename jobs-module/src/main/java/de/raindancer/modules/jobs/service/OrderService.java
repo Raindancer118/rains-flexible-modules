@@ -310,12 +310,16 @@ public final class OrderService {
         }
         OrderBook.Ledger paid = held.get().with(moved.in(Order.State.PAID));
         if (!book.putNow(id, paid)) {
-            book.put(id, held.get().with(moved));
-            messages.send(player, "jobs.order.not-saved");
+            // Lost to another server that paid it: nothing left to count. Otherwise counted on, to try again.
+            book.refresh(id);
+            if (book.of(id).flatMap(OrderBook.Ledger::current).filter(each -> running(each) && each.startedAt() == order.startedAt()).isPresent()) {
+                book.put(id, held.get().with(moved));
+                messages.send(player, "jobs.order.not-saved");
+            }
             return;
         }
         hide(player);
-        EconomyResult result = Fees.pay(id, order.pay(), "Order: " + order.says(), SOURCE);
+        EconomyResult result = pay(id, order.pay(), "Order: " + order.says());
         if (result.succeeded()) {
             messages.send(player, "jobs.order.done", "work", order.says(), "amount", Fees.format(result.amount()),
                     "left", Times.describe(Duration.ofMillis(order.endsAt() - clock.getAsLong())));
@@ -351,15 +355,28 @@ public final class OrderService {
                 if (!book.putNow(player, ledger.with(order.in(Order.State.PAID)))) {
                     return;
                 }
-                EconomyResult result = Fees.pay(player, order.pay(), "Order: " + order.says() + " (owed)", SOURCE);
+                EconomyResult result = pay(player, order.pay(), "Order: " + order.says() + " (owed)");
                 if (!result.succeeded()) {
-                    book.putNow(player, ledger);
+                    if (!book.putNow(player, ledger) && !book.putNow(player, ledger)) {
+                        log.error("{} was not paid an owed order and it could not be recorded as owed again: it is lost unless paid by hand.",
+                                player);
+                    }
                 } else {
                     notices.tell(player, "jobs.order.paid-late", "amount", Fees.format(result.amount()));
                 }
             }
         });
         book.flush();
+    }
+
+    /** A payment that throws is a payment that failed: what was marked paid must not be lost with it. */
+    private EconomyResult pay(UUID player, Money amount, String reason) {
+        try {
+            return Fees.pay(player, amount, reason, SOURCE);
+        } catch (RuntimeException failed) {
+            log.error(failed, "Paying {} for \"{}\" threw.", player, reason);
+            return EconomyResult.failed(EconomyResult.Outcome.UNAVAILABLE, amount, Money.ZERO);
+        }
     }
 
     /** Shows the running order's clock above the player, or takes it away. On the player's own thread. */

@@ -279,18 +279,26 @@ public final class QuestService {
         }
     }
 
-    /** Marks it paid and written before paying, so a crash in between never pays it twice. */
+    /**
+     * Pays a quest only for the write that moved it off OPEN: that is marked paid first, so a crash in between
+     * never pays it twice, and put back as owed when the payment fails.
+     */
     private QuestDay finish(Player player, QuestDay day, int index, QuestTemplate template) {
         UUID id = player.getUniqueId();
         Quest quest = day.quests().get(index);
         QuestDay paid = day.with(index, quest.in(Quest.State.PAID));
         if (!book.putNow(id, paid)) {
+            book.refresh(id);
+            Optional<QuestDay> now = book.of(id).filter(each -> each.quests().size() == day.quests().size());
+            if (now.isPresent() && !now.get().quests().get(index).open()) {
+                return now.get();
+            }
             log.error("Quest {} of {} is done but the jobs database cannot be written, so it is not paid yet.",
                     template.id(), player.getName());
             messages.send(player, "jobs.quest.not-saved");
             return day;
         }
-        EconomyResult result = Fees.pay(id, quest.pay(), "Quest: " + template.title(), SOURCE);
+        EconomyResult result = pay(id, quest.pay(), "Quest: " + template.title());
         if (result.succeeded()) {
             messages.send(player, "jobs.quest.done", "quest", template.title(), "amount", Fees.format(result.amount()));
             return paid;
@@ -304,6 +312,16 @@ public final class QuestService {
                 template.id(), result.outcome());
         messages.send(player, "jobs.quest.owed", "quest", template.title(), "amount", Fees.format(quest.pay()));
         return owed;
+    }
+
+    /** A payment that throws is a payment that failed: what was marked paid must not be lost with it. */
+    private EconomyResult pay(UUID player, Money amount, String reason) {
+        try {
+            return Fees.pay(player, amount, reason, SOURCE);
+        } catch (RuntimeException failed) {
+            log.error(failed, "Paying {} for \"{}\" threw.", player, reason);
+            return EconomyResult.failed(EconomyResult.Outcome.UNAVAILABLE, amount, Money.ZERO);
+        }
     }
 
     /**
@@ -342,9 +360,12 @@ public final class QuestService {
                     return;
                 }
                 String title = template(quest).map(QuestTemplate::title).orElse(quest.template());
-                EconomyResult result = Fees.pay(player, quest.pay(), "Quest: " + title + " (owed)", SOURCE);
+                EconomyResult result = pay(player, quest.pay(), "Quest: " + title + " (owed)");
                 if (!result.succeeded()) {
-                    book.putNow(player, now);
+                    if (!book.putNow(player, now) && !book.putNow(player, now)) {
+                        log.error("{} was not paid an owed quest and it could not be recorded as owed again: it is lost unless paid by hand.",
+                                player);
+                    }
                     return;
                 }
                 now = paid;

@@ -115,9 +115,9 @@ public final class GoalService implements IJobsService, SaleStop {
         long now = clock.getAsLong();
         for (Goal goal : book.active()) {
             if (goal.reached()) {
-                finish(goal, true);
+                finish(goal);
             } else if (now >= goal.endsAt()) {
-                finish(goal, false);
+                finish(goal);
             }
         }
         fill();
@@ -181,15 +181,23 @@ public final class GoalService implements IJobsService, SaleStop {
         if (goal.isEmpty()) {
             return false;
         }
-        finish(goal.get(), goal.get().reached());
+        finish(goal.get());
         fill();
         return true;
     }
 
-    private void finish(Goal goal, boolean reached) {
-        if (book.end(goal.number()).isEmpty()) {
+    /**
+     * Ends a goal and pays it out. Only the server whose write took the goal off the board pays, and from the
+     * goal as the database had it then — not from this server's picture, which may lack other servers' hand-ins
+     * and may hold catches the database turned away.
+     */
+    private void finish(Goal seen) {
+        Optional<Goal> ended = book.end(seen.number());
+        if (ended.isEmpty()) {
             return;
         }
+        Goal goal = ended.get();
+        boolean reached = goal.reached();
         recent.addFirst(goal.template());
         while (recent.size() > REMEMBERED) {
             recent.removeLast();
@@ -201,15 +209,16 @@ public final class GoalService implements IJobsService, SaleStop {
         Optional<Economy> economy = Economies.current();
         Money reward = poolNow().orElse(Money.ZERO);
         Map<UUID, Money> paid = rewards.payouts(goal.given(), goal.amount(), reward);
-        if (economy.isEmpty() && !paid.isEmpty()) {
-            log.warn("Goal {} ended, but there is no economy to pay {} contributor(s) from.", goal.title(), paid.size());
-        }
         int progress = goal.progress();
         paid.forEach((player, money) -> {
             if (economy.isEmpty()) {
+                log.warn("Goal {} ended, but there is no economy to pay {} from.", goal.title(), player);
+                if (owe(player, money, EconomyResult.failed(EconomyResult.Outcome.UNAVAILABLE, money, Money.ZERO), goal.title())) {
+                    notices.tell(player, "jobs.owed", "goal", goal.title(), "amount", Fees.format(money));
+                }
                 return;
             }
-            var result = Fees.pay(player, money, "Server goal: " + goal.title(), SOURCE);
+            var result = pay(player, money, "Server goal: " + goal.title());
             if (result.succeeded()) {
                 int percent = (int) Math.round(goal.givenBy(player) * 100.0 / Math.max(1, progress));
                 notices.tell(player, reached ? "jobs.paid" : "jobs.paid-part", "goal", goal.title(),
@@ -225,6 +234,16 @@ public final class GoalService implements IJobsService, SaleStop {
         }
     }
 
+    /** A payment that throws is a payment that failed: the goal is already off the board, so it must be owed. */
+    private EconomyResult pay(UUID player, Money amount, String reason) {
+        try {
+            return Fees.pay(player, amount, reason, SOURCE);
+        } catch (RuntimeException failed) {
+            log.error(failed, "Paying {} for \"{}\" threw.", player, reason);
+            return EconomyResult.failed(EconomyResult.Outcome.UNAVAILABLE, amount, Money.ZERO);
+        }
+    }
+
     /** Keeps a refused payout as owed when it can be paid later; logs it either way. */
     private boolean owe(UUID player, Money money, EconomyResult result, String title) {
         boolean later = result.outcome() == EconomyResult.Outcome.TREASURY_EMPTY
@@ -234,7 +253,7 @@ public final class GoalService implements IJobsService, SaleStop {
         if (!later) {
             return false;
         }
-        if (!book.owe(player, money)) {
+        if (!book.owe(player, money) && !book.owe(player, money)) {
             log.error("{} is owed {} for goal {} but the jobs database cannot be written, so it will be lost on restart.",
                     player, money, title);
         }
@@ -249,9 +268,9 @@ public final class GoalService implements IJobsService, SaleStop {
             if (money.isEmpty()) {
                 continue;
             }
-            var result = Fees.pay(player, money.get(), "Server goal (owed)", SOURCE);
+            var result = pay(player, money.get(), "Server goal (owed)");
             if (!result.succeeded()) {
-                if (!book.owe(player, money.get())) {
+                if (!book.owe(player, money.get()) && !book.owe(player, money.get())) {
                     log.error("{} was owed {} for a goal, could not be paid and the debt could not be put back.", player,
                             money.get());
                 }
@@ -345,7 +364,7 @@ public final class GoalService implements IJobsService, SaleStop {
         messages.send(player, "jobs.delivered", "count", String.valueOf(now.get().counted()), "goal", goal.title(),
                 "progress", String.valueOf(now.get().goal().progress()), "amount", String.valueOf(goal.amount()));
         if (now.get().goal().reached()) {
-            finish(now.get().goal(), true);
+            finish(now.get().goal());
             fill();
         }
     }
@@ -405,7 +424,7 @@ public final class GoalService implements IJobsService, SaleStop {
             player.sendActionBar(messages.get("jobs.caught", "goal", goal.title(),
                     "progress", String.valueOf(now.get().progress()), "amount", String.valueOf(goal.amount())));
             if (now.get().reached()) {
-                finish(now.get(), true);
+                finish(now.get());
                 fill();
             }
         }

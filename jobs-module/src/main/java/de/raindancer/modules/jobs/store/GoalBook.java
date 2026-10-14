@@ -343,7 +343,10 @@ public final class GoalBook {
             }
             try (PreparedStatement delete = connection.prepareStatement("DELETE FROM goal WHERE number = ?")) {
                 delete.setLong(1, number);
-                delete.executeUpdate();
+                if (delete.executeUpdate() != 1) {
+                    connection.rollback();
+                    return;
+                }
             }
             ended[0] = goal;
         });

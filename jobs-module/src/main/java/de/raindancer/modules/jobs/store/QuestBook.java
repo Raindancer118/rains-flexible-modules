@@ -308,11 +308,17 @@ public final class QuestBook {
                     conflict[0] = true;
                     return;
                 }
+                boolean moved = false;
                 for (int index = 0; index < after.quests().size(); index++) {
                     Quest was = before.quests().get(index);
                     Quest is = after.quests().get(index);
                     if (was.progress() == is.progress() && was.state() == is.state()) {
                         continue;
+                    }
+                    if (!allowed(was.state(), is.state())) {
+                        connection.rollback();
+                        conflict[0] = true;
+                        return;
                     }
                     try (PreparedStatement update = connection.prepareStatement("""
                             UPDATE quest SET progress = CASE WHEN progress + ? > amount THEN amount ELSE progress + ? END,
@@ -325,7 +331,20 @@ public final class QuestBook {
                         update.setInt(5, index);
                         update.setString(6, was.template());
                         update.setString(7, was.state().name());
-                        update.executeUpdate();
+                        // A change of state is the write that decides who pays: it must have changed the row.
+                        if (update.executeUpdate() != 1 && was.state() != is.state()) {
+                            connection.rollback();
+                            conflict[0] = true;
+                            return;
+                        }
+                    }
+                    moved |= was.state() != is.state();
+                }
+                if (moved) {
+                    // So a replacement made from the old states is refused.
+                    try (PreparedStatement bump = connection.prepareStatement("UPDATE quest_day SET rev = rev + 1 WHERE player = ?")) {
+                        bump.setString(1, player.toString());
+                        bump.executeUpdate();
                     }
                 }
                 return;
@@ -342,6 +361,13 @@ public final class QuestBook {
             announce(player);
         }
         return ran && !conflict[0];
+    }
+
+    /** OPEN is paid once; what was refused is owed and then paid. Nothing is ever open again. */
+    private static boolean allowed(Quest.State from, Quest.State to) {
+        return from == to || from == Quest.State.OPEN
+                || from == Quest.State.OWED && to == Quest.State.PAID
+                || from == Quest.State.PAID && to == Quest.State.OWED;
     }
 
     private static boolean sameStates(QuestDay now, QuestDay before) {
@@ -432,7 +458,7 @@ public final class QuestBook {
         return true;
     }
 
-    /** Takes a player's quests away. @return false when it could not be written */
+    /** Takes a player's quests away, unless one is owed. @return false when it could not be written or one is owed */
     public boolean clear(UUID player) {
         if (!readable) {
             return false;
@@ -443,7 +469,18 @@ public final class QuestBook {
                 held.pending.clear();
             }
         }
+        boolean[] owed = new boolean[1];
         boolean written = database.write(connection -> {
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT 1 FROM quest WHERE player = ? AND state = 'OWED'")) {
+                query.setString(1, player.toString());
+                try (ResultSet rows = query.executeQuery()) {
+                    if (rows.next()) {
+                        owed[0] = true;
+                        return;
+                    }
+                }
+            }
             for (String table : List.of("quest", "quest_day")) {
                 try (PreparedStatement delete = connection.prepareStatement("DELETE FROM " + table + " WHERE player = ?")) {
                     delete.setString(1, player.toString());
@@ -456,7 +493,7 @@ public final class QuestBook {
             refresh(player);
             announce(player);
         }
-        return written;
+        return written && !owed[0];
     }
 
     /** A player is leaving this server: what they counted is written, and their day is let go. */
