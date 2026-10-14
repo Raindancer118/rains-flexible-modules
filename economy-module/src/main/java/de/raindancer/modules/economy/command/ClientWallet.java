@@ -11,7 +11,6 @@ import de.raindancer.modules.economy.EconomyClient;
 import de.raindancer.modules.economy.service.BankClient;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -124,9 +123,8 @@ final class ClientWallet {
             client.messages().send(player, "economy.client.pay-failed");
             return;
         }
-        GsonComponentSerializer json = GsonComponentSerializer.gson();
         for (String line : answer.get().lines()) {
-            player.sendMessage(json.deserialize(line));
+            player.sendMessage(de.raindancer.core.ui.messages.FromElsewhere.line(line));
         }
         if (answer.get().confirm()) {
             client.messages().send(player, "economy.client.pay-confirm", "player", target.name(),

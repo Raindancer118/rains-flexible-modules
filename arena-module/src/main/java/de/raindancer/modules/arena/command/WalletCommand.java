@@ -83,11 +83,9 @@ public final class WalletCommand implements IArenaCommand {
                             live.messages().send(player, "arena.wallet.failed");
                             return;
                         }
-                        net.kyori.adventure.text.serializer.gson.GsonComponentSerializer json =
-                                net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson();
                         for (String line : answer.get("lines").split("\n")) {
                             if (!line.isBlank()) {
-                                player.sendMessage(json.deserialize(line));
+                                player.sendMessage(de.raindancer.core.ui.messages.FromElsewhere.line(line));
                             }
                         }
                         if ("true".equals(answer.get("confirm"))) {
