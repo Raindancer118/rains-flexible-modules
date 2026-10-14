@@ -327,7 +327,12 @@
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>oneblock-module</artifactId>
+                <version>${oneblock-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
                 <artifactId>twitch-module</artifactId>
+                <version>${twitch-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
