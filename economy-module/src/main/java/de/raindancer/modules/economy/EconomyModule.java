@@ -85,7 +85,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.38.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.38.1")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -154,7 +154,8 @@ public final class EconomyModule implements FlexModule {
 
         PaymentService payments = new PaymentService(context.plugin(), economy, messages, effects, buttons, now);
         // A /pay made on another server (the arena): run here, under every rule a /pay here has.
-        java.util.function.Function<java.util.Map<String, String>, java.util.Map<String, String>> payFromElsewhere = data -> {
+        java.util.function.Function<java.util.Map<String, String>,
+                java.util.concurrent.CompletableFuture<java.util.Map<String, String>>> payLater = data -> {
             java.util.concurrent.CompletableFuture<java.util.Map<String, String>> done =
                     new java.util.concurrent.CompletableFuture<>();
             de.raindancer.core.platform.util.Scheduling.global(context.plugin(), () -> {
@@ -168,21 +169,20 @@ public final class EconomyModule implements FlexModule {
                     done.complete(java.util.Map.of());
                 }
             });
-            try {
-                return done.get(5, java.util.concurrent.TimeUnit.SECONDS);
-            } catch (Exception slow) {
-                return java.util.Map.of();
-            }
+            return done.orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .exceptionally(slow -> java.util.Map.of());
         };
         if (context.core().network().isNetwork()) {
             String self = context.core().network().serverId();
-            context.core().networkCalls().ifPresent(calls -> context.closeWith(calls.answer(
+            // Answered later: the payment runs on the server thread, and the bus must not wait for it.
+            context.core().networkCalls().ifPresent(calls -> context.closeWith(calls.answerLater(
                     de.raindancer.core.social.economy.LinkedEconomy.PAY, data -> context.core().networkRoles()
                             .flatMap(roles -> roles.holder(de.raindancer.core.social.economy.NetworkEconomy.ROLE))
-                            .filter(self::equals).isPresent() ? payFromElsewhere.apply(data) : java.util.Map.of())::close));
+                            .filter(self::equals).isPresent() ? payLater.apply(data)
+                            : java.util.concurrent.CompletableFuture.completedFuture(java.util.Map.of()))::close));
         } else if (!context.core().linkFollows()) {
             context.core().link().ifPresent(link -> {
-                link.on(de.raindancer.core.social.economy.LinkedEconomy.PAY, payFromElsewhere::apply);
+                link.on(de.raindancer.core.social.economy.LinkedEconomy.PAY, data -> payLater.apply(data).join());
                 context.closeWith(() -> link.off(de.raindancer.core.social.economy.LinkedEconomy.PAY));
             });
         }
