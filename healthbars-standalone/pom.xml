@@ -23,8 +23,9 @@
         <!-- Terminal deployable plugin jar, not a Maven library: never published to the registry. -->
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsHealthBars</plugin.name>
-        <!-- 0.1.0: health under players' names and over hurt mobs; /healthbars (/hp) switches them for yourself. -->
-        <plugin.version>0.1.0</plugin.version>
+        <!-- 0.1.0: health under players' names and over hurt mobs; /healthbars (/hp) switches them for yourself.
+             0.1.1: a bar shows only to who can see its wearer, never for an invisible one. -->
+        <plugin.version>0.1.1</plugin.version>
     </properties>
 
     <dependencies>

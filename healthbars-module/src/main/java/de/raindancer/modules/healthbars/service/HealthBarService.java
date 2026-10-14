@@ -182,13 +182,28 @@ public final class HealthBarService {
             }
             boolean should = on && style == mine && !wearer.equals(viewer.getUniqueId())
                     && bar.getWorld() == viewer.getWorld()
-                    && bar.getLocation().distanceSquared(viewer.getLocation()) <= range * range;
+                    && bar.getLocation().distanceSquared(viewer.getLocation()) <= range * range
+                    && seenBy(viewer, wearer);
             if (should && !viewer.canSee(bar)) {
                 viewer.showEntity(plugin, bar);
             } else if (!should && viewer.canSee(bar)) {
                 viewer.hideEntity(plugin, bar);
             }
         }));
+    }
+
+    /**
+     * A bar must never tell more than the wearer does: only somebody who can see the wearer itself — not hidden
+     * from them by vanish, by the anti-cheat's ESP shield or any other plugin — sees its bar, and nobody sees the
+     * bar of an invisible wearer.
+     */
+    private static boolean seenBy(Player viewer, UUID wearer) {
+        Entity entity = Bukkit.getEntity(wearer);
+        if (!(entity instanceof LivingEntity living) || living.isInvisible()
+                || living.hasPotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY)) {
+            return false;
+        }
+        return viewer.canSee(living);
     }
 
     /** A wearer gone for good: its bar too. */

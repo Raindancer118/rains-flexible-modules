@@ -86,6 +86,12 @@ class HealthBarsScenarioTest {
             Await.until("and not her hearts", WAIT, () -> !bo.sees(adaHearts));
             assertThat(ada.sees(boHearts)).as("Ada keeps hearts").isTrue();
 
+            // --- an invisible player's bar gives nothing away -------------------------------------------------
+            server.console("effect give Bo minecraft:invisibility 30 0 true");
+            Await.until("Bo's bar is gone for Ada while Bo is invisible", WAIT, () -> !ada.sees(boHearts));
+            server.console("effect clear Bo");
+            Await.until("and back once Bo is seen again", WAIT, () -> ada.sees(boHearts));
+
             // --- a mob gets one once it is hit ---------------------------------------------------------------
             server.console("summon minecraft:zombie 3.5 64 4.5 {NoAI:1b,PersistenceRequired:1b}");
             Await.ticks(10);
