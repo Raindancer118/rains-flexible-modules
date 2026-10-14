@@ -1,20 +1,18 @@
 package de.raindancer.modules.chat.command;
 
-import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * {@code /announce <message>} — a banner every online player sees and hears, for the handful of
- * things a server wants nobody to scroll past.
+ * {@code /announce <message>} — a banner every online player sees and hears, on every server of a network,
+ * for the handful of things a server wants nobody to scroll past.
  *
  * <h2>Why this plays a cue rather than choosing a sound</h2>
  * {@link Cues#NOTIFY} is already Core's name for exactly this — "a message that should not be
@@ -44,11 +42,7 @@ public final class AnnounceCommand implements IChatCommand {
         }
         String text = String.join(" ", args);
 
-        live.chat().broadcast(live.messages().raw("chat.announce.banner"), Chat.arg("text", text));
-
-        List<java.util.UUID> everybody = live.server().getOnlinePlayers().stream()
-                .map(Player::getUniqueId).toList();
-        live.core().effects().playForAll(everybody, Cues.NOTIFY);
+        live.network().announce(text);
     }
 
     @Override

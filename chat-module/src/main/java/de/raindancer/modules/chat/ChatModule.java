@@ -2,17 +2,23 @@ package de.raindancer.modules.chat;
 
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkServers;
+import de.raindancer.core.platform.network.Presence;
+import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.modules.api.FlexModule;
 import de.raindancer.modules.api.ModuleCommand;
 import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.chat.listener.ChatListener;
+import de.raindancer.modules.chat.service.ChatEffects;
 import de.raindancer.modules.chat.service.ChatHistoryService;
+import de.raindancer.modules.chat.service.ChatNetwork;
 import de.raindancer.modules.chat.service.ChatQualityService;
 import de.raindancer.modules.chat.service.ChatStyleService;
 import de.raindancer.modules.chat.service.FormatService;
 import de.raindancer.modules.chat.service.FreezeService;
 import de.raindancer.modules.chat.service.MentionService;
+import de.raindancer.modules.chat.service.NetworkMentions;
 import de.raindancer.modules.chat.service.PrivateChatService;
 import de.raindancer.modules.chat.store.ChatHistoryStore;
 import de.raindancer.modules.chat.store.ChatStyleStore;
@@ -20,6 +26,9 @@ import de.raindancer.modules.chat.util.PermissionNodes;
 import org.bukkit.Server;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 
 /**
  * Everything that happens to a line typed into public chat, as a module.
@@ -39,7 +48,7 @@ import java.util.List;
  */
 public final class ChatModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.18.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("chat", "Chat", "1.19.0")
             .describedAs("Chat format, @-mentions, a caps and repeat filter, a message cooldown, "
                     + "private chats, and /chat clear, freeze and slowmode")
             .by("Raindancer118");
@@ -132,10 +141,37 @@ public final class ChatModule implements FlexModule {
                 who -> core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
                 core.chatLog(), core.audit(), System::currentTimeMillis);
 
+        Predicate<UUID> mutedHere = who ->
+                core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE);
+        BooleanSupplier onNetwork = () -> core.network().isNetwork();
+
+        // Everything below crosses to the other servers of a network and does nothing more than today on a server of its own.
+        NetworkMentions networkMentions = new NetworkMentions(core::networkCalls,
+                who -> core.networkPlayers().flatMap(players -> players.where(who, false))
+                        .map(Presence.Here::server)
+                        .filter(there -> core.networkPlayers().map(players -> !there.equals(players.self())).orElse(false)),
+                mentions::pingHere);
+        mentions.network(networkMentions);
+        networkMentions.listen();
+        context.closeWith(networkMentions::stop);
+
+        ChatEffects effects = new ChatEffects(server, context.chat(), context.core().messages(), freeze, quality,
+                format, who -> core.effects().playForAll(who, Cues.NOTIFY));
+        ChatNetwork chatNetwork = new ChatNetwork(core.bus(), core::networkCalls, onNetwork,
+                () -> core.networkPlayers().map(players -> players.servers().stream().map(NetworkServers.Server::id)
+                        .filter(id -> !id.equals(players.self())).toList()).orElse(List.of()),
+                mutedHere, effects, System::currentTimeMillis);
+        chatNetwork.listen();
+        chatNetwork.catchUp();
+        context.closeWith(chatNetwork::stop);
+
+        polls.network(core.bus(), core::networkCalls, onNetwork);
+        context.closeWith(polls::stopNetwork);
+
         services = new ChatServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, format, mentions, quality, freeze, chatHistory, styleService,
-                privateChat, polls, ads, sayAs, feed);
+                privateChat, polls, ads, sayAs, feed, chatNetwork);
 
         // @Name suggestions in the chat box — only while mentions are actually drawn.
         context.core().mentionCompletions().enable(settings.current().mentionsEnabled());
@@ -154,8 +190,7 @@ public final class ChatModule implements FlexModule {
 
         var networkSettings = context.settings(NetworkChatSettings.class, NetworkChatSettings.DEFAULTS);
         network = new de.raindancer.modules.chat.service.NetworkChatService(core::link, core.bus(),
-                () -> core.network().isNetwork(),
-                who -> core.punishments().isActive(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
+                onNetwork, mutedHere,
                 server::sendMessage,
                 (tag, line) -> context.chat().mm(context.core().messages().raw("chat.network.line"),
                         de.raindancer.core.ui.chat.Chat.arg("tag", tag),

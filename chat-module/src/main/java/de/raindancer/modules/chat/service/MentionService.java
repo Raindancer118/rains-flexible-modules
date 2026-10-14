@@ -61,6 +61,7 @@ public final class MentionService implements IChatService {
     private final MentionInbox inbox;
 
     private volatile ChatSettings settings;
+    private volatile NetworkMentions network;
 
     public MentionService(Server server, Vanish vanish, Messages messages, ChatSettings settings) {
         this(server, vanish, messages, settings, null);
@@ -73,6 +74,11 @@ public final class MentionService implements IChatService {
         this.messages = messages;
         this.inbox = inbox;
         settings(settings);
+    }
+
+    /** Lets a mention reach somebody on another server. */
+    public void network(NetworkMentions network) {
+        this.network = network;
     }
 
     /**
@@ -104,7 +110,9 @@ public final class MentionService implements IChatService {
                 continue;
             }
             boolean here = who instanceof Player;
-            boolean reachable = here && vanish.canSee(sender.getUniqueId(), who.getUniqueId());
+            NetworkMentions elsewhere = network;
+            boolean reachable = here ? vanish.canSee(sender.getUniqueId(), who.getUniqueId())
+                    : elsewhere != null && elsewhere.reachable(who.getUniqueId());
             String name = who.getName() == null ? matcher.group(1) : who.getName();
             found.add(new Found(new Mention(matcher.start(), matcher.end(), who.getUniqueId(), name, reachable), who));
         }
@@ -122,13 +130,40 @@ public final class MentionService implements IChatService {
                 continue;
             }
             Player who = mention.reachable() ? server.getPlayer(mention.player()) : null;
+            NetworkMentions elsewhere = network;
             if (who != null) {
-                who.playSound(Sound.sound(PING_SOUND, Sound.Source.PLAYER, 0.7f, 1.4f));
-                messages.send(who, "chat.mention.pinged", "player", sender.getName(), "text", plainText);
-            } else if (inbox != null) {
-                inbox.add(mention.player(), sender.getName(), plainText);
+                ping(who, sender.getName(), plainText);
+            } else if (mention.reachable() && elsewhere != null) {
+                elsewhere.ping(mention.player(), sender.getName(), plainText).thenAccept(pinged -> {
+                    if (!pinged) {
+                        leaveNote(mention.player(), sender.getName(), plainText);
+                    }
+                });
+            } else {
+                leaveNote(mention.player(), sender.getName(), plainText);
             }
         }
+    }
+
+    private void leaveNote(UUID player, String from, String text) {
+        if (inbox != null) {
+            inbox.add(player, from, text);
+        }
+    }
+
+    private void ping(Player who, String from, String text) {
+        who.playSound(Sound.sound(PING_SOUND, Sound.Source.PLAYER, 0.7f, 1.4f));
+        messages.send(who, "chat.mention.pinged", "player", from, "text", text);
+    }
+
+    /** Pings somebody on this server for a mention made on another one. */
+    public boolean pingHere(UUID player, String from, String text) {
+        Player who = server.getPlayer(player);
+        if (who == null) {
+            return false;
+        }
+        ping(who, from, text);
+        return true;
     }
 
     /** What was said about {@code player} while they were away, shown once and then forgotten. */
@@ -209,8 +244,7 @@ public final class MentionService implements IChatService {
     /** Pings everybody this line mentions — a sound and a message naming who sent it and what it said. */
     public void notifyMentioned(Player sender, String plainText, List<Player> mentioned) {
         for (Player who : mentioned) {
-            who.playSound(Sound.sound(PING_SOUND, Sound.Source.PLAYER, 0.7f, 1.4f));
-            messages.send(who, "chat.mention.pinged", "player", sender.getName(), "text", plainText);
+            ping(who, sender.getName(), plainText);
         }
     }
 

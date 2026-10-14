@@ -47,7 +47,21 @@ public record ChatServices(
         de.raindancer.modules.chat.service.PollService polls,
         de.raindancer.modules.chat.service.AdService ads,
         de.raindancer.modules.chat.service.SayAsService sayAs,
-        de.raindancer.modules.chat.store.PanelFeed feed) {
+        de.raindancer.modules.chat.store.PanelFeed feed,
+        de.raindancer.modules.chat.service.ChatNetwork network) {
+
+    /** Without the network side, for a test that never announces or controls chat. */
+    public ChatServices(Plugin plugin, Server server, RainsCore core, LogChannel log, Messages messages,
+                        Chat chat, Brand brand, Supplier<ChatSettings> settings, FormatService format,
+                        MentionService mentions, ChatQualityService quality, FreezeService freeze,
+                        ChatHistoryService history, ChatStyleService styles, PrivateChatService privateChat,
+                        de.raindancer.modules.chat.service.PollService polls,
+                        de.raindancer.modules.chat.service.AdService ads,
+                        de.raindancer.modules.chat.service.SayAsService sayAs,
+                        de.raindancer.modules.chat.store.PanelFeed feed) {
+        this(plugin, server, core, log, messages, chat, brand, settings, format, mentions, quality, freeze,
+                history, styles, privateChat, polls, ads, sayAs, feed, null);
+    }
 
     /** Without paid ads, for a test that never places one. */
     public ChatServices(Plugin plugin, Server server, RainsCore core, LogChannel log, Messages messages,

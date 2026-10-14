@@ -1,7 +1,5 @@
 package de.raindancer.modules.chat.command;
 
-import de.raindancer.core.ui.chat.Chat;
-import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.service.AdService;
 import de.raindancer.modules.chat.util.PermissionNodes;
@@ -69,10 +67,8 @@ public final class AdCommand implements IChatCommand {
                     "most", result.verdict().detail(), "price", result.verdict().detail());
             return;
         }
-        live.server().broadcast(live.format().renderAd(player, text));
+        live.network().ad(player.getUniqueId(), player.getName(), text);
         live.history().record(player.getUniqueId(), player.getName(), "[Ad] " + text);
-        live.core().effects().playForAll(live.server().getOnlinePlayers().stream().map(Player::getUniqueId).toList(),
-                Cues.NOTIFY);
         if (result.charged().isPositive()) {
             live.messages().send(player, "chat.ad.paid", "price", de.raindancer.core.social.economy.Fees.format(result.charged()));
         }

@@ -2,7 +2,6 @@ package de.raindancer.modules.chat.command;
 
 import de.raindancer.core.ui.chat.ChatChannels;
 
-import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.chat.ChatServices;
 import de.raindancer.modules.chat.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -162,25 +161,11 @@ public final class ChatCommand implements IChatCommand {
     }
 
     private void clear(ChatServices live, CommandSender sender) {
-        for (Player online : live.server().getOnlinePlayers()) {
-            for (int line = 0; line < 100; line++) {
-                live.chat().blank(online);
-            }
-        }
-        live.chat().broadcast(live.messages().raw("chat.admin.cleared"),
-                Chat.arg("player", sender.getName()));
+        live.network().clear(sender.getName());
     }
 
     private void freeze(ChatServices live, CommandSender sender) {
-        if (live.freeze().isFrozen()) {
-            live.freeze().unfreeze();
-            live.chat().broadcast(live.messages().raw("chat.admin.unfrozen"),
-                    Chat.arg("player", sender.getName()));
-        } else {
-            live.freeze().freeze();
-            live.chat().broadcast(live.messages().raw("chat.admin.frozen"),
-                    Chat.arg("player", sender.getName()));
-        }
+        live.network().freeze(!live.freeze().isFrozen(), sender.getName());
     }
 
     private void slowmode(ChatServices live, CommandSender sender, String[] args) {
@@ -189,9 +174,7 @@ public final class ChatCommand implements IChatCommand {
             return;
         }
         if (args[1].equalsIgnoreCase("off")) {
-            live.quality().clearSlowmodeOverride();
-            live.chat().broadcast(live.messages().raw("chat.admin.slowmode-off"),
-                    Chat.arg("player", sender.getName()));
+            live.network().slowmode(-1, sender.getName());
             return;
         }
         int seconds;
@@ -205,9 +188,7 @@ public final class ChatCommand implements IChatCommand {
             live.messages().send(sender, "chat.admin.slowmode-range");
             return;
         }
-        live.quality().overrideSlowmode(seconds);
-        live.chat().broadcast(live.messages().raw("chat.admin.slowmode-set"),
-                Chat.arg("player", sender.getName()), Chat.arg("seconds", seconds));
+        live.network().slowmode(seconds, sender.getName());
     }
 
     @Override

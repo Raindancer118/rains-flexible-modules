@@ -95,8 +95,13 @@ public final class FormatService implements IChatService {
 
     /** A paid ad in the owner's ad template: same name rendering as a chat line, no mentions, no personal colour. */
     public Component renderAd(Player sender, String plainText) {
+        return renderAd(sender.getUniqueId(), sender.getName(), plainText);
+    }
+
+    /** The same for somebody who may be on another server: only their id and name are needed. */
+    public Component renderAd(java.util.UUID sender, String name, String plainText) {
         return chat.mm(settings.adTemplate(),
-                Chat.formatted("name", nameOf(sender)),
+                Chat.formatted("name", nameOf(sender, name)),
                 Chat.formatted("message", linkifyIfEnabled(plainText)));
     }
 
@@ -130,7 +135,11 @@ public final class FormatService implements IChatService {
     }
 
     private Component nameOf(org.bukkit.OfflinePlayer sender) {
-        Component name = identities.chatName(sender.getUniqueId(), sender.getName())
+        return nameOf(sender.getUniqueId(), sender.getName());
+    }
+
+    private Component nameOf(java.util.UUID id, String playerName) {
+        Component name = identities.chatName(id, playerName)
                 .colorIfAbsent(settings.defaultNameColor());
         if (settings.bracketsAroundName()) {
             name = Component.text("<").append(name).append(Component.text(">"));
@@ -138,8 +147,8 @@ public final class FormatService implements IChatService {
         if (!settings.clickToMessage()) {
             return name;
         }
-        return name.clickEvent(ClickEvent.suggestCommand("/msg " + sender.getName() + " "))
-                .hoverEvent(HoverEvent.showText(Component.text("Click to message " + sender.getName())));
+        return name.clickEvent(ClickEvent.suggestCommand("/msg " + playerName + " "))
+                .hoverEvent(HoverEvent.showText(Component.text("Click to message " + playerName)));
     }
 
     private Component messageOf(String plainText, List<Player> mentioned) {
