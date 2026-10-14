@@ -41,7 +41,7 @@ public final class GuildCommand implements IGuildsCommand {
     static final List<String> SUBCOMMANDS = List.of("create", "info", "list", "invite", "accept", "decline", "join",
             "leave", "kick", "promote", "demote", "rank", "leader", "chat", "c", "officer", "oc", "ally-chat", "ac",
             "home", "sethome", "deposit", "withdraw", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
-            "motd", "joining", "disband", "level", "contracts", "perks", "vault", "prestige", "crown");
+            "motd", "joining", "disband", "level", "contracts", "perks", "vault", "prestige", "crown", "shards");
     static final List<String> STAFF = List.of("admin");
 
     private final Supplier<GuildsServices> services;
@@ -84,6 +84,15 @@ public final class GuildCommand implements IGuildsCommand {
                     say(live, player, GuildOutcome.NO_GUILD);
                 } else {
                     new LevelMenu(live, player, null).open();
+                }
+            }
+            case "shards", "enchants" -> {
+                if (live.guilds().guildOf(me).isEmpty()) {
+                    say(live, player, GuildOutcome.NO_GUILD);
+                } else if (rest.equalsIgnoreCase("add")) {
+                    live.shards().payInAll(player, () -> { });
+                } else {
+                    new de.raindancer.modules.guilds.screen.GuildEnchantsMenu(live, player, null).open();
                 }
             }
             case "perks" -> {
@@ -399,6 +408,7 @@ public final class GuildCommand implements IGuildsCommand {
             }
         } else if (args.length == 2) {
             switch (args[0].toLowerCase(Locale.ROOT)) {
+                case "shards", "enchants" -> options.add("add");
                 case "invite", "kick", "promote", "demote", "rank", "leader" ->
                         live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
                 case "join", "apply", "info", "ally", "unally", "rival", "unrival", "accept", "decline" ->

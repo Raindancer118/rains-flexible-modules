@@ -94,7 +94,7 @@ guilds:
   log:
     line: "<gray><white><what></white> <dark_gray>(<when>)</dark_gray> <detail>"
   usage:
-    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · perks · vault · crown · invite · join · leave · c <message> · home · deposit · ally"
+    all: "<gray>/guild <dark_gray>— the guild page · <gray>/guild create <name> <tag> · info · list · level · contracts · perks · shards [add] · vault · crown · invite · join · leave · c <message> · home · deposit · ally"
     found: "<gray>/guild create <name> <tag> <dark_gray>— e.g. /guild create The Elves ELF"
     player: "<gray>Name a player."
     rank: "<gray>/guild rank <player> <rank>"
@@ -113,6 +113,7 @@ guilds:
   enchant-paid: "<light_purple>You paid in <white><amount></white> <name> shard(s). <gray><paid>/<needed> towards unlocking it."
   enchant-unlocked: "<gold>Your guild unlocked <white><name></white>! <gray>Every member can buy its books at the shop now."
   enchant-failed: "<red>The guild's records could not be written just now. Your shards are back with you."
+  enchant-nothing-to-pay: "<gray>You carry no shards your guild still needs. <dark_gray>Its shards drop in the shard world."
   outcome:
     success: "<green>Done."
     asked: "<green>Asked. <gray>They have been told."

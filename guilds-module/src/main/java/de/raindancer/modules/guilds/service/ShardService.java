@@ -79,6 +79,31 @@ public final class ShardService implements EnchantUnlocks.Source {
     }
 
     /**
+     * Pays in every shard the player carries, of every enchantment, each up to what it still needs (/guild shards add).
+     *
+     * @return how many enchantments something was paid in for; 0 says it to the player
+     */
+    public int payInAll(Player player, Runnable afterwards) {
+        Optional<Guild> found = guilds.guildOf(player.getUniqueId());
+        if (found.isEmpty()) {
+            notifier.tell(player.getUniqueId(), "guilds.enchant-no-guild");
+            return 0;
+        }
+        java.util.Map<String, Integer> carried = new java.util.LinkedHashMap<>();
+        for (String enchantment : enchantments()) {
+            carried.put(enchantment, EnchantShards.count(player.getInventory(), enchantment));
+        }
+        java.util.Map<String, Integer> giving = new de.raindancer.modules.guilds.rules.ShardPayRule()
+                .giving(carried, enchantment -> shards.progress(found.get().id().value(), enchantment), needed());
+        if (giving.isEmpty()) {
+            notifier.tell(player.getUniqueId(), "guilds.enchant-nothing-to-pay");
+            return 0;
+        }
+        giving.keySet().forEach(enchantment -> payIn(player, enchantment, afterwards));
+        return giving.size();
+    }
+
+    /**
      * Pays in every shard of this enchantment the player carries, up to what is still needed. The shards leave
      * at once; the guild's records are written off the server's thread, and should that fail they come back.
      */

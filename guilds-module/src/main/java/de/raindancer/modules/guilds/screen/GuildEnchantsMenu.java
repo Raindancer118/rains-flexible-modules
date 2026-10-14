@@ -19,7 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Rain's enchantments and how far the guild is with each: click one to pay in the shards you carry. */
+/**
+ * Rain's enchantments and how far the guild is with each: click one to pay in the shards you carry, or shift-click a
+ * stack of shards in your own inventory to pay in that enchantment's.
+ */
 public final class GuildEnchantsMenu extends PaginatedMenu<String> implements IGuildsScreen {
 
     private final GuildsServices services;
@@ -81,6 +84,23 @@ public final class GuildEnchantsMenu extends PaginatedMenu<String> implements IG
         }
         // Says what it came to itself, once the guild's records are written.
         services.shards().payIn(viewer, enchantment, this::refresh);
+    }
+
+    /** Shards are read out of the player's own inventory: a shift-click on a stack pays in its enchantment. */
+    @Override
+    public boolean allowBottomInventoryInteraction() {
+        return true;
+    }
+
+    @Override
+    public void handleBottomClick(InventoryClickEvent event) {
+        // Never the game's own move: nothing goes into this window, the shards go to the guild.
+        event.setCancelled(true);
+        if (!event.isShiftClick()) {
+            return;
+        }
+        EnchantShards.enchantmentOf(event.getCurrentItem())
+                .ifPresent(enchantment -> services.shards().payIn(viewer, enchantment, this::refresh));
     }
 
     @Override
