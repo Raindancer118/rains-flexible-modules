@@ -71,4 +71,16 @@ class PortalFrameTest {
                 inside -> assertThat(inside.blocks()).hasSize(21 * 21));
         assertThat(PortalFrame.find(frameAlongX(10, 70, 22, 3, false), 20, 70, 0)).isEmpty();
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("the blocks a player touches are those their hitbox overlaps, not just the one at their feet")
+    void touched() {
+        // Stepping into a portal at z 0 from the side: feet still over z -1, the hitbox already reaching into z 0.
+        java.util.List<int[]> touched = PortalFrame.touched(0.5, 65.0, -0.2, 0.3, 1.8);
+
+        assertThat(touched).anyMatch(block -> block[0] == 0 && block[1] == 65 && block[2] == 0);
+        assertThat(touched).anyMatch(block -> block[0] == 0 && block[1] == 66 && block[2] == 0);
+        assertThat(touched).noneMatch(block -> block[2] == 1);
+        assertThat(touched).noneMatch(block -> block[1] == 67);
+    }
 }

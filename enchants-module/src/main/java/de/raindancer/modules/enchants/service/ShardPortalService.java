@@ -151,10 +151,15 @@ public final class ShardPortalService {
         mark(block, false);
     }
 
-    /** Whether the player stands in one of our portals. */
+    /** A player's hitbox: half its width each way, and its height. */
+    private static final double HALF_WIDTH = 0.3;
+    private static final double HEIGHT = 1.8;
+
+    /** Whether somebody standing at {@code at} touches one of our portals — anywhere their hitbox does, as the game asks. */
     public boolean inOurPortal(Location at) {
-        Block feet = at.getBlock();
-        for (Block block : new Block[]{feet, feet.getRelative(BlockFace.UP)}) {
+        World world = at.getWorld();
+        for (int[] spot : PortalFrame.touched(at.getX(), at.getY(), at.getZ(), HALF_WIDTH, HEIGHT)) {
+            Block block = world.getBlockAt(spot[0], spot[1], spot[2]);
             if (block.getType() == Material.NETHER_PORTAL && marks(block.getChunk()).contains(spot(block))) {
                 return true;
             }

@@ -29,6 +29,24 @@ public final class PortalFrame {
     }
 
     /** From any open block inside the frame. */
+    /**
+     * The blocks a hitbox {@code halfWidth} wide each way and {@code height} tall, standing at x y z, overlaps — what
+     * the game asks when it decides somebody is in a portal. The block at the feet alone misses a player stepping
+     * in from the side, whose hitbox is in the portal while their feet are still beside it.
+     */
+    public static java.util.List<int[]> touched(double x, double y, double z, double halfWidth, double height) {
+        double inset = 1.0E-7;
+        java.util.List<int[]> blocks = new java.util.ArrayList<>();
+        for (int bx = (int) Math.floor(x - halfWidth); bx <= (int) Math.floor(x + halfWidth - inset); bx++) {
+            for (int by = (int) Math.floor(y); by <= (int) Math.floor(y + height - inset); by++) {
+                for (int bz = (int) Math.floor(z - halfWidth); bz <= (int) Math.floor(z + halfWidth - inset); bz++) {
+                    blocks.add(new int[]{bx, by, bz});
+                }
+            }
+        }
+        return blocks;
+    }
+
     public static Optional<Inside> find(Grid grid, int x, int y, int z) {
         Optional<Inside> alongX = find(grid, x, y, z, 1, 0);
         return alongX.isPresent() ? alongX : find(grid, x, y, z, 0, 1);
