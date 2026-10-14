@@ -75,6 +75,9 @@ public final class ModuleBootstrap implements PluginBootstrap {
             de.raindancer.core.platform.command.CoreCommands.hub(event.registrar());
             // And one /maintenance (aliases /wartung, /wartungsmodus), op-only through rainscore.maintenance.
             de.raindancer.core.platform.command.CoreCommands.maintenance(event.registrar());
+            // And one /documents (alias /files): every plugin's settings and texts are kept in the database
+            // from RainsCore 2.0.0 — exported to edit by hand, imported back. Op-only through rainscore.documents.
+            de.raindancer.core.platform.command.CoreCommands.documents(event.registrar());
         });
     }
 }
