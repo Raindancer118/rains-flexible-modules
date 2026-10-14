@@ -52,7 +52,9 @@ public final class TwitchCommand implements ITwitchCommand {
                 if (event == null || (!everybody && !(sender instanceof Player))) {
                     live.messages().send(sender, "twitch.usage");
                 } else if (everybody) {
-                    live.announcer().announce(event);
+                    // "counts" makes a test count like a real stream — for when Twitch cannot be asked.
+                    boolean counts = args.length > 3 && args[3].equalsIgnoreCase("counts");
+                    live.announcer().announce(event, !counts);
                 } else {
                     live.announcer().preview(event, (Player) sender);
                 }

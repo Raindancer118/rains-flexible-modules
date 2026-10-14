@@ -35,7 +35,19 @@ public final class ShardCap {
         }
     }
 
+    /**
+     * Lets go of a player who left — only once their hour is over: forgetting it sooner would hand a full hour's
+     * shards to anybody who logs out and back in.
+     */
     public void forget(UUID player) {
-        found.remove(player);
+        long now = clock.getAsLong();
+        found.computeIfPresent(player, (id, times) -> {
+            synchronized (times) {
+                while (!times.isEmpty() && now - times.peekFirst() >= HOUR) {
+                    times.pollFirst();
+                }
+                return times.isEmpty() ? null : times;
+            }
+        });
     }
 }

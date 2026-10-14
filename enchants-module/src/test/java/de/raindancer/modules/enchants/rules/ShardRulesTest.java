@@ -49,4 +49,18 @@ class ShardRulesTest {
         assertThat(cap.take(ada, 3)).as("the first one is an hour old").isTrue();
         assertThat(cap.take(ada, 3)).isFalse();
     }
+
+    @Test
+    @DisplayName("leaving and coming back does not reset the hour")
+    void relogKeepsTheCap() {
+        long[] now = {0};
+        ShardCap cap = new ShardCap(() -> now[0]);
+        java.util.UUID ada = java.util.UUID.randomUUID();
+        assertThat(cap.take(ada, 1)).isTrue();
+        cap.forget(ada);
+        assertThat(cap.take(ada, 1)).isFalse();
+        now[0] = 3_600_000;
+        cap.forget(ada);
+        assertThat(cap.take(ada, 1)).as("after the hour it is free again").isTrue();
+    }
 }

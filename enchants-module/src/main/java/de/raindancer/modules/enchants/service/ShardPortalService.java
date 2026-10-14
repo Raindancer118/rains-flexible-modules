@@ -4,6 +4,8 @@ import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
+import de.raindancer.core.world.protection.Land;
+import de.raindancer.core.world.protection.LandAction;
 import de.raindancer.modules.enchants.EnchantAdvancements;
 import de.raindancer.modules.enchants.EnchantsSettings;
 import de.raindancer.modules.enchants.rules.PortalFrame;
@@ -45,15 +47,17 @@ public final class ShardPortalService {
     private static final double INSIDE_BORDER = 0.9;
 
     private final Plugin plugin;
+    private final Land land;
     private final ShardWorldService worlds;
     private final Supplier<EnchantsSettings> settings;
     private final EnchantAdvancements advancements;
     private final Messages messages;
     private final Effects effects;
 
-    public ShardPortalService(Plugin plugin, ShardWorldService worlds, Supplier<EnchantsSettings> settings,
+    public ShardPortalService(Plugin plugin, Land land, ShardWorldService worlds, Supplier<EnchantsSettings> settings,
                               EnchantAdvancements advancements, Messages messages, Effects effects) {
         this.plugin = plugin;
+        this.land = land;
         this.worlds = worlds;
         this.settings = settings;
         this.advancements = advancements;
@@ -86,6 +90,14 @@ public final class ShardPortalService {
         Optional<PortalFrame.Inside> inside = PortalFrame.find(grid, start.getX(), start.getY(), start.getZ());
         if (inside.isEmpty()) {
             return false;
+        }
+        // Opening a portal is lighting one: refused wherever the player may not light a fire.
+        for (int[] at : inside.get().blocks()) {
+            if (!land.can(player, new Location(world, at[0], at[1], at[2]), LandAction.IGNITE)) {
+                messages.send(player, "enchants.portal-denied");
+                effects.play(player.getUniqueId(), Cues.NO);
+                return true;
+            }
         }
         for (int[] at : inside.get().blocks()) {
             Block block = world.getBlockAt(at[0], at[1], at[2]);

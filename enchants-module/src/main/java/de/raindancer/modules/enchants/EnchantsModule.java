@@ -96,7 +96,7 @@ public final class EnchantsModule implements FlexModule {
         context.listener(new TabListener(advancements));
         ShardWorldService shardWorlds = new ShardWorldService(settings::current, context.log());
         shardWorlds.ensure();
-        ShardPortalService portals = new ShardPortalService(context.plugin(), shardWorlds, settings::current,
+        ShardPortalService portals = new ShardPortalService(context.plugin(), context.core().land(), shardWorlds, settings::current,
                 advancements, context.core().messages(), context.core().effects());
         context.listener(new ShardListener(shardWorlds, portals,
                 new ShardDropService(shardWorlds, settings::current, advancements, context.core().messages())));

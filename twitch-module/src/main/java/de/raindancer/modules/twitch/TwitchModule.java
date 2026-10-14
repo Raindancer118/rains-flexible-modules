@@ -10,6 +10,8 @@ import de.raindancer.modules.api.ModuleContext;
 import de.raindancer.modules.api.ModuleInfo;
 import de.raindancer.modules.twitch.rules.LiveTrackerRule;
 import de.raindancer.modules.twitch.service.Announcer;
+import de.raindancer.modules.twitch.listener.TwitchWatchers;
+import de.raindancer.modules.twitch.service.TwitchAdvancements;
 import de.raindancer.modules.twitch.service.TwitchClient;
 import de.raindancer.modules.twitch.service.TwitchLogin;
 import de.raindancer.modules.twitch.service.TwitchLoginStore;
@@ -29,8 +31,8 @@ import java.util.List;
  */
 public final class TwitchModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("twitch", "Twitch", "0.3.0")
-            .describedAs("A chat announcement on every server when the channel goes live, and when the stream ends.")
+    private static final ModuleInfo INFO = ModuleInfo.of("twitch", "Twitch", "0.4.0")
+            .describedAs("A chat announcement on every server when the channel goes live and when it ends, and advancements for watching.")
             .by("Raindancer118");
 
     private LogChannel log;
@@ -65,6 +67,15 @@ public final class TwitchModule implements FlexModule {
                 context.core(), settings::current);
         announcer.listen();
         context.closeWith(announcer::stop);
+        TwitchAdvancements watching = new TwitchAdvancements(context.plugin(), context.plugin().getServer(),
+                context.core().advancements(), settings::current);
+        watching.define();
+        announcer.onHeard(watching::heard);
+        context.listener(new TwitchWatchers(watching));
+        var minutes = Scheduling.globalTimer(context.plugin(), 1200, 1200, task -> watching.minute());
+        if (minutes != null) {
+            context.closeWith(minutes::cancel);
+        }
 
         loginDocument = YamlStore.network(context.dataFolder().resolve("credentials.yml"));
         logins = new TwitchLoginStore(context.core().secrets(), loginDocument, System::getenv, log);

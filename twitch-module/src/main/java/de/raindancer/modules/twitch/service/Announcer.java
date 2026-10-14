@@ -43,6 +43,7 @@ public final class Announcer {
     private final Supplier<TwitchSettings> settings;
     private final AnnouncementRule rule = new AnnouncementRule();
     private volatile NetworkBus.Subscription heard;
+    private final java.util.List<Consumer<Map<String, String>>> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public Announcer(Plugin plugin, Server server, LogChannel log, Messages messages, RainsCore core,
                      Supplier<TwitchSettings> settings) {
@@ -66,11 +67,30 @@ public final class Announcer {
 
     /** Listens for what the watching server sends, on the bus and on every link. */
     public void listen() {
-        heard = bus.subscribe(TOPIC, event -> decode(event.payload()).ifPresent(display));
+        heard = bus.subscribe(TOPIC, event -> decode(event.payload()).ifPresent(this::received));
         links.get().forEach(link -> link.on(TOPIC, data -> {
-            display.accept(data);
+            received(data);
             return null;
         }));
+    }
+
+    /**
+     * Told of every announcement that reaches this server — its own and every other server's — with what was
+     * sent: {@code kind} ({@code live}/{@code ended}), {@code stream} (Twitch's id) and {@code started} (epoch millis).
+     */
+    public void onHeard(Consumer<Map<String, String>> listener) {
+        listeners.add(listener);
+    }
+
+    private void received(Map<String, String> data) {
+        display.accept(data);
+        for (Consumer<Map<String, String>> listener : listeners) {
+            try {
+                listener.accept(data);
+            } catch (RuntimeException failed) {
+                log.warn("A listener to a Twitch announcement failed: {}", failed.getMessage());
+            }
+        }
     }
 
     public void stop() {
@@ -83,8 +103,19 @@ public final class Announcer {
 
     /** Tells this server, every other server of the network and every linked one. */
     public void announce(StreamEvent event) {
+        announce(event, false);
+    }
+
+    /**
+     * @param test a staff test: shown like the real thing, but it earns nothing — marked {@code test} for the
+     *             listeners, unless staff said it should count
+     */
+    public void announce(StreamEvent event, boolean test) {
         Map<String, String> data = encode(event);
-        display.accept(data);
+        if (test) {
+            data.put("test", "true");
+        }
+        received(data);
         bus.publish(TOPIC, "announce", yaml(data));
         for (ServerLink link : links.get()) {
             link.send(TOPIC, data);
@@ -117,6 +148,8 @@ public final class Announcer {
         data.put("title", stream.title());
         data.put("game", stream.game());
         data.put("channel", settings.get().channelClean());
+        data.put("stream", stream.id() == null ? "" : stream.id());
+        data.put("started", stream.startedAt() == null ? "0" : String.valueOf(stream.startedAt().toEpochMilli()));
         if (event instanceof StreamEvent.Ended ended) {
             data.put("lasted", StreamParser.spoken(ended.lasted()));
         }
