@@ -1,6 +1,7 @@
 package de.raindancer.modules.essentials.command;
 
 import de.raindancer.modules.essentials.EssentialsServices;
+import de.raindancer.modules.essentials.service.NetworkWho;
 import de.raindancer.modules.essentials.service.SkyTokenService.Kind;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import de.raindancer.modules.essentials.util.Players;
@@ -39,7 +40,9 @@ public final class TokenCommand implements IEssentialsCommand {
         }
         Player to = args.length >= 2 ? live.server().getPlayerExact(args[1])
                 : sender instanceof Player self ? self : null;
-        if (to == null) {
+        Optional<NetworkWho.Found> elsewhere = to != null || args.length < 2 ? Optional.empty()
+                : live.who().find(sender, args[1]).filter(found -> !found.self());
+        if (to == null && elsewhere.isEmpty()) {
             live.messages().send(sender, args.length >= 2 ? "essentials.tokens.not-online" : "essentials.only-a-player",
                     "player", args.length >= 2 ? args[1] : "");
             return;
@@ -52,6 +55,10 @@ public final class TokenCommand implements IEssentialsCommand {
                 live.messages().send(sender, "essentials.usage", "usage", "/token <sky|dawn> [player] [amount]");
                 return;
             }
+        }
+        if (to == null) {
+            live.skyTokens().giveElsewhere(sender, elsewhere.get(), kind.get(), amount);
+            return;
         }
         live.skyTokens().give(sender, to, kind.get(), amount);
     }
@@ -74,7 +81,12 @@ public final class TokenCommand implements IEssentialsCommand {
         }
         if (args.length == 2) {
             EssentialsServices live = services.get();
-            return Players.suggest(live.server(), sender, args[1], live.core().vanish());
+            String typed = args[1].toLowerCase(Locale.ROOT);
+            List<String> names = new java.util.ArrayList<>(
+                    Players.suggest(live.server(), sender, args[1], live.core().vanish()));
+            live.who().namesElsewhere(sender).stream().filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed))
+                    .filter(name -> !names.contains(name)).sorted().forEach(names::add);
+            return names;
         }
         return List.of();
     }

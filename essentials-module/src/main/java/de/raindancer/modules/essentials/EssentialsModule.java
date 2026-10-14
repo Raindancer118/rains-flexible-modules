@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.26.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.27.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -165,6 +165,10 @@ public final class EssentialsModule implements FlexModule {
                 new de.raindancer.modules.essentials.service.SkyTokenService(context.plugin(), server,
                         context.core().messages(), context.core().itemFactory());
         skyTokens.register(context.core().items(), context.core().itemAbilities());
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
+            skyTokens.connect(context.core().networkPlayers().get(), context.core().networkCalls().get());
+            context.closeWith(skyTokens::disconnect);
+        }
 
         de.raindancer.modules.essentials.store.RuleBook ruleBook =
                 new de.raindancer.modules.essentials.store.RuleBook(context.dataFolder().resolve("rules.yml"),

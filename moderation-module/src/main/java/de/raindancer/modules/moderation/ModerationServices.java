@@ -114,6 +114,7 @@ public record ModerationServices(
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
         de.raindancer.modules.moderation.service.NetworkModeration network,
         de.raindancer.modules.moderation.service.SavedInvsee savedInvsee,
+        de.raindancer.modules.moderation.util.StaffAlerts staffAlerts,
 
         Supplier<ModerationSettings> settings,
         ModerationScreensOpener screens) {

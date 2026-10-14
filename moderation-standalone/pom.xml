@@ -150,8 +150,10 @@
              pick-up and a promotion.
              2.42.0: network commands: /kick reaches a player on another server, /ban and /mute and /freeze tell and
              remove them there, /invsee shows the latest saved copy of a player who is elsewhere or offline (read
-             only), the staff page lists staff on every server. -->
-        <plugin.version>2.42.0</plugin.version>
+             only), the staff page lists staff on every server.
+             2.43.0: staff chat, punishment announcements, attempt alerts and "N staff notes" reach the staff of every
+             server (named by server); the attempt-alert switch is a Core switch and follows the player. -->
+        <plugin.version>2.43.0</plugin.version>
     </properties>
 
     <dependencies>

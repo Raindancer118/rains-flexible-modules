@@ -238,6 +238,8 @@ moderation:
     line: "<time> <player><dark_gray>:</dark_gray> <white><text>"
     help: "<gray>Try <white>/chatlog player:Name from:2026-10-10 17:30 to:18:00 rules \"a phrase\"</white> — or day:yesterday, last:2h, page:2."
     type-search: "<gray>Type what to look for — every word must be in the line, \"quotes\" for a phrase. <dark_gray>You have a minute."
+  staff-alert:
+    from: "<dark_gray>[<white><origin-server></white>]</dark_gray> "
   attempts:
     heading: "<gray>Attempts while punished · <white><what></white> — <white><count></white>, page <page> of <pages>:"
     line: "<time> <player> <gray>tried to <yellow><kind></yellow> <dark_gray>(<punishment>)</dark_gray> <white><detail>"

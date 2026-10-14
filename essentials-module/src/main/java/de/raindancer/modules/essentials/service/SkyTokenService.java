@@ -7,6 +7,10 @@ import de.raindancer.core.content.items.ItemAbility;
 import de.raindancer.core.content.items.ItemFactory;
 import de.raindancer.core.content.items.ItemTrigger;
 import de.raindancer.core.content.items.TaggedItems;
+import de.raindancer.core.platform.network.NetworkBus;
+import de.raindancer.core.platform.network.NetworkCalls;
+import de.raindancer.core.platform.network.NetworkPlayers;
+import de.raindancer.core.platform.network.NetworkServers;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.essentials.EssentialsSettings;
@@ -20,7 +24,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -168,21 +176,119 @@ public final class SkyTokenService implements IEssentialsService {
 
     /** Hands {@code amount} tokens to somebody; what does not fit is dropped at their feet. */
     public void give(CommandSender giver, Player to, Kind kind, int amount) {
+        if (!hand(to, kind, amount)) {
+            messages.send(giver, "essentials.tokens.cannot-make");
+            return;
+        }
+        messages.send(giver, "essentials.tokens.given", "amount", amount, "token", shown(kind),
+                "player", to.getName());
+        if (giver != to) {
+            messages.send(to, "essentials.tokens.received", "amount", amount, "token", shown(kind));
+        }
+    }
+
+    private boolean hand(Player to, Kind kind, int amount) {
         CustomItems registered = items;
         CustomItem token = registered == null ? definition(kind)
                 : registered.byKey(kind.key()).orElse(definition(kind));
         Optional<ItemStack> made = factory.create(token, amount);
         if (made.isEmpty()) {
-            messages.send(giver, "essentials.tokens.cannot-make");
-            return;
+            return false;
         }
         TaggedItems.handTo(to, made.get());
-        String shown = kind == Kind.SKY ? "Clear Sky Token" : "Dawn Token";
-        messages.send(giver, "essentials.tokens.given", "amount", amount, "token", shown,
-                "player", to.getName());
-        if (giver != to) {
-            messages.send(to, "essentials.tokens.received", "amount", amount, "token", shown);
+        return true;
+    }
+
+    private static String shown(Kind kind) {
+        return kind == Kind.SKY ? "Clear Sky Token" : "Dawn Token";
+    }
+
+    // ----------------------------------------------------------------------------- another server
+
+    /** What a server is asked to hand over: who, which token, how many. */
+    public static final String GIVE = "essentials:token-give";
+
+    private volatile NetworkPlayers players;
+    private volatile NetworkCalls calls;
+    private volatile NetworkBus.Subscription answering;
+    private volatile Duration timeout = Duration.ofSeconds(4);
+
+    /** Lets tokens be handed to players of other servers, and answers the other servers' asking. */
+    public void connect(NetworkPlayers directory, NetworkCalls network) {
+        this.players = directory;
+        this.calls = network;
+        this.answering = network.answerFrom(GIVE, this::answerGive);
+    }
+
+    public void disconnect() {
+        NetworkBus.Subscription current = answering;
+        if (current != null) {
+            current.close();
         }
+        answering = null;
+        players = null;
+        calls = null;
+    }
+
+    void timeout(Duration fresh) {
+        this.timeout = fresh;
+    }
+
+    /**
+     * Hands tokens to somebody on another server, asked of that server: it checks the player is there, and the
+     * answer decides what {@code giver} is told.
+     *
+     * @return whether they were handed over
+     */
+    public CompletableFuture<Boolean> giveElsewhere(CommandSender giver, NetworkWho.Found to, Kind kind, int amount) {
+        NetworkCalls network = calls;
+        if (network == null) {
+            messages.send(giver, "essentials.tokens.not-online", "player", to.name());
+            return CompletableFuture.completedFuture(false);
+        }
+        return network.ask(to.server(), GIVE, Map.of("player", to.id().toString(), "kind", kind.name(),
+                "amount", String.valueOf(amount)), timeout).thenApply(answer -> {
+            Optional<Map<String, String>> given = answer.filter(reply -> "true".equals(reply.get("ok")));
+            if (given.isEmpty()) {
+                messages.send(giver, "essentials.tokens.not-online", "player", to.name());
+                return false;
+            }
+            messages.send(giver, "essentials.tokens.given", "amount", amount, "token", shown(kind),
+                    "player", given.get().getOrDefault("name", to.name()));
+            return true;
+        });
+    }
+
+    private CompletableFuture<Map<String, String>> answerGive(String from, Map<String, String> question) {
+        NetworkPlayers network = players;
+        Map<String, String> no = Map.of("ok", "false");
+        if (network == null || network.servers().stream().map(NetworkServers.Server::id).noneMatch(from::equals)) {
+            return CompletableFuture.completedFuture(no);
+        }
+        Player to;
+        Kind kind;
+        int amount;
+        try {
+            to = server.getPlayer(UUID.fromString(question.getOrDefault("player", "")));
+            kind = Kind.valueOf(question.getOrDefault("kind", ""));
+            amount = Math.max(1, Math.min(64, Integer.parseInt(question.getOrDefault("amount", "1"))));
+        } catch (IllegalArgumentException garbled) {
+            return CompletableFuture.completedFuture(no);
+        }
+        if (to == null) {
+            return CompletableFuture.completedFuture(no);
+        }
+        CompletableFuture<Map<String, String>> done = new CompletableFuture<>();
+        Player target = to;
+        Scheduling.entity(plugin, target, () -> {
+            if (!hand(target, kind, amount)) {
+                done.complete(no);
+                return;
+            }
+            messages.send(target, "essentials.tokens.received", "amount", amount, "token", shown(kind));
+            done.complete(Map.of("ok", "true", "name", target.getName()));
+        }, () -> done.complete(no));
+        return done;
     }
 
     @Override

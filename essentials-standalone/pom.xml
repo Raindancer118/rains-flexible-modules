@@ -79,7 +79,8 @@
         <!-- 1.24.0: the first-join welcome names the server (<server>, Core 1.125.0 serverName). -->
         <!-- 1.25.0 (RainsCore 2.0 network edition): /msg and /r reach players on any server of a network (found by name, delivered over the network's calls); nicknames and ignores are network documents, a nickname is claimed against the whole network so two servers cannot hand out the same one; the rules, rule presets and nickname blocklist are the network's, edited once, and live in the database. -->
         <!-- 1.26.0 (network): /list (everybody on the network by server, this one first), /where (which server, and where for staff), /seen says "online on <server>"; vanished players stay hidden from whoever may not see them. -->
-        <plugin.version>1.26.0</plugin.version>
+        <!-- 1.27.0 (network): the welcome and the rules are shown once per player on the whole network, not on every server they first visit; /fun cooldowns follow the player; /token reaches a player on another server and the profile "Message" button offers /msg for one. -->
+        <plugin.version>1.27.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -1,17 +1,16 @@
 package de.raindancer.modules.moderation.listener;
 
-import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
+import de.raindancer.modules.moderation.util.StaffAlerts;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -70,10 +69,8 @@ public final class StaffChatListener implements IModerationListener {
      *
      * <h2>Why the walk is scheduled</h2>
      * This is reached from {@code AsyncChatEvent}, which Paper fires on a worker thread — and reading
-     * the online player list and asking each one for a permission is main-thread work. On Folia there
-     * is no single main thread at all, and the global region is where a server-wide list is safe to
-     * touch. Sending a component to an {@code Audience} is thread-safe; deciding <em>who</em> the
-     * audience is, is not.
+     * the online player list and asking each one for a permission is main-thread work. {@link StaffAlerts}
+     * does that on the global region, and tells the other servers' staff as well.
      */
     public void say(String who, String what) {
         String line = services.staffChat().prefix() + " <white><who></white><gray>: <what>";
@@ -82,17 +79,9 @@ public final class StaffChatListener implements IModerationListener {
         // history is lost when everybody logs off is not much of a record.
         services.chat().console(line, Chat.arg("who", who), Chat.arg("what", what));
 
-        Scheduling.global(services.plugin(), () -> {
-            List<Player> staff = new ArrayList<>();
-            for (Player listening : services.server().getOnlinePlayers()) {
-                if (listening.hasPermission(ModerationPermission.STAFF_CHAT.node())) {
-                    staff.add(listening);
-                }
-            }
-            if (!staff.isEmpty()) {
-                services.chat().broadcast(staff, line, Chat.arg("who", who), Chat.arg("what", what));
-            }
-        });
+        // Plain text in the arguments, on this server and on the others: what a player typed is never markup.
+        services.staffAlerts().tell(new StaffAlerts.Alert(ModerationPermission.STAFF_CHAT.node(), null, line,
+                Map.of("who", who, "what", what)));
     }
 
     @Override

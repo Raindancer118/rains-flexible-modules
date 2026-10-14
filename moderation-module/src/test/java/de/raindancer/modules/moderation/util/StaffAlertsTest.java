@@ -1,6 +1,10 @@
 package de.raindancer.modules.moderation.util;
 
 import de.raindancer.core.platform.network.LocalBus;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -10,6 +14,8 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** What staff on one server hear, staff on the others hear too. */
 class StaffAlertsTest {
@@ -32,7 +38,10 @@ class StaffAlertsTest {
         hub.drain();
 
         assertThat(smpHeard).containsExactly(report);
-        assertThat(arenaHeard).containsExactly(report);
+        assertThat(arenaHeard).singleElement().satisfies(heard -> {
+            assertThat(heard).isEqualTo(withOrigin(report, "smp"));
+            assertThat(heard.origin()).isEqualTo("smp");
+        });
     }
 
     @Test
@@ -52,7 +61,7 @@ class StaffAlertsTest {
         smp.tell(promotion);
         hub.drain();
 
-        assertThat(arenaHeard).containsExactly(promotion);
+        assertThat(arenaHeard).containsExactly(withOrigin(promotion, "smp"));
     }
 
     @Test
@@ -62,7 +71,69 @@ class StaffAlertsTest {
         smp.tell(report);
         hub.drain();
         assertThat(arenaHeard).isEmpty();
-        assertThat(StaffAlerts.Alert.decode("not: [valid")).isEmpty();
-        assertThat(StaffAlerts.Alert.decode("line: only a line")).isEmpty();
+        assertThat(StaffAlerts.Alert.decode("not: [valid", "smp")).isEmpty();
+        assertThat(StaffAlerts.Alert.decode("line: only a line", "smp")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the opt-out, the bare and console wishes travel; an alert of this server's own has no origin")
+    void wishesTravel() {
+        StaffAlerts.Alert attempt = new StaffAlerts.Alert("moderation.attempts", null, "<player> tried",
+                Map.of("player", "Mushy"), "attempt-alerts", true, true, null);
+        smp.tell(attempt);
+        hub.drain();
+
+        assertThat(smpHeard).containsExactly(attempt);
+        assertThat(smpHeard.get(0).origin()).isNull();
+        assertThat(arenaHeard).containsExactly(withOrigin(attempt, "smp"));
+    }
+
+    @Test
+    @DisplayName("staff chat from elsewhere: the server is named, and what was typed stays text, not markup")
+    void typedTextIsNotMarkup() {
+        StaffAlerts.Alert chat = new StaffAlerts.Alert("moderation.staffchat", null,
+                "<white><who></white>: <what>", Map.of("who", "Ayla", "what", "<red>hi</red> <click:run_command:'/op me'>x"));
+        smp.tell(chat);
+        hub.drain();
+
+        StaffAlerts.Alert heard = arenaHeard.get(0);
+        var rendered = MiniMessage.miniMessage().deserialize(heard.shownAs("<dark_gray>[<origin-server>] "), heard.resolvers());
+        assertThat(PlainTextComponentSerializer.plainText().serialize(rendered))
+                .isEqualTo("[smp] Ayla: <red>hi</red> <click:run_command:'/op me'>x");
+        assertThat(rendered.children().stream().map(Component::clickEvent)).containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("an origin that looks like markup is shown as text too")
+    void originIsText() {
+        StaffAlerts.Alert hostile = withOrigin(report, "<red>evil");
+        var rendered = MiniMessage.miniMessage().deserialize(hostile.shownAs("[<origin-server>] "), hostile.resolvers());
+        assertThat(PlainTextComponentSerializer.plainText().serialize(rendered).startsWith("[<red>evil] ")).isTrue();
+    }
+
+    @Test
+    @DisplayName("an empty permission is everybody, otherwise the permission is asked, and the excluded one is never told")
+    void whoIsTold() {
+        Player mod = player("moderation.history", true);
+        Player guest = player("moderation.history", false);
+        Player subjectPlayer = player("moderation.history", true);
+        when(subjectPlayer.getUniqueId()).thenReturn(subject);
+
+        assertThat(StaffAlerts.whoToTell(List.of(mod, guest, subjectPlayer), subject, "moderation.history"))
+                .containsExactly(mod);
+        assertThat(StaffAlerts.whoToTell(List.of(mod, guest, subjectPlayer), null, ""))
+                .containsExactly(mod, guest, subjectPlayer);
+    }
+
+    private static Player player(String node, boolean holds) {
+        Player who = mock(Player.class);
+        when(who.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(who.hasPermission(node)).thenReturn(holds);
+        return who;
+    }
+
+    private static StaffAlerts.Alert withOrigin(StaffAlerts.Alert alert, String origin) {
+        return new StaffAlerts.Alert(alert.permission(), alert.exclude(), alert.line(), alert.args(), alert.optOut(),
+                alert.bare(), alert.console(), origin);
     }
 }

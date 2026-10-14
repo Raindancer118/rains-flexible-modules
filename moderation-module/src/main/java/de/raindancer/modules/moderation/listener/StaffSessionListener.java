@@ -1,9 +1,9 @@
 package de.raindancer.modules.moderation.listener;
 
-import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.store.PendingNotices;
+import de.raindancer.modules.moderation.util.StaffAlerts;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -116,19 +117,11 @@ public final class StaffSessionListener implements IModerationListener {
         if (notes <= 0) {
             return;
         }
-        List<Player> staff = new ArrayList<>();
-        for (Player who : services.server().getOnlinePlayers()) {
-            // Not the person who just joined, even if they are staff themselves. A moderator does not
-            // need telling that there are notes about them, and being told is how they find out.
-            if (!who.equals(joining) && who.hasPermission(ModerationPermission.NOTES.node())) {
-                staff.add(who);
-            }
-        }
-        if (!staff.isEmpty()) {
-            services.chat().broadcast(staff,
-                    "<gray><white><player></white> has <white><count></white> staff note(s).",
-                    Chat.arg("player", joining.getName()), Chat.arg("count", notes));
-        }
+        // Not the person who just joined, even if they are staff themselves. A moderator does not
+        // need telling that there are notes about them, and being told is how they find out.
+        services.staffAlerts().tell(new StaffAlerts.Alert(ModerationPermission.NOTES.node(), joining.getUniqueId(),
+                "<gray><white><player></white> has <white><count></white> staff note(s).",
+                Map.of("player", joining.getName(), "count", String.valueOf(notes))));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

@@ -1,8 +1,10 @@
 package de.raindancer.modules.essentials.listener;
 
 import de.raindancer.modules.essentials.EssentialsServices;
+import de.raindancer.core.platform.util.Scheduling;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.Input;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerInputEvent;
@@ -31,20 +33,33 @@ public final class EssentialsSessionListener implements IEssentialsListener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        boolean firstJoin = !event.getPlayer().hasPlayedBefore();
-        if (services.welcome().ownsJoinQuitLines() || firstJoin) {
+        Player player = event.getPlayer();
+        // Vanilla's line can only be dropped now, before the network has said whether they are new at all:
+        // new to this server is reason enough, and the welcome below says what is right either way.
+        boolean newHere = !player.hasPlayedBefore();
+        if (services.welcome().ownsJoinQuitLines() || newHere) {
             event.joinMessage(null);
         }
-        services.afk().activity(event.getPlayer());
-        services.nicknames().apply(event.getPlayer());
+        services.afk().activity(player);
+        services.nicknames().apply(player);
+        services.core().isNewPlayer(player).handle((isNew, failure) -> failure == null ? isNew : newHere)
+                .thenAccept(firstJoin -> Scheduling.entity(services.plugin(), player, () -> {
+                    if (player.isOnline()) {
+                        welcome(player, Boolean.TRUE.equals(firstJoin));
+                    }
+                }));
+        services.adminMode().joined(event.getPlayer());
+    }
+
+    /** The welcome and, for somebody new to the whole network, the rules — on the player's own thread. */
+    private void welcome(Player player, boolean firstJoin) {
         // A vanished player's joining is nobody's business: Core keeps them hidden, and a line here would say it.
-        if (!services.core().vanish().isVanished(event.getPlayer().getUniqueId())) {
-            services.welcome().joined(event.getPlayer(), firstJoin);
+        if (!services.core().vanish().isVanished(player.getUniqueId())) {
+            services.welcome().joined(player, firstJoin);
         }
         if (firstJoin) {
-            services.rules().firstJoin(event.getPlayer());
+            services.rules().firstJoin(player);
         }
-        services.adminMode().joined(event.getPlayer());
     }
 
     @EventHandler

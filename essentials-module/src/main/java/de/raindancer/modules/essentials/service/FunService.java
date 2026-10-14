@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * {@code /roast} and {@code /joke}: a line from messages.yml, said in chat as whoever asked.
@@ -28,14 +29,20 @@ public final class FunService implements IEssentialsService {
     private final Messages messages;
     private final Plugin plugin;
     private final FunRule rule = new FunRule();
-    /** Shared by both commands: a roast straight after a joke is still two lines in a row. */
-    private final Cooldowns<UUID> waits = new Cooldowns<>();
+    /** Shared by both commands: a roast straight after a joke is still two lines in a row — and by every server. */
+    private final Cooldowns<UUID> waits;
 
     private volatile EssentialsSettings settings;
 
     public FunService(Messages messages, Plugin plugin, EssentialsSettings settings) {
+        this(messages, plugin, settings, null);
+    }
+
+    /** @param clock milliseconds, for a test; null for the real thing, whose wait follows the player across a network */
+    public FunService(Messages messages, Plugin plugin, EssentialsSettings settings, LongSupplier clock) {
         this.messages = messages;
         this.plugin = plugin;
+        this.waits = clock == null ? Cooldowns.shared("essentials:fun") : new Cooldowns<>(clock);
         settings(settings);
     }
 

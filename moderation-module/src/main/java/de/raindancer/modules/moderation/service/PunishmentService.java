@@ -9,10 +9,10 @@ import de.raindancer.core.moderation.punishment.Punishments;
 import de.raindancer.core.moderation.punishment.Durations;
 import de.raindancer.core.moderation.punishment.VanillaBanBridge;
 import de.raindancer.core.platform.util.Scheduling;
-import de.raindancer.core.ui.chat.Chat;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.Audience;
+import de.raindancer.modules.moderation.util.StaffAlerts;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.Reason;
 import de.raindancer.modules.moderation.model.Sentence;
@@ -27,7 +27,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,10 +59,10 @@ public final class PunishmentService implements IModerationService {
     private final VanillaBanBridge bridge;
     private final Audit audit;
     private final Messages messages;
-    private final Chat chat;
     private final PendingNotices pending;
     private final AnnouncementRule announcements;
     private final EscalationRule escalation;
+    private final StaffAlerts alerts;
 
     private volatile ModerationSettings settings;
     private volatile FineService fines;
@@ -71,9 +70,9 @@ public final class PunishmentService implements IModerationService {
 
     public PunishmentService(Plugin plugin, Server server, Punishments punishments,
                              PunishmentGuard guard, VanillaBanBridge bridge, Audit audit,
-                             Messages messages, Chat chat, PendingNotices pending,
+                             Messages messages, PendingNotices pending,
                              AnnouncementRule announcements,
-                             EscalationRule escalation, ModerationSettings settings) {
+                             EscalationRule escalation, StaffAlerts alerts, ModerationSettings settings) {
         this.plugin = plugin;
         this.server = server;
         this.punishments = punishments;
@@ -81,10 +80,10 @@ public final class PunishmentService implements IModerationService {
         this.bridge = bridge;
         this.audit = audit;
         this.messages = messages;
-        this.chat = chat;
         this.pending = pending;
         this.announcements = announcements;
         this.escalation = escalation;
+        this.alerts = alerts;
         settings(settings);
     }
 
@@ -373,28 +372,14 @@ public final class PunishmentService implements IModerationService {
                 + (named ? " <gray>— by <white><moderator></white></gray>" : "")
                 + "<gray>: <reason>";
 
-        chat.broadcast(recipientsFor(audience), line,
-                Chat.arg("subject", subjectName),
-                Chat.arg("moderator", actorName == null ? "the console" : actorName),
-                Chat.arg("length", length == null ? "" : length),
-                Chat.arg("reason", reason == null ? "no reason given" : reason));
-    }
-
-    /**
-     * Who actually receives the line.
-     *
-     * <p>"The staff" is whoever may read a player's history — the same permission the history command
-     * asks for, rather than a second idea of who counts as staff.
-     */
-    private List<Player> recipientsFor(Audience audience) {
-        List<Player> recipients = new ArrayList<>();
-        for (Player who : server.getOnlinePlayers()) {
-            if (audience == Audience.EVERYBODY
-                    || who.hasPermission(ModerationPermission.HISTORY.node())) {
-                recipients.add(who);
-            }
-        }
-        return recipients;
+        // Said where the staff are, wherever that is: the other servers' staff (or everybody, for a public
+        // announcement) hear it too.
+        alerts.tell(new StaffAlerts.Alert(audience == Audience.EVERYBODY ? "" : ModerationPermission.HISTORY.node(),
+                null, line, Map.of(
+                "subject", subjectName == null ? "" : subjectName,
+                "moderator", actorName == null ? "the console" : actorName,
+                "length", length == null ? "" : length,
+                "reason", reason == null ? "no reason given" : reason)));
     }
 
     private static Component plain(String text) {
