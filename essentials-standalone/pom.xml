@@ -81,7 +81,8 @@
         <!-- 1.26.0 (network): /list (everybody on the network by server, this one first), /where (which server, and where for staff), /seen says "online on <server>"; vanished players stay hidden from whoever may not see them. -->
         <!-- 1.27.0 (network): the welcome and the rules are shown once per player on the whole network, not on every server they first visit; /fun cooldowns follow the player; /token reaches a player on another server and the profile "Message" button offers /msg for one. -->
         <!-- 1.28.1: whether somebody is in admin mode is read while they log in, not on the server thread as they join. -->
-        <plugin.version>1.28.1</plugin.version>
+        <!-- 1.28.2: what was read for a login that never became a join is forgotten (security review). -->
+        <plugin.version>1.28.2</plugin.version>
     </properties>
 
     <dependencies>

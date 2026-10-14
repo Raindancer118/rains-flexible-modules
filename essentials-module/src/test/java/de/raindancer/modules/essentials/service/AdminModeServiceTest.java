@@ -286,6 +286,16 @@ class AdminModeServiceTest {
     }
 
     @Test
+    @DisplayName("logins that never became a join are not kept: quitting forgets what was read for them")
+    void preparedIsForgotten() throws Exception {
+        service.prepare(id);
+        service.forget(id);
+        java.lang.reflect.Field field = AdminModeService.class.getDeclaredField("prepared");
+        field.setAccessible(true);
+        assertThat((java.util.Map<?, ?>) field.get(service)).isEmpty();
+    }
+
+    @Test
     @DisplayName("somebody who lost the permission while away is taken out of admin mode as they join")
     void lostPermissionWhileAway() {
         when(loadouts.capture(player)).thenReturn(SURVIVAL, ADMIN_NOW);

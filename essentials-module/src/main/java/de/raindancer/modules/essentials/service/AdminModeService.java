@@ -133,8 +133,11 @@ public final class AdminModeService implements IEssentialsService {
      * fixed: coming out would make whatever they hold their survival inventory.
      */
     /** What a join needs from the database, read before it: whether their file reads, and whether they were in it. */
-    private record Prepared(boolean readable, boolean inAdminMode) {
+    private record Prepared(boolean readable, boolean inAdminMode, long at) {
     }
+
+    /** A login that never became a join (refused after it was allowed, the connection gone) is forgotten after this. */
+    private static final long PREPARED_FOR_MILLIS = 60_000L;
 
     private final java.util.Map<UUID, Prepared> prepared = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -143,8 +146,10 @@ public final class AdminModeService implements IEssentialsService {
      * the world, where the database round trip would cost every join a piece of a tick.
      */
     public void prepare(UUID id) {
+        long now = System.currentTimeMillis();
+        prepared.values().removeIf(each -> now - each.at() > PREPARED_FOR_MILLIS);
         boolean readable = store.readable(id);
-        prepared.put(id, new Prepared(readable, readable && store.has(id, SURVIVAL)));
+        prepared.put(id, new Prepared(readable, readable && store.has(id, SURVIVAL), now));
     }
 
     private boolean brokenFile(Player player, boolean readable) {
@@ -272,6 +277,7 @@ public final class AdminModeService implements IEssentialsService {
 
     /** They stay in admin mode while away; only what is held in memory goes. */
     public void forget(UUID player) {
+        prepared.remove(player);
         inAdminMode.remove(player);
         bypassing.remove(player);
         powersOff(player);
