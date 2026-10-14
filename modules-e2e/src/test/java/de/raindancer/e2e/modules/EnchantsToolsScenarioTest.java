@@ -224,9 +224,11 @@ class EnchantsToolsScenarioTest {
             tester.startGliding();
             Await.until("Tester glides", WAIT, () -> has(server, "@a[name=Tester,nbt={FallFlying:1b}]"));
             int beforeBoost = tester.pushes().size();
+            tester.forgetEffects();
             tester.useHeld();
             Await.until("a boost faster than a rocket's 1.5", WAIT, () -> longestPush(tester, beforeBoost) > 1.5);
             Await.until("its advancement", WAIT, () -> done(server, "boost"));
+            Await.until("a sonic boom, like Launch's", WAIT, () -> tester.particlesSeen().contains("SONIC_BOOM"));
             server.console("item replace entity Tester armor.chest with minecraft:air");
             server.console("tp Tester 0.5 " + Y + " 0.5 0 0");
             Await.ticks(40);

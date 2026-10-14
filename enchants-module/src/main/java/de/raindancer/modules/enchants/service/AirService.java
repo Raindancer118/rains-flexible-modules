@@ -32,6 +32,9 @@ import java.util.function.Supplier;
  */
 public final class AirService {
 
+    /** A flier leaves a couple of sparks behind this often, in ticks: a trail, not a cloud. */
+    private static final int TRAIL_EVERY = 10;
+
     private static final long HOLD_NANOS = 100_000_000L;
     private static final long AIRBORNE_NANOS = 400_000_000L;
     private static final long LONGEST_STEP_MILLIS = 250;
@@ -106,6 +109,9 @@ public final class AirService {
         }
 
         if (player.isFlying() && state.granted) {
+            if (player.getTicksLived() % TRAIL_EVERY == 0) {
+                player.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, player.getLocation(), 2, 0.2, 0.05, 0.2, 0.01);
+            }
             if (rule.mayFly(flight, state.budget.remainingMillis())) {
                 boolean emptied = state.budget.drain(elapsed);
                 long before = state.flownMillis / 60_000L;
@@ -170,6 +176,7 @@ public final class AirService {
         state.airborneUntilNanos = System.nanoTime() + AIRBORNE_NANOS;
         player.setAllowFlight(false);
         effects.play(player.getUniqueId(), Cues.ABILITY);
+        player.getWorld().spawnParticle(org.bukkit.Particle.CLOUD, player.getLocation(), 8, 0.3, 0.05, 0.3, 0.02);
         advancements.jumped(player.getUniqueId(), state.jumpsUsed);
     }
 

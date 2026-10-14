@@ -95,6 +95,7 @@ public final class ElytraService {
         player.sendActionBar(messages.get("enchants.boost-charges", "left", String.valueOf(charges.charges()),
                 "of", String.valueOf(level)));
         effects.play(player.getUniqueId(), Cues.ABILITY);
+        player.getWorld().spawnParticle(Particle.SONIC_BOOM, player.getLocation(), 1);
         advancements.used(player.getUniqueId(), RainsEnchants.BOOST);
         if (level >= 2 && flight.boostsThisFlight >= level) {
             advancements.boostsEmptied(player.getUniqueId());

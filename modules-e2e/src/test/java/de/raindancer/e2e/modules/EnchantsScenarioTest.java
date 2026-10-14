@@ -103,8 +103,11 @@ class EnchantsScenarioTest {
             Await.ticks(10);
             // The headless client does not obey velocity packets, so the push itself cannot be seen here: what
             // is proved is that the toggle was taken as a jump (not flight) and counted.
+            tester.forgetEffects();
             tester.flying(true);
             Await.until("the first jump is counted", Duration.ofSeconds(5), () -> done(server, "double_jump"));
+            Await.until("a puff of cloud under the feet", Duration.ofSeconds(5),
+                    () -> tester.particlesSeen().contains("CLOUD"));
             assertThat(flag(server, "flying")).as("a jump is not flying").isFalse();
             for (int jump = 2; jump <= 3; jump++) {
                 Await.until("flight is offered again for jump " + jump, Duration.ofSeconds(5),
@@ -126,6 +129,9 @@ class EnchantsScenarioTest {
             Await.until("flight is allowed", Duration.ofSeconds(10), () -> flag(server, "mayfly"));
             tester.flying(true);
             Await.until("the player flies", Duration.ofSeconds(5), () -> flag(server, "flying"));
+            tester.forgetEffects();
+            Await.until("a faint trail while flying", Duration.ofSeconds(5),
+                    () -> tester.particlesSeen().contains("END_ROD"));
             Await.until("its advancement is granted", Duration.ofSeconds(5), () -> done(server, "flight"));
             Await.until("the charge runs out and flight is taken away", Duration.ofSeconds(60),
                     () -> !flag(server, "flying") && !flag(server, "mayfly"));
