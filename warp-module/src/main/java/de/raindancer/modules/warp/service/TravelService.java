@@ -3,6 +3,7 @@ package de.raindancer.modules.warp.service;
 import de.raindancer.core.moderation.punishment.Durations;
 import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.social.economy.Money;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Travel;
 import de.raindancer.core.world.teleport.TravelReason;
@@ -16,9 +17,11 @@ import de.raindancer.modules.warp.store.WarpCatalogue;
 import de.raindancer.core.platform.network.Arrivals;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Sending somebody to a warp.
@@ -50,17 +53,27 @@ public final class TravelService implements IWarpService {
 
     private volatile WarpSettings settings;
 
-    /** Sends a player to another server and lands them at a place; none on a server of its own. */
+    /**
+     * Sends a player to another server and lands them at a place; none on a server of its own.
+     * Completes true once they really left, false when they were not moved.
+     */
     @FunctionalInterface
     public interface Hop {
-        void send(Player player, String server, Arrivals.Destination destination);
+        CompletableFuture<Boolean> send(Player player, String server, Arrivals.Destination destination);
     }
 
     private volatile Hop hop;
+    private volatile Plugin plugin;
 
     /** Where a warp on another server is travelled to; null leaves such warps unreachable. */
     public void acrossServers(Hop hop) {
+        acrossServers(hop, null);
+    }
+
+    /** The same, finishing a hop on the player's own scheduler of {@code plugin}. */
+    public void acrossServers(Hop hop, Plugin plugin) {
         this.hop = hop;
+        this.plugin = plugin;
     }
 
     public TravelService(WarpCatalogue catalogue, WarpRegistry warps, Travel travel,
@@ -180,8 +193,8 @@ public final class TravelService implements IWarpService {
             return;
         }
         // Another server's warp has no location here: the wait is stood on the spot, then they are sent on.
-        Location target = away ? traveller.getLocation() : place.location().orElse(null);
-        if (target == null) {
+        Location target = away ? null : place.location().orElse(null);
+        if (!away && target == null) {
             // Not a fault: a multiverse server unloads worlds for maintenance and the warp works
             // again when the world comes back. Nothing has been charged, so there is nothing to
             // give back.
@@ -198,7 +211,11 @@ public final class TravelService implements IWarpService {
         if (!now.safeArrival() || away) {
             trip = trip.exactly();
         }
-        travel.go(traveller, target, trip, new Wording(label, away ? place : null));
+        if (away) {
+            travel.goElsewhere(traveller, trip, new Wording(label, place), player -> { });
+            return;
+        }
+        travel.go(traveller, target, trip, new Wording(label, null));
     }
 
     private String waitLeft(UUID traveller) {
@@ -240,17 +257,40 @@ public final class TravelService implements IWarpService {
          */
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
-            if (visits != null) {
-                visits.settle(traveller.getUniqueId());
-            }
-            warps.recordUse(traveller.getUniqueId());
             if (elsewhere != null) {
-                messages.send(traveller, "warps.travelling-away", "name", label, "server", elsewhere.server());
-                hop.send(traveller, elsewhere.server(), new Arrivals.Destination(elsewhere.world(), elsewhere.x(),
-                        elsewhere.y(), elsewhere.z(), elsewhere.yaw(), elsewhere.pitch()));
+                hopAway(traveller);
                 return;
             }
+            landed(traveller.getUniqueId());
             messages.send(traveller, "warps.arrived", "name", label);
+        }
+
+        private void landed(UUID who) {
+            if (visits != null) {
+                visits.settle(who);
+            }
+            warps.recordUse(who);
+        }
+
+        /** The fee and the wait are settled by how the hop ends: kept and started when they left, else refunded. */
+        private void hopAway(Player traveller) {
+            UUID who = traveller.getUniqueId();
+            messages.send(traveller, "warps.travelling-away", "name", label, "server", elsewhere.server());
+            hop.send(traveller, elsewhere.server(), new Arrivals.Destination(elsewhere.world(), elsewhere.x(),
+                            elsewhere.y(), elsewhere.z(), elsewhere.yaw(), elsewhere.pitch()))
+                    .exceptionally(failure -> false)
+                    .thenAccept(left -> {
+                        if (left) {
+                            Scheduling.entity(plugin, traveller, () -> landed(who), () -> landed(who));
+                        } else {
+                            Scheduling.entity(plugin, traveller, () -> paidBack(traveller),
+                                    () -> {
+                                        if (visits != null) {
+                                            visits.refund(who);
+                                        }
+                                    });
+                        }
+                    });
         }
 
         @Override

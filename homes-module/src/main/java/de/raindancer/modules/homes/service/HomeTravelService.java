@@ -6,6 +6,7 @@ import de.raindancer.core.social.economy.EconomyResult;
 import de.raindancer.core.social.economy.Fees;
 import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.platform.util.Cooldowns;
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.ui.effect.Cues;
 import de.raindancer.core.ui.effect.Effects;
 import de.raindancer.core.ui.messages.Messages;
@@ -20,11 +21,13 @@ import de.raindancer.modules.homes.util.PermissionNodes;
 import de.raindancer.core.platform.network.Arrivals;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.LongSupplier;
 
 /**
@@ -73,17 +76,27 @@ public final class HomeTravelService implements IHomeService {
 
     private volatile HomeSettings settings;
 
-    /** Sends a player to another server and lands them at a place; none on a server of its own. */
+    /**
+     * Sends a player to another server and lands them at a place; none on a server of its own.
+     * Completes true once they really left, false when they were not moved.
+     */
     @FunctionalInterface
     public interface Hop {
-        void send(Player player, String server, Arrivals.Destination destination);
+        CompletableFuture<Boolean> send(Player player, String server, Arrivals.Destination destination);
     }
 
     private volatile Hop hop;
+    private volatile Plugin plugin;
 
     /** Where a home on another server is travelled to; null leaves such homes unreachable. */
     public void acrossServers(Hop hop) {
+        acrossServers(hop, null);
+    }
+
+    /** The same, finishing a hop on the player's own scheduler of {@code plugin}. */
+    public void acrossServers(Hop hop, Plugin plugin) {
         this.hop = hop;
+        this.plugin = plugin;
     }
 
     public HomeTravelService(Travel travel, Messages messages, Effects effects, HomeSettings settings) {
@@ -136,8 +149,8 @@ public final class HomeTravelService implements IHomeService {
             return;
         }
         // Another server's home has no location here: the wait is stood on the spot, then they are sent on.
-        Location destination = away ? traveller.getLocation() : home.poi().location().orElse(null);
-        if (destination == null) {
+        Location destination = away ? null : home.poi().location().orElse(null);
+        if (!away && destination == null) {
             // Not a fault and not a reason to delete it: a multiverse server unloads worlds for
             // maintenance and the home works again when the world comes back.
             messages.send(traveller, "homes.world-not-loaded",
@@ -169,6 +182,10 @@ public final class HomeTravelService implements IHomeService {
         }
         if (!now.playSound()) {
             trip = trip.quiet();
+        }
+        if (away) {
+            travel.goElsewhere(traveller, trip, new Arriving(home), player -> { });
+            return;
         }
         travel.go(traveller, destination, trip, new Arriving(home));
     }
@@ -276,18 +293,38 @@ public final class HomeTravelService implements IHomeService {
          */
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
-            settle(traveller.getUniqueId());
-            waits.start(traveller.getUniqueId());
             if (!home.isHere()) {
-                messages.send(traveller, "homes.travelling-away", "name", home.name(), "server", home.server());
-                Poi poi = home.poi();
-                hop.send(traveller, poi.server(), new Arrivals.Destination(poi.world(), poi.x(), poi.y(), poi.z(),
-                        poi.yaw(), poi.pitch()));
+                hopAway(traveller);
                 return;
             }
+            settle(traveller.getUniqueId());
+            waits.start(traveller.getUniqueId());
             messages.send(traveller, "homes.arrived", "name", home.name());
             // The arrival sound is Core's now (Travel plays it, in the traveller's own choice if they
             // made one); the setting below only decides whether a home trip is quiet.
+        }
+
+        /** The fee and the wait are settled by how the hop ends: kept and started when they left, else refunded. */
+        private void hopAway(Player traveller) {
+            UUID who = traveller.getUniqueId();
+            messages.send(traveller, "homes.travelling-away", "name", home.name(), "server", home.server());
+            Poi poi = home.poi();
+            hop.send(traveller, poi.server(), new Arrivals.Destination(poi.world(), poi.x(), poi.y(), poi.z(),
+                            poi.yaw(), poi.pitch()))
+                    .exceptionally(failure -> false)
+                    .thenAccept(left -> {
+                        if (left) {
+                            Scheduling.entity(plugin, traveller, () -> landed(who), () -> landed(who));
+                        } else {
+                            Scheduling.entity(plugin, traveller, () -> told(traveller, refund(who)),
+                                    () -> refund(who));
+                        }
+                    });
+        }
+
+        private void landed(UUID who) {
+            settle(who);
+            waits.start(who);
         }
 
         @Override

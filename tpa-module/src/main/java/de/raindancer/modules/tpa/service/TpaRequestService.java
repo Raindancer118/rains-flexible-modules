@@ -73,10 +73,13 @@ public final class TpaRequestService implements ITpaService {
 
     private volatile TpaSettings settings;
 
-    /** Sends a player to another server and lands them at a place. */
+    /**
+     * Sends a player to another server and lands them at a place. Completes true once they really
+     * left, false when they were not moved.
+     */
     @FunctionalInterface
     public interface Hop {
-        void send(Player player, String server, Arrivals.Destination destination);
+        CompletableFuture<Boolean> send(Player player, String server, Arrivals.Destination destination);
     }
 
     private volatile TpaNetwork network;
@@ -770,7 +773,7 @@ public final class TpaRequestService implements ITpaService {
             messages.send(traveller, "tpa.already-travelling");
             return;
         }
-        travel.go(traveller, traveller.getLocation(), trip, new Arriving(towards, server, where));
+        travel.goElsewhere(traveller, trip, new Arriving(towards, server, where), player -> { });
     }
 
     /** Takes the price of a trip to another server — the cross-world price, as the distance means nothing. */
@@ -925,16 +928,35 @@ public final class TpaRequestService implements ITpaService {
 
         @Override
         public void arrived(Player traveller, Location where, Trip trip) {
+            if (elsewhere != null) {
+                hopAway(traveller);
+                return;
+            }
+            paid(traveller);
+            messages.send(traveller, "tpa.arrived", "player", towards);
+        }
+
+        private void paid(Player traveller) {
             TpaFees.Taken spent = fees.settle(traveller.getUniqueId());
             if (spent != null && spent.total().isPositive()) {
                 messages.send(traveller, "tpa.paid", "price", Fees.format(spent.total()));
             }
-            if (elsewhere != null) {
-                messages.send(traveller, "tpa.travelling-away", "player", towards, "server", server);
-                hop.send(traveller, server, elsewhere);
-                return;
-            }
-            messages.send(traveller, "tpa.arrived", "player", towards);
+        }
+
+        /** What was held is kept when the hop moved them and given back when it did not. */
+        private void hopAway(Player traveller) {
+            UUID who = traveller.getUniqueId();
+            messages.send(traveller, "tpa.travelling-away", "player", towards, "server", server);
+            hop.send(traveller, server, elsewhere)
+                    .exceptionally(failure -> false)
+                    .thenAccept(left -> {
+                        if (left) {
+                            Scheduling.entity(plugin, traveller, () -> paid(traveller), () -> fees.settle(who));
+                        } else {
+                            Scheduling.entity(plugin, traveller, () -> giveBack(traveller),
+                                    () -> fees.refundHeld(who));
+                        }
+                    });
         }
 
         @Override

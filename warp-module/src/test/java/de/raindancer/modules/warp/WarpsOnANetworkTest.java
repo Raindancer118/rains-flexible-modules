@@ -30,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -130,6 +132,7 @@ class WarpsOnANetworkTest {
         service.acrossServers((player, target, destination) -> {
             sentTo.add(target);
             landed.add(destination);
+            return CompletableFuture.completedFuture(true);
         });
         Player player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(ALEX);
@@ -138,7 +141,8 @@ class WarpsOnANetworkTest {
 
         service.goTo(player, "spawn");
         ArgumentCaptor<TravelWatcher> watcher = ArgumentCaptor.forClass(TravelWatcher.class);
-        verify(travel).go(eq(player), any(Location.class), any(Trip.class), watcher.capture());
+        verify(travel).goElsewhere(eq(player), any(Trip.class), watcher.capture(), any());
+        verify(travel, never()).go(any(), any(), any(), any());
         assertThat(sentTo).isEmpty();
         watcher.getValue().arrived(player, here, Trip.to("spawn"));
 

@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -157,6 +158,7 @@ class HomesOnANetworkTest {
         service.acrossServers((player, target, destination) -> {
             sentTo.add(target);
             landed.add(destination);
+            return CompletableFuture.completedFuture(true);
         });
         Player player = mock(Player.class);
         when(player.getUniqueId()).thenReturn(ALEX);
@@ -164,7 +166,8 @@ class HomesOnANetworkTest {
 
         service.go(player, home);
         ArgumentCaptor<TravelWatcher> watcher = ArgumentCaptor.forClass(TravelWatcher.class);
-        verify(travel).go(eq(player), any(Location.class), any(Trip.class), watcher.capture());
+        verify(travel).goElsewhere(eq(player), any(Trip.class), watcher.capture(), any());
+        verify(travel, never()).go(any(), any(), any(), any());
         assertThat(sentTo).as("nothing is sent before the wait is over").isEmpty();
         watcher.getValue().arrived(player, at(world), Trip.to("base"));
 

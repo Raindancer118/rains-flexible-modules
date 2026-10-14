@@ -52,7 +52,7 @@ import java.util.List;
  */
 public final class TpaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.7.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("tpa", "Teleport requests", "2.8.0")
             .describedAs("Ask somebody whether you may come to them, or whether they will come to "
                     + "you — and go back to where you were")
             .by("Raindancer118");
@@ -139,7 +139,8 @@ public final class TpaModule implements FlexModule {
         if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
             asking.connectNetwork(new TpaNetwork(TpaNetwork.Directory.of(context.core().networkPlayers().get()),
                     context.core().networkCalls().get()), (player, target, where) -> context.core().networkTravel()
-                    .ifPresent(travelling -> travelling.send(player, target, java.util.Optional.of(where))));
+                    .map(travelling -> travelling.travel(player, target, java.util.Optional.of(where)))
+                    .orElseGet(() -> java.util.concurrent.CompletableFuture.completedFuture(false)));
         }
 
         // Every setting is a snapshot, so a reload hands each service a fresh one. Missing one of these

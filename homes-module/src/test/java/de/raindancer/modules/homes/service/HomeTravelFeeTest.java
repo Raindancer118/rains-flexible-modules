@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -199,5 +200,84 @@ class HomeTravelFeeTest {
 
         assertThat(bank.balance(id)).isEqualTo(Fees.amount("10"));
         verify(travel, never()).go(any(), any(), any(), any());
+    }
+
+    private Home homeElsewhere() {
+        Poi poi = mock(Poi.class);
+        when(poi.server()).thenReturn("smp");
+        when(poi.world()).thenReturn("world");
+        Home away = mock(Home.class);
+        when(away.isHere()).thenReturn(false);
+        when(away.poi()).thenReturn(poi);
+        when(away.name()).thenReturn("base");
+        when(away.server()).thenReturn("smp");
+        return away;
+    }
+
+    private HomeTravelService acrossServers(CompletableFuture<Boolean> hopped) {
+        HomeTravelService service = new HomeTravelService(travel, messages,
+                new Effects(mock(EffectSink.class), () -> 0L),
+                HomeSettings.DEFAULTS.withTeleportPrice("3").withCooldownSeconds(60));
+        service.acrossServers((who, server, where) -> hopped);
+        return service;
+    }
+
+    private TravelWatcher awayWatcher() {
+        ArgumentCaptor<TravelWatcher> captor = ArgumentCaptor.forClass(TravelWatcher.class);
+        verify(travel).goElsewhere(eq(player), any(Trip.class), captor.capture(), any());
+        verify(travel, never()).go(any(), any(), any(), any());
+        return captor.getValue();
+    }
+
+    @Test
+    @DisplayName("a trip to another server is waited out with goElsewhere, not a self-teleport")
+    void awayUsesGoElsewhere() {
+        FakeEconomy.install().give(id, "10");
+        acrossServers(new CompletableFuture<>()).go(player, homeElsewhere());
+
+        awayWatcher();
+    }
+
+    @Test
+    @DisplayName("a hop that did not move the player refunds the fee and starts no wait")
+    void hopFailedRefunds() {
+        FakeEconomy bank = FakeEconomy.install().give(id, "10");
+        HomeTravelService service = acrossServers(CompletableFuture.completedFuture(false));
+        service.go(player, homeElsewhere());
+
+        awayWatcher().arrived(player, new Location(world, 1, 2, 3), Trip.to("base"));
+
+        assertThat(bank.balance(id)).isEqualTo(Fees.amount("10"));
+        assertThat(service.isReady(player)).isTrue();
+        verify(messages).send(eq(player), eq("homes.teleport.refunded"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("a hop that moved the player keeps the fee and starts the wait")
+    void hopSucceededKeepsFee() {
+        FakeEconomy bank = FakeEconomy.install().give(id, "10");
+        HomeTravelService service = acrossServers(CompletableFuture.completedFuture(true));
+        service.go(player, homeElsewhere());
+
+        awayWatcher().arrived(player, new Location(world, 1, 2, 3), Trip.to("base"));
+
+        assertThat(bank.balance(id)).isEqualTo(Fees.amount("7"));
+        assertThat(service.isReady(player)).isFalse();
+        verify(messages, never()).send(eq(player), eq("homes.teleport.refunded"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("the fee is held and the wait not started until the hop completes")
+    void hopPending() {
+        FakeEconomy bank = FakeEconomy.install().give(id, "10");
+        CompletableFuture<Boolean> hopped = new CompletableFuture<>();
+        HomeTravelService service = acrossServers(hopped);
+        service.go(player, homeElsewhere());
+        awayWatcher().arrived(player, new Location(world, 1, 2, 3), Trip.to("base"));
+
+        assertThat(service.isReady(player)).isTrue();
+        hopped.complete(false);
+
+        assertThat(bank.balance(id)).isEqualTo(Fees.amount("10"));
     }
 }

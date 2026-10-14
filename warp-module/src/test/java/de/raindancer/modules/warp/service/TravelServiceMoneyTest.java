@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -228,5 +229,68 @@ class TravelServiceMoneyTest {
         service(settings("0", "0", 0)).go(visitor, warp("10", false));
 
         verify(travel).go(any(), any(Location.class), any(), any());
+    }
+
+    private Warp warpElsewhere(String fee) {
+        Poi poi = mock(Poi.class);
+        when(poi.name()).thenReturn("shop");
+        when(poi.isHere()).thenReturn(false);
+        when(poi.server()).thenReturn("smp");
+        when(poi.world()).thenReturn("world");
+        when(poi.label()).thenReturn("shop");
+        when(poi.owner()).thenReturn(ownerId);
+        when(poi.tag(anyString())).thenReturn(Optional.empty());
+        when(poi.tag(Warp.TAG_VISIT_FEE)).thenReturn(Optional.of(String.valueOf(Fees.amount(fee).minor())));
+        return new Warp(poi);
+    }
+
+    private TravelService acrossServers(CompletableFuture<Boolean> hopped) {
+        WarpSettings settings = settings("0", "20", 10).withCooldownSeconds(60);
+        TravelService service = service(settings);
+        service.settings(settings);
+        service.acrossServers((who, server, where) -> hopped);
+        return service;
+    }
+
+    private TravelWatcher awayWatcher() {
+        ArgumentCaptor<TravelWatcher> captor = ArgumentCaptor.forClass(TravelWatcher.class);
+        verify(travel).goElsewhere(any(), any(), captor.capture(), any());
+        verify(travel, never()).go(any(), any(), any(), any());
+        return captor.getValue();
+    }
+
+    @Test
+    @DisplayName("a hop that did not move the visitor gives the fee back and starts no wait")
+    void hopFailedRefunds() {
+        FakeEconomy bank = FakeEconomy.install();
+        Player visitor = player(PermissionNodes.USE);
+        bank.give(visitor.getUniqueId(), "50").give(ownerId, "0");
+        TravelService service = acrossServers(CompletableFuture.completedFuture(false));
+
+        service.go(visitor, warpElsewhere("10"));
+        awayWatcher().arrived(visitor, new Location(world, 1, 2, 3), Trip.to("shop"));
+
+        assertThat(bank.balance(visitor.getUniqueId())).isEqualTo(Fees.amount("50"));
+        assertThat(bank.balance(ownerId)).isEqualTo(Fees.amount("0"));
+        verify(messages).send(eq(visitor), eq("warps.visit.refunded"), any(Object[].class));
+        service.go(visitor, warpElsewhere("10"));
+        verify(messages, never()).send(eq(visitor), eq("warps.on-cooldown"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("a hop that moved the visitor keeps the fee and starts the wait")
+    void hopSucceededKeepsFee() {
+        FakeEconomy bank = FakeEconomy.install();
+        Player visitor = player(PermissionNodes.USE);
+        bank.give(visitor.getUniqueId(), "50").give(ownerId, "0");
+        TravelService service = acrossServers(CompletableFuture.completedFuture(true));
+
+        service.go(visitor, warpElsewhere("10"));
+        awayWatcher().arrived(visitor, new Location(world, 1, 2, 3), Trip.to("shop"));
+
+        assertThat(bank.balance(visitor.getUniqueId())).isEqualTo(Fees.amount("40"));
+        assertThat(bank.balance(ownerId)).isEqualTo(Fees.amount("9"));
+        service.go(visitor, warpElsewhere("10"));
+        verify(messages).send(eq(visitor), eq("warps.on-cooldown"), any(Object[].class));
     }
 }

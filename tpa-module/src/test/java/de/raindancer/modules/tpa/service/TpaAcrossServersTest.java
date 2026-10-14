@@ -6,6 +6,11 @@ import de.raindancer.core.platform.network.Arrivals;
 import de.raindancer.core.platform.network.LocalBus;
 import de.raindancer.core.platform.network.NetworkCalls;
 import de.raindancer.core.platform.network.Presence;
+import de.raindancer.core.social.economy.Currency;
+import de.raindancer.core.social.economy.Economies;
+import de.raindancer.core.social.economy.Economy;
+import de.raindancer.core.social.economy.EconomyResult;
+import de.raindancer.core.social.economy.Money;
 import de.raindancer.core.ui.chat.ChatButtons;
 import de.raindancer.core.ui.messages.Messages;
 import de.raindancer.core.world.teleport.Travel;
@@ -35,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
@@ -42,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,6 +73,7 @@ class TpaAcrossServersTest {
         final List<String> sentTo = new ArrayList<>();
         final List<Arrivals.Destination> landed = new ArrayList<>();
         final TpaRequestService service;
+        volatile CompletableFuture<Boolean> hopped = CompletableFuture.completedFuture(true);
 
         Side(String id) {
             this.id = id;
@@ -82,6 +90,7 @@ class TpaAcrossServersTest {
             service.connectNetwork(new TpaNetwork(directory(id, true), networkCalls), (player, target, where) -> {
                 sentTo.add(target);
                 landed.add(where);
+                return hopped;
             });
         }
 
@@ -143,6 +152,90 @@ class TpaAcrossServersTest {
     @AfterEach
     void close() {
         calls.forEach(NetworkCalls::close);
+        Economies.clear();
+    }
+
+    private static final class Bank implements Economy {
+        final Map<UUID, Money> balances = new ConcurrentHashMap<>();
+
+        public String name() {
+            return "bank";
+        }
+
+        public Currency currency() {
+            return Currency.DEFAULT;
+        }
+
+        public boolean hasAccount(UUID player) {
+            return true;
+        }
+
+        public Money balance(UUID player) {
+            return balances.getOrDefault(player, Money.ZERO);
+        }
+
+        public EconomyResult deposit(UUID player, Money amount, String reason) {
+            balances.merge(player, amount, Money::plus);
+            return EconomyResult.done(amount, balance(player));
+        }
+
+        public EconomyResult withdraw(UUID player, Money amount, String reason) {
+            if (!balance(player).isAtLeast(amount)) {
+                return EconomyResult.failed(EconomyResult.Outcome.NOT_ENOUGH, amount, balance(player));
+            }
+            balances.merge(player, amount.negate(), Money::plus);
+            return EconomyResult.done(amount, balance(player));
+        }
+
+        public EconomyResult transfer(UUID from, UUID to, Money amount, String reason) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** Steve on smp, with a price on trips to another server, asks Alex and is accepted; the hop ends as given. */
+    private Bank acceptedForAFee(Boolean hopEnds) throws Exception {
+        Bank bank = new Bank();
+        bank.balances.put(steve.getUniqueId(), Money.of(2000));
+        Economies.provide(mock(Plugin.class), bank);
+        smp.service.settings(TpaSettings.DEFAULTS.withWarmupSeconds(0).withCrossWorldPrice("5"));
+        smp.hopped = hopEnds == null ? new CompletableFuture<>() : CompletableFuture.completedFuture(hopEnds);
+        smp.service.askElsewhere(steve, smp.service.findElsewhere("Alex").orElseThrow(), TpaKind.TO);
+        eventually(() -> arena.requests.has(steve.getUniqueId(), alex.getUniqueId()));
+        arena.service.accept(alex, steve.getUniqueId());
+        eventually(() -> !smp.requests.has(steve.getUniqueId(), alex.getUniqueId()));
+        arrive(smp.travel, steve);
+        return bank;
+    }
+
+    @Test
+    @DisplayName("a hop that did not move the traveller gives the fee back and says so")
+    void hopFailedRefunds() throws Exception {
+        Bank bank = acceptedForAFee(false);
+
+        assertThat(bank.balance(steve.getUniqueId())).isEqualTo(Money.of(2000));
+        verify(smp.messages).send(eq(steve), eq("tpa.refunded"), any(Object[].class));
+        verify(smp.messages, never()).send(eq(steve), eq("tpa.paid"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("a hop that moved the traveller keeps the fee")
+    void hopSucceededKeepsFee() throws Exception {
+        Bank bank = acceptedForAFee(true);
+
+        assertThat(bank.balance(steve.getUniqueId())).isLessThan(Money.of(2000));
+        verify(smp.messages).send(eq(steve), eq("tpa.paid"), any(Object[].class));
+        verify(smp.messages, never()).send(eq(steve), eq("tpa.refunded"), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("the fee stays held until the hop completes, and a second trip is refused meanwhile")
+    void feeHeldWhileHopping() throws Exception {
+        Bank bank = acceptedForAFee(null);
+
+        assertThat(bank.balance(steve.getUniqueId())).isLessThan(Money.of(2000));
+        verify(smp.messages, never()).send(eq(steve), eq("tpa.refunded"), any(Object[].class));
+        smp.hopped.complete(false);
+        assertThat(bank.balance(steve.getUniqueId())).isEqualTo(Money.of(2000));
     }
 
     private static void eventually(BooleanSupplier condition) throws InterruptedException {
@@ -155,14 +248,15 @@ class TpaAcrossServersTest {
     private static void arrive(Travel travel, Player traveller) throws InterruptedException {
         eventually(() -> {
             try {
-                verify(travel).go(eq(traveller), any(Location.class), any(Trip.class), any(TravelWatcher.class));
+                verify(travel).goElsewhere(eq(traveller), any(Trip.class), any(TravelWatcher.class), any());
                 return true;
             } catch (AssertionError notYet) {
                 return false;
             }
         });
         ArgumentCaptor<TravelWatcher> watcher = ArgumentCaptor.forClass(TravelWatcher.class);
-        verify(travel).go(eq(traveller), any(Location.class), any(Trip.class), watcher.capture());
+        verify(travel).goElsewhere(eq(traveller), any(Trip.class), watcher.capture(), any());
+        verify(travel, never()).go(any(), any(), any(), any());
         watcher.getValue().arrived(traveller, traveller.getLocation(), Trip.to("x"));
     }
 

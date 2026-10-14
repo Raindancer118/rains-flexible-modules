@@ -58,7 +58,7 @@ import java.util.List;
  */
 public final class WarpModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.8.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("warps", "Warps", "1.9.0")
             .describedAs("Named places anybody can be sent to, with a menu to pick one from — and "
                     + "warps only the staff, or one permission, can reach")
             .by("Raindancer118");
@@ -129,7 +129,8 @@ public final class WarpModule implements FlexModule {
         travelling = new TravelService(catalogue, registry, travel, access,
                 context.core().messages(), settings.current(), visits, rent);
         context.core().networkTravel().ifPresent(network -> travelling.acrossServers(
-                (player, target, where) -> network.send(player, target, java.util.Optional.of(where))));
+                (player, target, where) -> network.travel(player, target, java.util.Optional.of(where)),
+                context.plugin()));
         admin = new WarpAdminService(catalogue, access, context.core().messages(),
                 settings.current(), rent);
         // The token is Core's kind of item: Core draws it, dispatches the click and keeps it out of
