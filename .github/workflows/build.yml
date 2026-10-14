@@ -161,6 +161,7 @@ jobs:
                         pack:pack-standalone:RainsServerPack \
                         worldutils:worldutils-bundle:RainsWorldUtils \
                         speedrunserver:speedrun-bundle:RainsSpeedrunServer \
+                        proxy:network-proxy:RainsNetworkProxy \
                         yeuk:yeuksmp:YeukSMP; do
             rest="${plugin#*:}"
             dir="${rest%%:*}/target"
@@ -204,6 +205,7 @@ jobs:
             arenagate-standalone/target/RainsArenaGate-*.jar
             speedrun-bundle/target/RainsSpeedrunServer-*.jar
             yeuksmp/target/YeukSMP-*.jar
+            network-proxy/target/RainsNetworkProxy-*.jar
             !**/original-*.jar
           if-no-files-found: error
           retention-days: 30
@@ -242,6 +244,7 @@ jobs:
               "| YeukSMP (claims · tpa · warps · moderation · server pack · names, in one jar) | \`${{ steps.jars.outputs.yeuk_name }}\` | \`${{ steps.jars.outputs.yeuk_sha }}\` |" \
               "| Rain's World Utils (world gate · /w · /dim · worlds and seeds, in one jar) | \`${{ steps.jars.outputs.worldutils_name }}\` | \`${{ steps.jars.outputs.worldutils_sha }}\` |" \
               "| Rain's Speedrun Server (speedrun · manhunt · chat · world gate · world utils, in one jar — replaces those jars) | \`${{ steps.jars.outputs.speedrunserver_name }}\` | \`${{ steps.jars.outputs.speedrunserver_sha }}\` |" \
+              "| Rain's Network Proxy (Velocity: bans at the door, /hub, a closing server's players wait on the hub) | \`${{ steps.jars.outputs.proxy_name }}\` | \`${{ steps.jars.outputs.proxy_sha }}\` |" \
               "" \
               "**YeukSMP replaces the six it contains — it does not go beside them.** Two copies of a" \
               "module on one server is two sets of listeners on the same event." \
@@ -281,6 +284,8 @@ jobs:
             "${{ steps.jars.outputs.worldutils_jar }}.sha256" \
             "${{ steps.jars.outputs.speedrunserver_jar }}" \
             "${{ steps.jars.outputs.speedrunserver_jar }}.sha256" \
+            "${{ steps.jars.outputs.proxy_jar }}" \
+            "${{ steps.jars.outputs.proxy_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Latest build" \
             --notes-file notes.md \
@@ -314,6 +319,8 @@ jobs:
             "${{ steps.jars.outputs.worldutils_jar }}.sha256" \
             "${{ steps.jars.outputs.speedrunserver_jar }}" \
             "${{ steps.jars.outputs.speedrunserver_jar }}.sha256" \
+            "${{ steps.jars.outputs.proxy_jar }}" \
+            "${{ steps.jars.outputs.proxy_jar }}.sha256" \
             --repo "${{ github.repository }}" \
             --title "Build ${{ github.run_number }}" \
             --notes-file notes.md \
