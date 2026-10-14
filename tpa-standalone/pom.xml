@@ -51,7 +51,8 @@
         <!-- 2.8.1: leaving this server for a cross-server hop no longer refunds the fee, and no second trip can start while the hop is under way. -->
         <!-- 2.9.0: /back follows the player across the network: a place on another server is reached with a hop after the wait. -->
         <!-- 2.9.1: its cooldown follows the player across the network. -->
-        <plugin.version>2.9.1</plugin.version>
+        <!-- 2.9.2: tpa.yml is Core's KeyedDocument (no change in behaviour); unused save() removed. -->
+        <plugin.version>2.9.2</plugin.version>
     </properties>
 
     <dependencies>

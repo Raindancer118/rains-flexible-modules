@@ -36,4 +36,27 @@ class TpaPrefsFileTest {
         assertThat(old.of(who).accepting()).isFalse();
         assertThat(old.of(who).autoAccept()).isFalse();
     }
+
+    @Test
+    @DisplayName("a file that cannot be read is never written over, and a block is written with the names for people")
+    void unreadableIsLeftAlone() throws Exception {
+        UUID who = UUID.randomUUID();
+        UUID pest = UUID.randomUUID();
+        Path file = folder.resolve("tpa.yml");
+        String broken = "players:\n  " + who + ":\n    blocked: [unclosed\n";
+        Files.writeString(file, broken);
+        TpaPrefsFile prefs = new TpaPrefsFile(file);
+        prefs.load();
+
+        assertThat(prefs.isReadable()).isFalse();
+        assertThat(prefs.change(who, "Alex", now -> now.blocking(pest))).isFalse();
+        assertThat(Files.readString(file)).isEqualTo(broken);
+
+        Files.writeString(file, "");
+        prefs.load();
+        prefs.seen(pest, "Pest");
+        assertThat(prefs.change(who, "Alex", now -> now.blocking(pest))).isTrue();
+        assertThat(prefs.of(who).blocked()).containsExactly(pest);
+        assertThat(Files.readString(file)).contains("name: Alex").contains(pest + ": Pest");
+    }
 }
