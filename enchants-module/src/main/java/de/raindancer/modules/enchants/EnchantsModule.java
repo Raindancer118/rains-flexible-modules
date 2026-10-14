@@ -50,7 +50,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.9.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.10.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -106,6 +106,9 @@ public final class EnchantsModule implements FlexModule {
         context.listener(new AirListener(air, wornEffects));
         context.listener(new VeinAdvancementListener(advancements));
         context.listener(new ElytraListener(elytra));
+        context.listener(new de.raindancer.modules.enchants.listener.HeatSeekingListener(
+                new de.raindancer.modules.enchants.service.HeatSeekingService(context.plugin(), context.core().combat(),
+                        context.core().messages(), context.core().effects(), advancements)));
         context.listener(new ToolListener(tools, links));
         context.listener(new TabListener(advancements));
         ShardWorldService shardWorlds = new ShardWorldService(settings::current, context.log());

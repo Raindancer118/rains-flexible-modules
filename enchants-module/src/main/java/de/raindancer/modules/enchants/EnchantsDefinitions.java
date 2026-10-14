@@ -45,6 +45,8 @@ public final class EnchantsDefinitions {
                 EnchantDef.builder(RainsEnchants.TELEKINESIS).name("<aqua>Telekinesis").maxLevel(1)
                         .gear(Gear.HAND_TOOLS).anvilCost(4).exclusiveWith(RainsEnchants.CHEST_LINK).build(),
                 EnchantDef.builder(RainsEnchants.CHEST_LINK).name("<dark_purple>Chest Link").maxLevel(1)
-                        .gear(Gear.DIGGING_TOOLS).anvilCost(6).build());
+                        .gear(Gear.DIGGING_TOOLS).anvilCost(6).build(),
+                EnchantDef.builder(RainsEnchants.HEAT_SEEKING).name("<red>Heat-seeking").maxLevel(3)
+                        .gear(Gear.RANGED).anvilCost(8).build());
     }
 }

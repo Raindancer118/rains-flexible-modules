@@ -30,7 +30,8 @@
         <!-- 0.7.0: thunderstorms in the shard world, 70 % of the time by default (shard-world-thunder-percent, rolled every five minutes); Boost may be set up to 1000 % of a rocket. -->
         <!-- 0.8.0: a dark red haze drifts around players in the shard world (shard-world-haze specks every half second). -->
         <!-- 0.9.0: the shard world is purple — sky, fog, clouds and light — from purple copies of the game's biomes in a datapack written at bootstrap; each chunk is switched to them once. -->
-        <plugin.version>0.9.0</plugin.version>
+        <!-- 0.10.0: Heat-seeking (bows, crossbows, tridents, I–III): a shot locks onto the creature nearest the aim that the shooter may hurt and flies into it. -->
+        <plugin.version>0.10.0</plugin.version>
     </properties>
 
     <dependencies>

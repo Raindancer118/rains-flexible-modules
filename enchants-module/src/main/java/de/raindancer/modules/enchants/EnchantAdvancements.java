@@ -90,6 +90,8 @@ public final class EnchantAdvancements {
                 "Have drops fly straight into your inventory", AdvancementFrame.TASK, 1);
         child("chest_link", "root", Material.ENDER_CHEST, "Special Delivery",
                 "Send what you mined to a linked chest", AdvancementFrame.TASK, 1);
+        child("heat_seeking", "root", Material.SPECTRAL_ARROW, "Fox Two",
+                "Hit something with a heat-seeking shot", AdvancementFrame.TASK, 1);
         child("shardlands", "root", Material.CRYING_OBSIDIAN, "Into the Dark",
                 "Step through a portal into the shard world", AdvancementFrame.TASK, 1);
         child("first_shard", "shardlands", Material.ECHO_SHARD, "Shard Hunter",

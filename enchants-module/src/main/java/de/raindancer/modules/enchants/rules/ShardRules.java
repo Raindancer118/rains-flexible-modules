@@ -25,7 +25,8 @@ public final class ShardRules {
                 RainsEnchants.AUTO_SELL, RainsEnchants.BOOST}) {
             WEIGHTS.put(key, UNCOMMON);
         }
-        for (String key : new String[]{RainsEnchants.FLIGHT, RainsEnchants.LAUNCH, RainsEnchants.SOULBOUND}) {
+        for (String key : new String[]{RainsEnchants.FLIGHT, RainsEnchants.LAUNCH, RainsEnchants.SOULBOUND,
+                RainsEnchants.HEAT_SEEKING}) {
             WEIGHTS.put(key, RARE);
         }
     }

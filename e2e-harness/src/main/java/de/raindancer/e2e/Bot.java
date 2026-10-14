@@ -858,6 +858,13 @@ public final class Bot {
         return this;
     }
 
+    /** Lets go of the use key: looses a drawn bow, throws a trident held back. */
+    public Bot releaseUse() {
+        session.send(new ServerboundPlayerActionPacket(PlayerAction.RELEASE_USE_ITEM, Vector3i.ZERO, Direction.DOWN,
+                sequence.incrementAndGet()));
+        return this;
+    }
+
     /** Right-clicks the top of the block at {@code x y z} with whatever is held — opens a chest, presses a button. */
     public Bot useOn(int x, int y, int z) {
         session.send(new org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundUseItemOnPacket(

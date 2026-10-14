@@ -21,7 +21,10 @@ class EnchantsDefinitionsTest {
                 RainsEnchants.VEINMINER, RainsEnchants.NIGHT_VISION, RainsEnchants.FLIGHT, RainsEnchants.DOUBLE_JUMP,
                 RainsEnchants.AUTO_SELL, RainsEnchants.BOOST, RainsEnchants.LAUNCH, RainsEnchants.SWIFTNESS,
                 RainsEnchants.HASTE, RainsEnchants.SOULBOUND, RainsEnchants.WISDOM, RainsEnchants.EXCAVATOR,
-                RainsEnchants.HARVESTER, RainsEnchants.SMELTING, RainsEnchants.TELEKINESIS, RainsEnchants.CHEST_LINK);
+                RainsEnchants.HARVESTER, RainsEnchants.SMELTING, RainsEnchants.TELEKINESIS, RainsEnchants.CHEST_LINK,
+                RainsEnchants.HEAT_SEEKING);
+        assertThat(def(RainsEnchants.HEAT_SEEKING).gear()).isEqualTo(Gear.RANGED);
+        assertThat(def(RainsEnchants.HEAT_SEEKING).maxLevel()).isEqualTo(3);
     }
 
     @Test

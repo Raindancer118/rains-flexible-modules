@@ -11,6 +11,7 @@ enchants:
   boost-charges: "<aqua>Boost! <gray><white><left></white> of <white><of></white> charges left."
   boost-empty: "<gray>Boost is recharging. Next charge in <white><time></white>."
   launch-cooldown: "<gray>Launch is ready again in <white><time></white>."
+  heat-seeking-locked: "<red>⌖ <gray>Locked on: <white><target></white>"
   soulbound-kept: "<light_purple>Soulbound kept <white><count></white> of your things with you."
   link-set: "<green>Linked to the chest at <white><x> <y> <z></white>. What this tool mines goes there now."
   link-denied: "<red>You can only link a chest you are allowed to open."
