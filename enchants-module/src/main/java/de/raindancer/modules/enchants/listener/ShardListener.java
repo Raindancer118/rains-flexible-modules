@@ -4,6 +4,7 @@ import de.raindancer.modules.enchants.service.ShardDropService;
 import de.raindancer.modules.enchants.service.ShardMobService;
 import de.raindancer.modules.enchants.service.ShardPortalService;
 import de.raindancer.modules.enchants.service.ShardWorldService;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,6 +17,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
@@ -37,10 +39,28 @@ public final class ShardListener implements IEnchantsListener {
         this.mobs = mobs;
     }
 
-    /** After everybody else had their say about the spawn: only monsters that really come get a kind. */
+    /** Nothing harmless lives in the shard world. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onArrival(CreatureSpawnEvent event) {
+        if (mobs.refused(event.getEntity(), event.getSpawnReason())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** After everybody else had their say about the spawn: only creatures that really come get a kind. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSpawn(CreatureSpawnEvent event) {
         mobs.spawned(event.getEntity(), event.getSpawnReason());
+    }
+
+    /** A chunk of the shard world came back: its always-angry creatures hunt again. */
+    @EventHandler
+    public void onLoad(EntitiesLoadEvent event) {
+        event.getEntities().forEach(entity -> {
+            if (entity instanceof LivingEntity living) {
+                mobs.loaded(living);
+            }
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

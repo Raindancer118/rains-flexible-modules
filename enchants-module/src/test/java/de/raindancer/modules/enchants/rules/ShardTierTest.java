@@ -52,4 +52,12 @@ class ShardTierTest {
         assertThat(ShardTier.of(null)).isEqualTo(ShardTier.SHADOWED);
         assertThat(ShardTier.of("nonsense")).isEqualTo(ShardTier.SHADOWED);
     }
+
+    @Test
+    @DisplayName("the whole name is in the tier's colour, the creature's own name inside it")
+    void coloured() {
+        for (ShardTier tier : ShardTier.values()) {
+            assertThat(tier.title()).as(tier.name()).startsWith("<").endsWith("<name>");
+        }
+    }
 }

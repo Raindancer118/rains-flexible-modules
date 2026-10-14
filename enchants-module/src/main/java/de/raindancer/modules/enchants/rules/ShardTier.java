@@ -8,10 +8,10 @@ import java.util.random.RandomGenerator;
  * how many shards it drops — the harder, the more, and the likelier a rare enchantment's shard.
  */
 public enum ShardTier {
-    SHADOWED("<gray>Shadowed", 60, 1.0, 0, 1.0, 0, 1, 1, 1),
-    SHARDBORN("<light_purple>Shardborn", 28, 1.5, 2, 1.05, 2, 2, 2, 1),
-    CRYSTAL("<aqua>Crystal", 10, 2.5, 4, 1.15, 6, 3, 4, 2),
-    TYRANT("<gold><bold>Shard Tyrant</bold>", 2, 5.0, 8, 1.2, 12, 6, 8, 4);
+    SHADOWED("<gray>Shadowed <name>", 60, 1.0, 0, 1.0, 0, 1, 1, 1),
+    SHARDBORN("<light_purple>Shardborn <name>", 28, 1.5, 2, 1.05, 2, 2, 2, 1),
+    CRYSTAL("<aqua>Crystal <name>", 10, 2.5, 4, 1.15, 6, 3, 4, 2),
+    TYRANT("<gold><bold>Shard Tyrant</bold> <name>", 2, 5.0, 8, 1.2, 12, 6, 8, 4);
 
     private final String title;
     private final int weight;
@@ -66,7 +66,7 @@ public enum ShardTier {
         return name().toLowerCase(Locale.ROOT);
     }
 
-    /** MiniMessage, put in front of the monster's own name. */
+    /** MiniMessage of the whole name, in the tier's colour; {@code <name>} is the creature's own, as the game words it. */
     public String title() {
         return title;
     }

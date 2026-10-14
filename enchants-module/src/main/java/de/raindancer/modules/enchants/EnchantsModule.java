@@ -48,7 +48,7 @@ public final class EnchantsModule implements FlexModule {
     /** Chest Link drops are gathered this many ticks before they are sent. */
     private static final int LINK_EVERY = 20;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.5.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("enchants", "Enchants", "0.6.0")
             .describedAs("Sixteen real enchantments, their shards and the shard world, with advancements")
             .by("Raindancer118");
 
@@ -99,10 +99,11 @@ public final class EnchantsModule implements FlexModule {
         shardWorlds.ensure();
         ShardPortalService portals = new ShardPortalService(context.plugin(), context.core().land(), shardWorlds, settings::current,
                 advancements, context.core().messages(), context.core().effects());
+        ShardMobService shardMobs = new ShardMobService(context.plugin(), shardWorlds);
         context.listener(new ShardListener(shardWorlds, portals,
                 new ShardDropService(shardWorlds, settings::current, advancements, context.core().messages()),
-                new ShardMobService(shardWorlds)));
-        EnchantsCommands.ready(new EnchantsServices(context.plugin().getServer(), context.core().messages()));
+                shardMobs));
+        EnchantsCommands.ready(new EnchantsServices(context.plugin().getServer(), context.core().messages(), shardMobs));
 
         int[] beat = {0};
         var timer = Scheduling.globalTimer(context.plugin(), 1, 1, task -> {

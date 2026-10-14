@@ -43,6 +43,10 @@ public final class EnchantsCommand implements BasicCommand {
             shard(live, sender, args);
             return;
         }
+        if (first.equals("shardmob")) {
+            shardMob(live, sender, args);
+            return;
+        }
         if (!first.equals("give") || args.length < 3 || !sender.hasPermission(PermissionNodes.GIVE)) {
             live.messages().send(sender, "enchants.usage");
             return;
@@ -80,6 +84,29 @@ public final class EnchantsCommand implements BasicCommand {
 
     private static boolean staffWord(String word) {
         return word.equalsIgnoreCase("give") || word.equalsIgnoreCase("shard");
+    }
+
+    /** {@code /enchants shardmob <mob> <player>} — a creature next to them, as if it had come by itself. */
+    private static void shardMob(EnchantsServices live, CommandSender sender, String[] args) {
+        if (args.length < 3 || !sender.hasPermission(PermissionNodes.GIVE)) {
+            live.messages().send(sender, "enchants.shardmob-usage");
+            return;
+        }
+        Player target = live.server().getPlayerExact(args[2]);
+        if (target == null) {
+            live.messages().send(sender, "enchants.not-online", "player", args[2]);
+            return;
+        }
+        org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(args[1].toLowerCase(Locale.ROOT));
+        org.bukkit.entity.EntityType type = key == null ? null : org.bukkit.Registry.ENTITY_TYPE.get(key);
+        if (type == null) {
+            live.messages().send(sender, "enchants.shardmob-unknown", "mob", args[1]);
+            return;
+        }
+        live.shardMobs().summon(target, type).ifPresentOrElse(
+                made -> live.messages().send(sender, "enchants.shardmob-made", "mob", type.getKey().getKey(),
+                        "player", target.getName()),
+                () -> live.messages().send(sender, "enchants.shardmob-refused", "mob", type.getKey().getKey()));
     }
 
     /** {@code /enchants shard <player> <enchantment> [amount]} — for staff, events and tests. */
@@ -121,7 +148,7 @@ public final class EnchantsCommand implements BasicCommand {
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
         String typed = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
         List<String> options = switch (args.length) {
-            case 0, 1 -> source.getSender().hasPermission(PermissionNodes.GIVE) ? List.of("list", "give", "shard")
+            case 0, 1 -> source.getSender().hasPermission(PermissionNodes.GIVE) ? List.of("list", "give", "shard", "shardmob")
                     : List.of("list");
             case 2 -> staffWord(args[0]) && source.getSender().hasPermission(PermissionNodes.GIVE)
                     ? services.get().server().getOnlinePlayers().stream().map(Player::getName).toList() : List.of();

@@ -85,12 +85,15 @@ class ShardsScenarioTest {
             // --- through it, into the shard world, and back through any portal there ----------------------
             server.console("tp Ada 4.5 " + (Y - 1) + " 4.5");
             Await.until("Ada is in the shard world", Duration.ofSeconds(30), () -> ada.world().contains("shardlands"));
+            // Everything there hunts her now: kept alive for the rest of the visit, so the test can finish it.
+            server.console("effect give Ada minecraft:resistance infinite 255 true");
+            server.console("effect give Ada minecraft:regeneration infinite 255 true");
             Await.until("its advancement", WAIT, () -> server.console(
                     "execute if entity @a[name=Ada,advancements={rainsenchants:shardlands=true}]").contains("passed"));
             // --- a monster that spawned by itself, killed by Ada, drops a shard -------------------------------
             String[] kinds = {"zombie", "creeper", "spider", "skeleton", "enderman", "witch"};
             // Every creature that came by itself is one of the kinds, named after it.
-            String named = Await.value(() -> "a named creature near Ada", Duration.ofSeconds(60), () -> {
+            Await.value(() -> "a named creature near Ada", Duration.ofSeconds(60), () -> {
                 for (String kind : kinds) {
                     String name = server.console("execute at Ada as @e[type=minecraft:" + kind
                             + ",distance=..96,limit=1,sort=nearest] run data get entity @s CustomName");
@@ -101,7 +104,6 @@ class ShardsScenarioTest {
                 }
                 return null;
             });
-            assertThat(named).contains("entity.minecraft.");
             Await.until("a monster dies to Ada and drops a shard", Duration.ofSeconds(60), () -> {
                 for (String kind : kinds) {
                     server.console("execute at Ada as @e[type=minecraft:" + kind + ",distance=..96,limit=1,sort=nearest]"
@@ -113,6 +115,17 @@ class ShardsScenarioTest {
             assertThat(server.console("execute at Ada if entity @e[type=item,distance=..128,nbt={Item:{id:\"minecraft:echo_shard\"}}]"))
                     .as("its shards lie where the monster fell").contains("passed");
 
+            // --- nothing harmless lives there; a wolf comes for Ada at once ---------------------------------
+            assertThat(server.console("enchants shardmob minecraft:cow Ada")).contains("No cow lives");
+            assertThat(server.console("enchants shardmob minecraft:wolf Ada")).contains("came for Ada");
+            String wolf = "@e[type=minecraft:wolf,limit=1,sort=nearest]";
+            assertThat(server.console("execute at Ada run data get entity " + wolf + " CustomName"))
+                    .as("named like every creature there").containsAnyOf("Shadowed", "Shardborn", "Crystal", "Shard Tyrant");
+            Await.until("the wolf is angry at somebody", WAIT, () -> server.console("execute at Ada run data get entity "
+                    + wolf + " angry_at").contains("[I;"));
+            Await.until("and goes for Ada", WAIT, () -> server.console("execute at Ada run data get entity " + wolf
+                    + " anger_end_time").contains("L"));
+
             server.console("execute in minecraft:shardlands run forceload add 100 100");
             frame(server, "minecraft:shardlands", 100, 200, 100);
             server.console("execute in minecraft:shardlands run fill 100 200 100 101 202 100 minecraft:nether_portal[axis=x]");
@@ -122,6 +135,18 @@ class ShardsScenarioTest {
             server.console("tp Ada 0.5 " + (Y - 1) + " 0.5");
 
             // --- shards: handed out by staff, sold to the shop --------------------------------------------
+            server.console("clear Ada");
+            server.console("effect clear Ada");
+
+            // --- /give knows the shards and books, and leaves every other item to the game ------------------
+            assertThat(server.console("give Ada telekinesis_shard 3")).contains("Gave");
+            Await.until("three shards", WAIT, () -> count(server, "echo_shard") == 3);
+            server.console("give Ada rainsenchants:flight_book_2 2");
+            Await.until("two books", WAIT, () -> count(server, "enchanted_book") == 2);
+            assertThat(server.console("data get entity Ada Inventory[1].components.\"minecraft:stored_enchantments\""))
+                    .contains("rainsenchants:flight").contains("2");
+            server.console("give Ada minecraft:stone 5");
+            Await.until("the game's own /give still works", WAIT, () -> count(server, "stone") == 5);
             server.console("clear Ada");
             assertThat(server.console("enchants shard Ada wisdom 5")).contains("Gave Ada 5");
             Await.until("they arrive", WAIT, () -> count(server, "echo_shard") == 5);

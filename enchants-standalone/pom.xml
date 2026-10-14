@@ -25,7 +25,7 @@
         <plugin.name>RainsEnchants</plugin.name>
         <!-- 0.1.0: Veinminer, Night Vision, Flight and Double Jump as enchantments; advancements for them. -->
         <!-- 0.2.0: the flight charge and flown time follow the player across the network. -->
-        <plugin.version>0.5.0</plugin.version>
+        <plugin.version>0.6.0</plugin.version>
     </properties>
 
     <dependencies>
