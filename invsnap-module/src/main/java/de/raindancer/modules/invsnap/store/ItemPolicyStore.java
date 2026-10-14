@@ -26,8 +26,12 @@ public final class ItemPolicyStore {
     private final Map<UUID, List<String>> returns = new LinkedHashMap<>();
 
     public ItemPolicyStore(Path dataFolder) {
-        this.policyFile = new YamlStore(dataFolder.resolve("item-policies.yml"));
-        this.returnFile = new YamlStore(dataFolder.resolve("item-returns.yml"));
+        this(new YamlStore(dataFolder.resolve("item-policies.yml")), new YamlStore(dataFolder.resolve("item-returns.yml")));
+    }
+
+    public ItemPolicyStore(YamlStore policyFile, YamlStore returnFile) {
+        this.policyFile = policyFile;
+        this.returnFile = returnFile;
         ConfigurationSection saved = policyFile.read().getConfigurationSection("policies");
         if (saved != null) {
             for (String id : saved.getKeys(false)) {

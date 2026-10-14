@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The staff notes about a player.
@@ -33,8 +32,6 @@ public final class NoteService implements IModerationService {
     private final NoteStorage storage;
     private final Audit audit;
 
-    private final AtomicBoolean dirty = new AtomicBoolean();
-
     private volatile ModerationSettings settings;
 
     public NoteService(Plugin plugin, NoteRegistry notes, NoteStorage storage, Audit audit,
@@ -43,15 +40,13 @@ public final class NoteService implements IModerationService {
         this.notes = notes;
         this.storage = storage;
         this.audit = audit;
+        this.storage.bind(notes);
         settings(settings);
     }
 
-    /** Reads what is on disk into the registry. Called once, when the module starts. */
+    /** Reads the notes into the registry. Called once, when the module starts. */
     public void load() {
-        notes.clear();
-        for (StaffNote note : storage.load()) {
-            notes.add(note);
-        }
+        storage.refresh();
     }
 
     /**
@@ -65,10 +60,8 @@ public final class NoteService implements IModerationService {
         if (subject == null || text == null || text.isBlank()) {
             return Optional.empty();
         }
-        StaffNote note = new StaffNote(notes.nextId(), subject, author, authorName, text,
-                Instant.now());
-        notes.add(note);
-        changed();
+        Instant now = Instant.now();
+        StaffNote note = storage.admit(id -> new StaffNote(id, subject, author, authorName, text, now));
         record("note-written", author, authorName, subject, subjectName, note.id(), text);
         return Optional.of(note);
     }
@@ -85,7 +78,7 @@ public final class NoteService implements IModerationService {
             return false;
         }
         StaffNote going = found.get();
-        notes.remove(id);
+        storage.drop(id);
         changed();
         record("note-removed", actor, actorName, going.subject(), null, going.id(), going.text());
         return true;
@@ -103,37 +96,22 @@ public final class NoteService implements IModerationService {
 
     // ---------------------------------------------------------------------------- writing
 
-    /** Marks the notes as needing writing, and asks for it off the server thread. */
+    /** Asks for what this server changed to be written, off the server thread. */
     public void changed() {
-        dirty.set(true);
-        Scheduling.async(plugin, this::flush);
+        Scheduling.async(plugin, storage::flush);
     }
 
     /**
-     * Writes if anything has changed.
-     *
-     * <p><b>Synchronised</b>, so two flushes cannot overlap — without it, an older snapshot can finish
-     * after a newer one and put the file back to what it said a moment ago. {@code YamlStore} makes
-     * each write atomic, which is a different promise from making two writes happen in order.
-     *
-     * <p>The flag is cleared before the snapshot: a change arriving during the write re-marks it and
-     * is picked up by the next pass, whereas clearing afterwards would swallow it.
+     * Writes what this server changed, and only that, onto what the database holds now — so a note written
+     * on another server in the meantime is never put back.
      */
-    public synchronized boolean flush() {
-        if (!dirty.getAndSet(false)) {
-            return false;
-        }
-        if (!storage.saveAll(notes.snapshot())) {
-            dirty.set(true);
-            return false;
-        }
-        return true;
+    public boolean flush() {
+        return storage.flush();
     }
 
-    /** Writes whatever is held, changed or not. For a shutdown, which has no next pass. */
-    public synchronized boolean flushNow() {
-        dirty.set(false);
-        return storage.saveAll(notes.snapshot());
+    /** For a shutdown, which has no next pass. */
+    public boolean flushNow() {
+        return storage.flush();
     }
 
     private void record(String action, UUID actor, String actorName, UUID subject, String subjectName,

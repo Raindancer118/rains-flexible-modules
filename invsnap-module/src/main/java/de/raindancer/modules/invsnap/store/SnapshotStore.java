@@ -1,11 +1,9 @@
 package de.raindancer.modules.invsnap.store;
 
+import de.raindancer.core.data.store.DocumentFolder;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.modules.invsnap.model.Snapshot;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,49 +13,65 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * One file per player, holding that player's whole snapshot history — the same shape {@code
+ * One document per player, holding that player's whole snapshot history — the same shape {@code
  * mannequin-module}'s {@code MannequinStore} uses for one file per mannequin, rather than a single
  * shared file every snapshot on the server would have to be read and rewritten through.
  */
 public final class SnapshotStore {
 
-    private final Path folder;
+    private static final String SUFFIX = ".yml";
+
+    private final DocumentFolder folder;
 
     public SnapshotStore(Path dataFolder) {
-        this.folder = dataFolder.resolve("snapshots");
-        try {
-            Files.createDirectories(folder);
-        } catch (IOException failure) {
-            throw new UncheckedIOException("could not create " + folder, failure);
-        }
+        // Inventories stay per server, so these are this server's documents.
+        this(DocumentFolder.of(dataFolder.resolve("snapshots")));
+    }
+
+    public SnapshotStore(DocumentFolder folder) {
+        this.folder = folder;
     }
 
     private YamlStore storeFor(UUID playerId) {
-        return new YamlStore(folder.resolve(playerId + ".yml"));
+        return folder.store(playerId + SUFFIX);
     }
 
-    /** Every player id this store has a file for — the whole roster the root screen picks from. */
+    /** Every player id this store has a document for — the whole roster the root screen picks from. */
     public List<UUID> knownPlayerIds() {
-        try (var files = Files.list(folder)) {
-            List<UUID> ids = new ArrayList<>();
-            for (Path file : files.toList()) {
-                String name = file.getFileName().toString();
-                if (!name.endsWith(".yml")) {
-                    continue;
-                }
-                try {
-                    ids.add(UUID.fromString(name.substring(0, name.length() - ".yml".length())));
-                } catch (IllegalArgumentException notAUuid) {
-                    // Not one of ours — skip rather than fail the whole roster over a stray file.
-                }
+        List<UUID> ids = new ArrayList<>();
+        for (String name : folder.names(SUFFIX)) {
+            try {
+                ids.add(UUID.fromString(name.substring(0, name.length() - SUFFIX.length())));
+            } catch (IllegalArgumentException notAUuid) {
+                // Not one of ours — skip rather than fail the whole roster over a stray entry.
             }
-            return ids;
-        } catch (IOException unreadable) {
-            throw new UncheckedIOException("could not list " + folder, unreadable);
         }
+        return ids;
     }
 
-    /** A player's whole stored history, oldest first. Nothing on disk is an empty list, not an error. */
+    /**
+     * Drops every snapshot taken before {@code cutoff}, for every player, and the document of a player left
+     * with none. Players who never come back would otherwise keep their last window for ever.
+     *
+     * @return how many snapshots were dropped
+     */
+    public int pruneOlderThan(Instant cutoff) {
+        int dropped = 0;
+        for (UUID playerId : knownPlayerIds()) {
+            List<Snapshot> all = load(playerId);
+            List<Snapshot> kept = all.stream().filter(snapshot -> !snapshot.takenAt().isBefore(cutoff)).toList();
+            if (kept.size() == all.size()) {
+                continue;
+            }
+            boolean done = kept.isEmpty() ? folder.delete(playerId + SUFFIX) : saveAll(playerId, kept);
+            if (done) {
+                dropped += all.size() - kept.size();
+            }
+        }
+        return dropped;
+    }
+
+    /** A player's whole stored history, oldest first. Nothing stored is an empty list, not an error. */
     public List<Snapshot> load(UUID playerId) {
         List<Map<?, ?>> raw = storeFor(playerId).read().getMapList("snapshots");
         List<Snapshot> found = new ArrayList<>();

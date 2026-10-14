@@ -43,7 +43,7 @@ public final class PerformanceModule implements FlexModule {
     /** A minute of samples at the default 20 ms. */
     private static final int SAMPLES_KEPT = 3000;
 
-    private static final ModuleInfo INFO = ModuleInfo.of("performance", "Performance Optimizer", "0.1.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("performance", "Performance Optimizer", "0.2.0")
             .describedAs("Finds what slows the server down, proposes fixes, reports to staff, and keeps farms in check")
             .by("Raindancer118");
 

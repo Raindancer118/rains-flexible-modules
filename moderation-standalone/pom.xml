@@ -143,8 +143,12 @@
              2.40.3: the staff ore tool is /orevein, so /vein is Vein Toggle's again.
              2.40.4: x-ray: the hidden half of a vein that shows in a cave is no new find.
              2.40.5: ...only if the player can see a face of it; a vein touching a sealed pocket still counts.
-             2.40.6: that sight check has bounded work per dig and never reads an unloaded or foreign chunk. -->
-        <plugin.version>2.40.6</plugin.version>
+             2.40.6: that sight check has bounded work per dig and never reads an unloaded or foreign chunk.
+             2.41.0: RainsCore 2.0 network edition: reports, notes, pending notices, protected accounts, the staff
+             roster, rule offences and fines are the network's, the same on every server and reloaded when another
+             server changes them; the bait seed is one network secret; staff on every server hear a new report, a
+             pick-up and a promotion. -->
+        <plugin.version>2.41.0</plugin.version>
     </properties>
 
     <dependencies>

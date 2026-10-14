@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,7 +50,8 @@ public final class SnapshotService implements IInvSnapService {
     public Snapshot takeAndStore(Player player) {
         Snapshot snapshot = liveSnapshotOf(player);
         List<Snapshot> kept = retentionRule.applying(
-                store.load(player.getUniqueId()), snapshot, settings.retentionCountClamped());
+                store.load(player.getUniqueId()), snapshot, settings.retentionCountClamped(),
+                settings.retentionAge(), Instant.now());
         if (!store.saveAll(player.getUniqueId(), kept)) {
             log.warn("Could not save a snapshot for {}.", player.getName());
         }
@@ -66,6 +68,19 @@ public final class SnapshotService implements IInvSnapService {
         return new Snapshot(player.getUniqueId(), player.getName(), Instant.now(),
                 encodedOf(inventory.getContents()), encodedOf(inventory.getArmorContents()),
                 ItemText.encode(inventory.getItemInOffHand()));
+    }
+
+    /** Drops snapshots past the age limit, for every player, including those who stopped playing. */
+    public int pruneExpired() {
+        Duration age = settings.retentionAge();
+        if (!age.isPositive()) {
+            return 0;
+        }
+        int dropped = store.pruneOlderThan(Instant.now().minus(age));
+        if (dropped > 0) {
+            log.info("Dropped {} snapshot(s) older than {} day(s).", dropped, age.toDays());
+        }
+        return dropped;
     }
 
     /** This player's whole stored history, newest first — the order a browse screen shows it in. */

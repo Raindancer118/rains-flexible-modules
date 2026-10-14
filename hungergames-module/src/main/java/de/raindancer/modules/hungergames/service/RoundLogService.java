@@ -1,5 +1,7 @@
 package de.raindancer.modules.hungergames.service;
 
+import de.raindancer.core.data.store.DocumentFolder;
+import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.social.team.TeamId;
 import de.raindancer.modules.hungergames.HungerGamesSettings;
@@ -11,7 +13,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Set;
@@ -21,8 +22,9 @@ import java.util.function.Supplier;
 
 /**
  * The round's own written record: kills, eliminations, revives and admin actions, one time-stamped line at
- * a time, in {@code logs/round-<time>.log} — a file a dispute the next day can be settled by reading rather
- * than by memory.
+ * a time, in {@code logs/round-<time>.log} — a document (one per round) a dispute the next day can be settled by
+ * reading rather than by memory. It lives in Core's database like everything else the module keeps; a log
+ * file of an older version is picked up and carried on in place.
  *
  * <h2>Why this is not {@code context.log()}</h2>
  * {@code LogChannel} is the module's line in the server's shared console/file log — one stream, shared with
@@ -75,6 +77,7 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
     }
 
     private final Path logsDir;
+    private final DocumentFolder folder;
     private final Function<UUID, String> participantName;
     private final Function<TeamId, String> teamName;
     private final LogChannel log;
@@ -83,8 +86,6 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
 
     private HungerGamesSettings settings = HungerGamesSettings.DEFAULTS;
 
-    /** Set once the log directory has been created, so that is not a syscall per line. */
-    private volatile boolean directoryMade;
     private Path currentFile;
 
     /**
@@ -97,7 +98,14 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
      */
     public RoundLogService(Path logsDir, Function<UUID, String> participantName, Function<TeamId, String> teamName,
                             LogChannel log, Supplier<LocalDateTime> clock, Appender appender) {
+        this(logsDir, DocumentFolder.of(logsDir), participantName, teamName, log, clock, appender);
+    }
+
+    public RoundLogService(Path logsDir, DocumentFolder folder, Function<UUID, String> participantName,
+                            Function<TeamId, String> teamName, LogChannel log, Supplier<LocalDateTime> clock,
+                            Appender appender) {
         this.logsDir = logsDir;
+        this.folder = folder;
         this.participantName = participantName;
         this.teamName = teamName;
         this.log = log;
@@ -150,22 +158,41 @@ public final class RoundLogService implements GameEvents, IHungerGamesService {
     }
 
     /**
-     * The disk half, run by the appender.
+     * The storage half, run by the appender: the line goes on the end of the round's document.
      *
-     * <p>{@code createDirectories} is called once rather than per line. It used to be per line, which is a
-     * syscall on the thread ticking the round for every kill, every drop and every purchase — and on an
-     * evening with forty tributes that is thousands of them for a directory that exists after the first.
+     * <p>Read and written whole, which is fine for one evening's few hundred lines — and safe because the
+     * appender is one thread, so two lines never read the same text. Synchronized as well, for the
+     * stopping-module fallback that writes on the caller's thread.
      */
-    private void write(Path file, String line) {
-        try {
-            if (!directoryMade) {
-                Files.createDirectories(logsDir);
-                directoryMade = true;
+    private synchronized void write(Path file, String line) {
+        YamlStore store = folder.store(file.getFileName().toString());
+        String before = store.readText().orElse("");
+        if (before.isEmpty() && store.exists()) {
+            // exists() is also true when the text cannot be read; writing now would replace the round with a line.
+            log.warn("The round log {} could not be read, so a line was not added.", file.getFileName());
+            return;
+        }
+        boolean legacy = before.isEmpty() && store.inDatabase() && Files.isRegularFile(file);
+        if (legacy) {
+            // Core brings in only YAML files, and a log is not one: carry a 1.x log on in its document.
+            try {
+                before = Files.readString(file, StandardCharsets.UTF_8);
+            } catch (IOException unreadable) {
+                log.warn("The old round log {} could not be read ({}).", file.getFileName(), unreadable.getMessage());
+                return;
             }
-            Files.writeString(file, line, StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException failure) {
-            log.warn("The round log could not be written: {}", failure.getMessage());
+        }
+        if (!store.writeText(before + line)) {
+            log.warn("The round log could not be written ({}).", file.getFileName());
+            return;
+        }
+        if (legacy) {
+            try {
+                Files.move(file, file.resolveSibling(file.getFileName() + ".imported-2.0.0"));
+            } catch (IOException kept) {
+                log.warn("The old round log {} was carried over but could not be renamed ({}).", file.getFileName(),
+                        kept.getMessage());
+            }
         }
     }
 

@@ -173,6 +173,7 @@ class SpeedrunHistoryMigrationTest {
         SpeedrunHistoryMigration.migrate(folder, history());
 
         assertThat(folder.resolve("history.yml")).doesNotExist();
+        assertThat(Files.readString(folder.resolve("history.yml.imported-2.0.0"))).isEqualTo(OLD_FILE);
         assertThat(Files.readString(folder.resolve("backup/history.yml"))).isEqualTo(OLD_FILE);
     }
 

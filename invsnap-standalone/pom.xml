@@ -38,8 +38,10 @@
 
              1.4.0: item insurance (item-insurance.enabled, off by default) and the player-facing Insurance
              screen behind /insurance.
-             1.5.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>1.7.0</plugin.version>
+             1.5.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
+             1.8.0: RainsCore 2.0 — snapshots, insured players and item policies are documents in Core's database, no
+             files; snapshots older than snapshot.retention-days (7) are dropped, also those of players who left. -->
+        <plugin.version>1.8.0</plugin.version>
     </properties>
 
     <dependencies>

@@ -12,6 +12,7 @@ import de.raindancer.modules.moderation.model.Report;
 import de.raindancer.modules.moderation.rules.ReportRule;
 import de.raindancer.modules.moderation.store.ReportRegistry;
 import de.raindancer.modules.moderation.store.PendingNotices;
+import de.raindancer.modules.moderation.util.StaffAlerts;
 import de.raindancer.modules.moderation.store.ReportStorage;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
@@ -22,7 +23,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 /**
@@ -50,15 +50,13 @@ public final class ReportService implements IModerationService {
     private final Chat chat;
     private final PendingNotices pending;
     private final Supplier<ReportRule> rule;
-
-    /** Set by every change, cleared by a save. Stops the timer writing an unchanged file every minute. */
-    private final AtomicBoolean dirty = new AtomicBoolean();
+    private final StaffAlerts alerts;
 
     private volatile ModerationSettings settings;
 
     public ReportService(Plugin plugin, Server server, ReportRegistry reports, ReportStorage storage,
                          Audit audit, Messages messages, Chat chat, PendingNotices pending,
-                         Supplier<ReportRule> rule,
+                         Supplier<ReportRule> rule, StaffAlerts alerts,
                          ModerationSettings settings) {
         this.plugin = plugin;
         this.server = server;
@@ -69,15 +67,14 @@ public final class ReportService implements IModerationService {
         this.chat = chat;
         this.pending = pending;
         this.rule = rule;
+        this.alerts = alerts;
+        this.storage.bind(reports);
         settings(settings);
     }
 
-    /** Reads what is on disk into the registry. Called once, when the module starts. */
+    /** Reads the queue into the registry. Called once, when the module starts. */
     public void load() {
-        reports.clear();
-        for (Report report : storage.load()) {
-            reports.add(report);
-        }
+        storage.refresh();
     }
 
     /** Whether this report may be filed, and why not when it may not. */
@@ -110,10 +107,9 @@ public final class ReportService implements IModerationService {
         if (mayFile(reporter, subject, text).isRefused()) {
             return Optional.empty();
         }
-        Report filed = Report.filed(reports.nextId(), reporter, reporterName, subject, subjectName,
-                text, Instant.now()).withPreset(preset == null ? null : preset.name()).withPlaces(reporterAt, subjectAt);
-        reports.add(filed);
-        changed();
+        Instant now = Instant.now();
+        Report filed = storage.admit(id -> Report.filed(id, reporter, reporterName, subject, subjectName,
+                text, now).withPreset(preset == null ? null : preset.name()).withPlaces(reporterAt, subjectAt));
 
         record("report-filed", reporter, reporterName, subject, subjectName, filed.id(), text);
         if (settings.notifyStaffOnReport()) {
@@ -122,10 +118,8 @@ public final class ReportService implements IModerationService {
             tellTheStaff(subject, "<white><reporter></white> reported <white><subject></white> "
                             + "<gray>(<id>)</gray><gray>: <text> <click:run_command:'/mod report <id>'>"
                             + "<hover:show_text:'<gray>Open the report card'><aqua>[Open]</aqua></hover></click>",
-                    Chat.arg("reporter", filed.reporterName()),
-                    Chat.arg("subject", subjectName),
-                    Chat.arg("id", filed.id()),
-                    Chat.arg("text", text));
+                    java.util.Map.of("reporter", String.valueOf(filed.reporterName()),
+                            "subject", String.valueOf(subjectName), "id", filed.id(), "text", text));
         }
         return Optional.of(filed);
     }
@@ -169,11 +163,11 @@ public final class ReportService implements IModerationService {
             return false;
         }
         Report claimed = found.get().claimedBy(who, name);
-        reports.add(claimed);
+        storage.put(claimed);
         changed();
         record("report-claimed", who, name, claimed.subject(), claimed.subjectName(), id, null);
         tellTheStaff(claimed.subject(), "<white><handler></white> has picked up <gray><id></gray>",
-                Chat.arg("handler", name == null ? "the console" : name), Chat.arg("id", id));
+                java.util.Map.of("handler", name == null ? "the console" : name, "id", id));
         return true;
     }
 
@@ -183,7 +177,7 @@ public final class ReportService implements IModerationService {
         if (found.isEmpty() || found.get().isClosed()) {
             return false;
         }
-        reports.add(found.get().released());
+        storage.put(found.get().released());
         changed();
         return true;
     }
@@ -207,7 +201,7 @@ public final class ReportService implements IModerationService {
         Report closed = dealtWith
                 ? original.resolved(who, name, said, Instant.now())
                 : original.rejected(who, name, said, Instant.now());
-        reports.add(closed);
+        storage.put(closed);
         changed();
 
         record(dealtWith ? "report-resolved" : "report-rejected", who, name, closed.subject(),
@@ -228,38 +222,25 @@ public final class ReportService implements IModerationService {
 
     // ---------------------------------------------------------------------------- writing
 
-    /** Marks the queue as needing writing, and asks for it off the server thread. */
+    /** Asks for what this server changed to be written, off the server thread. */
     public void changed() {
-        dirty.set(true);
-        Scheduling.async(plugin, this::flush);
+        Scheduling.async(plugin, storage::flush);
     }
 
     /**
-     * Writes if anything has changed.
+     * Writes what this server changed.
      *
-     * <p><b>Synchronised</b>, so two flushes cannot overlap. Without it the ordering of two writes is
-     * whatever the scheduler decides: an older snapshot can finish after a newer one and put the file
-     * back to what it said a moment ago. {@link de.raindancer.core.data.store.YamlStore} makes each
-     * write atomic, which is a different promise from making two writes happen in order.
-     *
-     * <p>The flag is cleared before the snapshot rather than after: a change arriving during the write
-     * then re-marks it and is picked up by the next pass, whereas clearing afterwards would swallow it.
+     * <p>Only the reports that changed are written, and onto what the database holds now, so a server filing
+     * or closing one never puts another server's changes back. The storage serialises flushes, so an older
+     * write cannot land after a newer one.
      */
-    public synchronized boolean flush() {
-        if (!dirty.getAndSet(false)) {
-            return false;
-        }
-        if (!storage.saveAll(reports.snapshot())) {
-            dirty.set(true);    // it did not reach the disk; try again on the next pass
-            return false;
-        }
-        return true;
+    public boolean flush() {
+        return storage.flush();
     }
 
-    /** Writes whatever is held, changed or not. For a shutdown, which has no next pass. */
-    public synchronized boolean flushNow() {
-        dirty.set(false);
-        return storage.saveAll(reports.snapshot());
+    /** For a shutdown, which has no next pass. */
+    public boolean flushNow() {
+        return storage.flush();
     }
 
     // ---------------------------------------------------------------------------- telling people
@@ -287,24 +268,14 @@ public final class ReportService implements IModerationService {
     }
 
     /**
-     * Puts a line in front of whoever may read reports.
-     *
-     * <p>Scheduled onto the global region: a report can arrive from a chat-triggered path, and reading
-     * the online player list and asking each one for a permission is main-thread work. On Folia there
-     * is no single main thread, and the global region is where a server-wide list is safe to touch.
+     * Puts a line in front of whoever may read reports, on this server and on the others.
      *
      * @param exclude never told, even if they hold the reports permission themselves — the whole point
      *                of a report is that the person it is about does not find out from it, and staff
      *                reporting staff is exactly the case a plain permission check would miss
      */
-    private void tellTheStaff(UUID exclude, String line,
-                              net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... arguments) {
-        Scheduling.global(plugin, () -> {
-            List<Player> staff = whoToTell(server.getOnlinePlayers(), exclude);
-            if (!staff.isEmpty()) {
-                chat.broadcast(staff, line, arguments);
-            }
-        });
+    private void tellTheStaff(UUID exclude, String line, java.util.Map<String, String> arguments) {
+        alerts.tell(new StaffAlerts.Alert(ModerationPermission.REPORTS.node(), exclude, line, arguments));
     }
 
     /**
@@ -313,16 +284,7 @@ public final class ReportService implements IModerationService {
      * server, rather than something only provable by reading code alongside {@code Scheduling.global}.
      */
     static List<Player> whoToTell(Collection<? extends Player> online, UUID exclude) {
-        List<Player> staff = new java.util.ArrayList<>();
-        for (Player who : online) {
-            if (who.getUniqueId().equals(exclude)) {
-                continue;
-            }
-            if (who.hasPermission(ModerationPermission.REPORTS.node())) {
-                staff.add(who);
-            }
-        }
-        return staff;
+        return StaffAlerts.whoToTell(online, exclude, ModerationPermission.REPORTS.node());
     }
 
     private void record(String action, UUID actor, String actorName, UUID subject, String subjectName,

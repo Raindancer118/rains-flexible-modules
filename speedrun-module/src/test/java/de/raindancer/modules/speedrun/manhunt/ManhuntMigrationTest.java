@@ -85,6 +85,8 @@ class ManhuntMigrationTest {
         assertThat(Files.readString(backup.resolve("stats.yml"))).isEqualTo("players: {}\n");
         assertThat(Files.exists(old.resolve("config.yml"))).isFalse();
         assertThat(Files.exists(old.resolve("stats.yml"))).isFalse();
+        assertThat(Files.readString(old.resolve("config.yml.imported-2.0.0"))).isEqualTo("runner-lives: 3\n");
+        assertThat(Files.exists(old.resolve("stats.yml.imported-2.0.0"))).isTrue();
         assertThat(Files.readString(old.resolve(ManhuntMigration.NOTE))).contains("RainsSpeedrun");
     }
 

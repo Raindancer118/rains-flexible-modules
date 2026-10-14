@@ -48,8 +48,12 @@
           2.8.1: the arena-not-ready kick screen's wording, softened — "the gamemakers are still
           shaping it" rather than naming /init, the command that opens the arena and the one a
           tribute reading a kick screen has no use for.
+
+          2.10.0: RainsCore 2.0 — the round logs (one document per round), the session and runtime state and the
+          sign-up sheet are documents in Core's database, no files; an older round log is carried on, then
+          renamed to *.imported-2.0.0.
         -->
-        <plugin.version>2.9.0</plugin.version>
+        <plugin.version>2.10.0</plugin.version>
     </properties>
 
     <dependencies>

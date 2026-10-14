@@ -72,14 +72,21 @@ public final class FarmWorldState {
      */
     private static final String CHUNKS = "region";
 
+    /**
+     * Set in the state document once {@link #migrateFrom} has resolved: a boot after the first one
+     * does not touch the legacy database again. Its own document, because the definitions are written
+     * whole and would take the key with them.
+     */
+    private static final String MIGRATED_KEY = "migrated-from-core";
+
     private final Path file;
     /**
-     * Beside {@link #file}, so a server that moves its whole data folder keeps the two together.
-     * Existing is the whole answer: {@link #migrateFrom} touches the legacy database once, ever,
-     * and this is how a boot after the first one knows not to.
+     * What 1.x left beside {@link #file} to say {@link #migrateFrom} was done. Only read now: it is
+     * honoured once, turned into {@link #MIGRATED_KEY}, and renamed.
      */
     private final Path migratedMarker;
     private final YamlStore store;
+    private final YamlStore state;
     private final Map<String, WorldSet> sets = new ConcurrentHashMap<>();
     private final Map<String, Instant> madeAt = new ConcurrentHashMap<>();
     /** When a set was last <em>tried</em>, whether or not it worked. See {@link #due}. */
@@ -97,10 +104,22 @@ public final class FarmWorldState {
      *                 itself, and the half that decides whether somebody walks into a stale world
      */
     public FarmWorldState(Path file, Database database) {
-        this.file = file;
+        this(new YamlStore(file), new YamlStore(file.resolveSibling(stateNameOf(file))), database);
+    }
+
+    /** @param state what this module notes about itself, beside the definitions in {@code store} */
+    public FarmWorldState(YamlStore store, YamlStore state, Database database) {
+        this.file = store.file();
         this.migratedMarker = file.resolveSibling(file.getFileName() + ".migrated-from-core");
-        this.store = new YamlStore(file);
+        this.store = store;
+        this.state = state;
         this.database = database;
+    }
+
+    /** {@code farmworlds.yml} to {@code farmworlds-state.yml}. */
+    public static String stateNameOf(Path definitions) {
+        String name = definitions.getFileName().toString();
+        return (name.endsWith(".yml") ? name.substring(0, name.length() - 4) : name) + "-state.yml";
     }
 
     // ---------------------------------------------------------------------------- the sets
@@ -461,7 +480,7 @@ public final class FarmWorldState {
      *                   RainsCore release finally drops the table
      */
     public void migrateFrom(Database legacyCore) {
-        if (Files.exists(migratedMarker)) {
+        if (alreadyMigrated()) {
             // Already resolved, on a previous boot — not even the read runs again. Without this,
             // a database read on the thread running the world happens on every single boot for
             // the rest of this server's life, for a question that was only ever going to be asked
@@ -498,16 +517,16 @@ public final class FarmWorldState {
         }
         boolean written = database.write(connection -> {
             try (PreparedStatement insert = connection.prepareStatement(
-                    "INSERT OR IGNORE INTO farm_world (name, made_at, tried_at) VALUES (?, ?, ?)")) {
+                    "INSERT INTO farm_world (name, made_at, tried_at) VALUES (?, ?, ?) ON CONFLICT(name) DO NOTHING")) {
                 for (Row row : found) {
                     insert.setString(1, row.name());
                     if (row.madeAt() == null) {
-                        insert.setNull(2, java.sql.Types.INTEGER);
+                        insert.setNull(2, java.sql.Types.BIGINT);
                     } else {
                         insert.setLong(2, row.madeAt());
                     }
                     if (row.triedAt() == null) {
-                        insert.setNull(3, java.sql.Types.INTEGER);
+                        insert.setNull(3, java.sql.Types.BIGINT);
                     } else {
                         insert.setLong(3, row.triedAt());
                     }
@@ -526,16 +545,32 @@ public final class FarmWorldState {
         }
     }
 
+    private boolean alreadyMigrated() {
+        if (state.exists() && state.read().getBoolean(MIGRATED_KEY)) {
+            return true;
+        }
+        if (Files.exists(migratedMarker)) {
+            markMigrated();
+            return true;
+        }
+        return false;
+    }
+
     /**
-     * Marks the legacy migration as resolved so future boots skip it outright. Best-effort — if the
-     * marker can't be written, the next boot just checks again, which is the pre-fix behaviour.
+     * Marks the legacy migration as resolved so future boots skip it outright. Best-effort — if it
+     * can't be written, the next boot just checks again, which is harmless: nothing is overwritten.
      */
     private void markMigrated() {
-        try {
-            Files.createFile(migratedMarker);
-        } catch (IOException e) {
-            log.warn("Could not write the farm world migration marker at {}. Will check again next "
-                    + "boot.", migratedMarker, e);
+        if (!state.update(yaml -> yaml.set(MIGRATED_KEY, true))) {
+            log.warn("Could not record the farm world migration in {}. Will check again next boot.", state.file());
+            return;
+        }
+        if (Files.exists(migratedMarker)) {
+            try {
+                Files.move(migratedMarker, migratedMarker.resolveSibling(migratedMarker.getFileName() + ".imported-2.0.0"));
+            } catch (IOException cannot) {
+                log.warn("The old marker {} could not be renamed; it is harmless.", migratedMarker);
+            }
         }
     }
 
@@ -643,7 +678,7 @@ public final class FarmWorldState {
     private static void setMillisOrNull(PreparedStatement statement, int at, Instant when)
             throws java.sql.SQLException {
         if (when == null) {
-            statement.setNull(at, java.sql.Types.INTEGER);
+            statement.setNull(at, java.sql.Types.BIGINT);
         } else {
             statement.setLong(at, when.toEpochMilli());
         }

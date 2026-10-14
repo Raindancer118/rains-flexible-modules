@@ -2,6 +2,8 @@ package de.raindancer.modules.invsnap.rules;
 
 import de.raindancer.modules.invsnap.model.Snapshot;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -22,7 +24,20 @@ public final class RetentionRule implements IInvSnapRule {
      * @return the snapshots to keep, oldest first, at most {@code retentionCount} of them
      */
     public List<Snapshot> applying(List<Snapshot> existing, Snapshot fresh, int retentionCount) {
+        return applying(existing, fresh, retentionCount, Duration.ZERO, Instant.now());
+    }
+
+    /**
+     * Also drops what is older than {@code maxAge} before {@code now} — except {@code fresh}, so taking a
+     * snapshot always leaves the player with at least that one. A zero or negative {@code maxAge} is no limit.
+     */
+    public List<Snapshot> applying(List<Snapshot> existing, Snapshot fresh, int retentionCount, Duration maxAge,
+                                   Instant now) {
         List<Snapshot> combined = new ArrayList<>(existing == null ? List.of() : existing);
+        if (maxAge != null && maxAge.isPositive()) {
+            Instant cutoff = now.minus(maxAge);
+            combined.removeIf(snapshot -> snapshot.takenAt().isBefore(cutoff));
+        }
         if (fresh != null) {
             combined.add(fresh);
         }
@@ -37,6 +52,6 @@ public final class RetentionRule implements IInvSnapRule {
 
     @Override
     public String describe() {
-        return "keeps only the newest N snapshots per player, oldest dropped first";
+        return "keeps only the newest N snapshots per player, none older than the age limit, oldest dropped first";
     }
 }

@@ -111,8 +111,10 @@
              1.28.0: Manhunt is built in — one plugin, one menu, one setup, one preflight, one HUD, one history; RainsManhunt's data is moved over on first start (backup kept). Security: every subcommand and button checks its own permission, player text is escaped, whitelist clear/vip need rainsmanhunt.manhunt.whitelist.admin. Needs RainsCore 1.43.0.
              1.28.1: built against RainsCore 1.44.0 (player text is inserted as plain text Core-wide). Needs RainsCore 1.44.0.
              1.29.0: late-join setting (OFF/SPECTATE/RACE), uses RainsCore 1.44.0 building blocks (run history, checklists, structure locator, typed input), in-game e2e tests with bots for every command, menu, setting and chat button. Needs RainsCore 1.44.0.
-             1.33.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2. -->
-        <plugin.version>1.33.0</plugin.version>
+             1.33.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
+             1.34.0: RainsCore 2.0 — the old history and Manhunt files that were deleted after their move are renamed to
+             *.imported-2.0.0 instead (the backup copy stays). -->
+        <plugin.version>1.34.0</plugin.version>
     </properties>
 
     <dependencies>

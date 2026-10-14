@@ -6,7 +6,6 @@ import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.OreKind;
 import de.raindancer.modules.moderation.rules.BaitVeinRule;
 import de.raindancer.modules.moderation.rules.BaitSightRule;
-import de.raindancer.modules.moderation.store.BaitSeed;
 import de.raindancer.modules.moderation.util.LoadedGrid;
 import io.papermc.paper.math.Position;
 import org.bukkit.Bukkit;
@@ -88,9 +87,9 @@ public final class HoneypotService implements IModerationService {
     private final Map<Key, Set<UUID>> owners = new ConcurrentHashMap<>();
     private volatile ModerationSettings settings;
 
-    public HoneypotService(Plugin plugin, ModerationSettings settings) {
+    public HoneypotService(Plugin plugin, long seed, ModerationSettings settings) {
         this.plugin = plugin;
-        this.seed = BaitSeed.load(plugin.getDataFolder().toPath());
+        this.seed = seed;
         settings(settings);
     }
 

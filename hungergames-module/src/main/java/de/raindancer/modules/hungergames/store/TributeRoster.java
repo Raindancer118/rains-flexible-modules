@@ -104,7 +104,11 @@ public final class TributeRoster {
     private final YamlStore store;
 
     public TributeRoster(Path file) {
-        this.store = new YamlStore(file);
+        this(new YamlStore(file));
+    }
+
+    public TributeRoster(YamlStore store) {
+        this.store = store;
     }
 
     /** Where the file is, so a screen can name it. */
@@ -152,20 +156,17 @@ public final class TributeRoster {
         return new Report(found, problems);
     }
 
-    /** Writes the shipped file if there is not one, so somebody looking for it finds it. */
+    /** Writes the shipped sheet if there is not one, so somebody looking for it finds it. */
     public boolean createIfMissing() {
         if (store.exists()) {
             return false;
         }
-        try {
-            java.nio.file.Files.createDirectories(store.file().getParent());
-            java.nio.file.Files.writeString(store.file(), SHIPPED, StandardCharsets.UTF_8);
-            log.info("Wrote an empty {} — paste your sign-up sheet into it.", FILE_NAME);
-            return true;
-        } catch (java.io.IOException couldNotWrite) {
-            log.warn("Could not write {}: {}", FILE_NAME, couldNotWrite.getMessage());
+        if (!store.writeTextIfAbsent(SHIPPED)) {
+            log.warn("Could not write {}.", FILE_NAME);
             return false;
         }
+        log.info("Wrote an empty {} — paste your sign-up sheet into it.", FILE_NAME);
+        return true;
     }
 
     /**

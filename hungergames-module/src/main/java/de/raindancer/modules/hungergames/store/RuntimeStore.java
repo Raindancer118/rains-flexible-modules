@@ -91,7 +91,11 @@ public final class RuntimeStore {
     private final List<String> problems = new ArrayList<>();
 
     public RuntimeStore(Path file) {
-        this.store = new YamlStore(file);
+        this(new YamlStore(file));
+    }
+
+    public RuntimeStore(YamlStore store) {
+        this.store = store;
     }
 
     /** What could not be read the last time this store looked at the file. Empty when it was clean. */
@@ -241,10 +245,8 @@ public final class RuntimeStore {
 
     /** Removes the entire runtime state (round end, full reset). */
     public void clear() {
-        try {
-            java.nio.file.Files.deleteIfExists(store.file());
-        } catch (java.io.IOException failure) {
-            log.warn("runtime.yml could not be deleted: {}", failure.getMessage());
+        if (!store.delete()) {
+            log.warn("runtime.yml could not be deleted.");
         }
     }
 

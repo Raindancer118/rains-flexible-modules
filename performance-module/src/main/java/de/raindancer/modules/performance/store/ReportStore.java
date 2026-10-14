@@ -1,11 +1,10 @@
 package de.raindancer.modules.performance.store;
 
+import de.raindancer.core.data.store.DocumentFolder;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.modules.performance.model.Report;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -14,11 +13,10 @@ import java.util.Optional;
 import java.util.function.IntSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
- * Reports in memory, newest first, and one text file each — {@code report-<n>.txt}, which outlives a
- * restart for whoever wants to read back what happened at night. Writing is file I/O: call {@link #add}
+ * Reports in memory, newest first, and one text document each — {@code report-<n>.txt}, which outlives a
+ * restart for whoever wants to read back what happened at night. Writing is database I/O: call {@link #add}
  * off the server thread.
  */
 public final class ReportStore {
@@ -26,15 +24,19 @@ public final class ReportStore {
     private static final LogChannel log = Log.of("performance");
     private static final Pattern FILE = Pattern.compile("report-(\\d+)\\.txt");
 
-    private final Path folder;
+    private final DocumentFolder folder;
     private final IntSupplier keep;
     private final Deque<Report> reports = new ArrayDeque<>();
     private int next;
 
     public ReportStore(Path folder, IntSupplier keep) {
+        this(DocumentFolder.of(folder), keep);
+    }
+
+    public ReportStore(DocumentFolder folder, IntSupplier keep) {
         this.folder = folder;
         this.keep = keep;
-        this.next = highestOnDisk() + 1;
+        this.next = numbersStored().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
     }
 
     public synchronized int nextNumber() {
@@ -43,11 +45,8 @@ public final class ReportStore {
 
     public synchronized void add(Report report) {
         reports.addFirst(report);
-        try {
-            Files.createDirectories(folder);
-            Files.write(folder.resolve("report-" + report.number() + ".txt"), report.lines());
-        } catch (IOException unwritable) {
-            log.warn("Report #{} could not be written to {}: {}", report.number(), folder, unwritable.getMessage());
+        if (!folder.store(nameOf(report.number())).writeText(String.join("\n", report.lines()) + "\n")) {
+            log.warn("Report #{} could not be stored.", report.number());
         }
         prune();
     }
@@ -65,27 +64,19 @@ public final class ReportStore {
         while (reports.size() > kept) {
             reports.removeLast();
         }
-        try (Stream<Path> files = Files.list(folder)) {
-            List<Integer> numbers = files.map(file -> FILE.matcher(file.getFileName().toString()))
-                    .filter(Matcher::matches).map(found -> Integer.parseInt(found.group(1)))
-                    .sorted((a, b) -> b - a).toList();
-            for (int number : numbers.subList(Math.min(kept, numbers.size()), numbers.size())) {
-                Files.deleteIfExists(folder.resolve("report-" + number + ".txt"));
-            }
-        } catch (IOException unreadable) {
-            log.warn("Old reports in {} could not be tidied: {}", folder, unreadable.getMessage());
+        List<Integer> numbers = numbersStored();
+        for (int number : numbers.subList(0, Math.max(0, numbers.size() - kept))) {
+            folder.delete(nameOf(number));
         }
     }
 
-    private int highestOnDisk() {
-        if (!Files.isDirectory(folder)) {
-            return 0;
-        }
-        try (Stream<Path> files = Files.list(folder)) {
-            return files.map(file -> FILE.matcher(file.getFileName().toString())).filter(Matcher::matches)
-                    .mapToInt(found -> Integer.parseInt(found.group(1))).max().orElse(0);
-        } catch (IOException unreadable) {
-            return 0;
-        }
+    private static String nameOf(int number) {
+        return "report-" + number + ".txt";
+    }
+
+    /** The numbers of the stored reports, lowest first. */
+    private List<Integer> numbersStored() {
+        return folder.names(".txt").stream().map(name -> FILE.matcher(name)).filter(Matcher::matches)
+                .map(found -> Integer.parseInt(found.group(1))).sorted().toList();
     }
 }

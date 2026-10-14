@@ -10,6 +10,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -28,8 +29,8 @@ import java.util.UUID;
  *       then the old runs are only shown ({@link #show}) and the file is not touched.</li>
  *   <li>A run Core already holds is never replaced; a standing already kept is never replaced.</li>
  *   <li>The original is copied to {@code backup/history.yml} — or a dated name beside it, never over an
- *       older backup — and only deleted once the copy reads back byte for byte and everything moved is
- *       on disk.</li>
+ *       older backup — and only set aside (renamed {@code history.yml.imported-2.0.0}) once the copy reads back
+ *       byte for byte and everything moved is on disk.</li>
  *   <li>A file that cannot be read is left exactly as it is.</li>
  * </ul>
  */
@@ -44,7 +45,7 @@ public final class SpeedrunHistoryMigration {
     public enum Result {
         /** There is no old file. */
         NOTHING,
-        /** Moved, backed up, the original gone. */
+        /** Moved, backed up, the original renamed. */
         MOVED,
         /** Core's history is not ready yet; try again later. Nothing was changed. */
         WAITING,
@@ -96,7 +97,7 @@ public final class SpeedrunHistoryMigration {
                 log.warn("The backup {} of the old speedrun history does not match it; the original is kept.", backup);
                 return Result.WAITING;
             }
-            Files.delete(file);
+            Files.move(file, file.resolveSibling(FILE + ".imported-2.0.0"), StandardCopyOption.REPLACE_EXISTING);
             log.info("Moved {} run(s) of the old speedrun history into Core's history; the old file is backed "
                     + "up as {}.", moved, backup);
             history.rerank();

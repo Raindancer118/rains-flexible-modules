@@ -15,7 +15,11 @@ public final class InsuredStore {
     private final Set<UUID> insured = ConcurrentHashMap.newKeySet();
 
     public InsuredStore(Path dataFolder) {
-        this.file = new YamlStore(dataFolder.resolve("insured.yml"));
+        this(new YamlStore(dataFolder.resolve("insured.yml")));
+    }
+
+    public InsuredStore(YamlStore file) {
+        this.file = file;
         for (String raw : file.read().getStringList("players")) {
             try {
                 insured.add(UUID.fromString(raw));

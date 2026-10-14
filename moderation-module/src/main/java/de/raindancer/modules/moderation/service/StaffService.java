@@ -10,6 +10,7 @@ import de.raindancer.modules.moderation.ModerationSettings;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.model.StaffRank;
 import de.raindancer.modules.moderation.store.StaffRoster;
+import de.raindancer.modules.moderation.util.StaffAlerts;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -17,6 +18,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -63,11 +65,13 @@ public final class StaffService implements IModerationService {
      */
     private final java.util.Set<UUID> oppedByUs = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    private final StaffAlerts alerts;
     private volatile ModerationSettings settings;
 
     public StaffService(Plugin plugin, Server server, StaffRoster roster, Grants grants, Audit audit,
-                       Messages messages, Chat chat, Consumer<Player> reapply,
+                       Messages messages, Chat chat, Consumer<Player> reapply, StaffAlerts alerts,
                        ModerationSettings settings) {
+        this.alerts = alerts;
         this.plugin = plugin;
         this.server = server;
         this.roster = roster;
@@ -102,8 +106,7 @@ public final class StaffService implements IModerationService {
                 "colour", rank.colour(), "what", rank.describe());
         tellTheStaff("<white><player></white> is now <" + rank.colour() + "><rank></"
                         + rank.colour() + "> <gray>(by <white><by></white>)",
-                Chat.arg("player", name), Chat.arg("rank", rank.title()),
-                Chat.arg("by", nameOf(by)));
+                Map.of("player", String.valueOf(name), "rank", rank.title(), "by", nameOf(by)));
         return true;
     }
 
@@ -124,7 +127,7 @@ public final class StaffService implements IModerationService {
         messages().send(by, "moderation.rank.removed", "player", name);
         tellThem(who, "moderation.rank.you-are-no-longer");
         tellTheStaff("<white><player></white> is no longer staff <gray>(by <white><by></white>)",
-                Chat.arg("player", name), Chat.arg("by", nameOf(by)));
+                Map.of("player", String.valueOf(name), "by", nameOf(by)));
         return true;
     }
 
@@ -323,21 +326,8 @@ public final class StaffService implements IModerationService {
         // moment they log in the permissions are simply there.
     }
 
-    private void tellTheStaff(String line,
-                              net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... arguments) {
-        // Scheduled onto the global region: reading the online player list and asking each one for a
-        // permission is main-thread work, and this can be reached from a command on any thread.
-        Scheduling.global(plugin, () -> {
-            List<Player> staff = new ArrayList<>();
-            for (Player listening : server.getOnlinePlayers()) {
-                if (listening.hasPermission(ModerationPermission.HISTORY.node())) {
-                    staff.add(listening);
-                }
-            }
-            if (!staff.isEmpty()) {
-                chat.broadcast(staff, line, arguments);
-            }
-        });
+    private void tellTheStaff(String line, Map<String, String> arguments) {
+        alerts.tell(new StaffAlerts.Alert(ModerationPermission.HISTORY.node(), null, line, arguments));
     }
 
     /**

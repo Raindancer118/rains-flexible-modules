@@ -24,8 +24,9 @@
         <maven.deploy.skip>true</maven.deploy.skip>
         <plugin.name>RainsPerformanceOptimizer</plugin.name>
         <!-- 0.1.0: farm limits (breeding and eggs stop where too many animals stand), a lag watch that
-                    finds the cause of a slow tick, proposes fixes and reports to staff. -->
-        <plugin.version>0.1.0</plugin.version>
+                    finds the cause of a slow tick, proposes fixes and reports to staff.
+                    0.2.0: RainsCore 2.0 — the reports are documents in Core's database, no files. -->
+        <plugin.version>0.2.0</plugin.version>
     </properties>
 
     <dependencies>

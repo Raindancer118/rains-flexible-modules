@@ -21,10 +21,12 @@ import de.raindancer.modules.moderation.rules.SuspiciousCommandRule;
 import de.raindancer.modules.moderation.service.NoteService;
 import de.raindancer.modules.moderation.service.PunishmentService;
 import de.raindancer.modules.moderation.service.ReportService;
+
 import de.raindancer.modules.moderation.service.StaffChatService;
 import de.raindancer.modules.moderation.service.StaffService;
 import de.raindancer.modules.moderation.service.SuspiciousCommandService;
 import de.raindancer.modules.moderation.service.WorldToolsService;
+import de.raindancer.modules.moderation.store.BaitSeed;
 import de.raindancer.modules.moderation.store.NoteRegistry;
 import de.raindancer.modules.moderation.store.NoteStorage;
 import de.raindancer.modules.moderation.store.Reasons;
@@ -34,6 +36,7 @@ import de.raindancer.modules.moderation.store.PendingNotices;
 import de.raindancer.modules.moderation.store.ReportStorage;
 import de.raindancer.modules.moderation.store.StaffRoster;
 import de.raindancer.modules.moderation.util.PermissionNodes;
+import de.raindancer.modules.moderation.util.StaffAlerts;
 import de.raindancer.modules.moderation.util.Players;
 import de.raindancer.modules.moderation.util.Words;
 import org.bukkit.OfflinePlayer;
@@ -68,7 +71,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.40.6")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.41.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -98,9 +101,11 @@ public final class ModerationModule implements FlexModule {
         de.raindancer.modules.moderation.store.RuleOffences offences =
                 new de.raindancer.modules.moderation.store.RuleOffences(context.dataFolder().resolve("rule-offences.yml"));
         offences.load();
+        context.closeWith(offences::close);
         return offences;
     }
     private ReportService reportService;
+    private StaffAlerts staffAlerts;
     private SuspiciousCommandService suspiciousCommands;
     private de.raindancer.modules.moderation.service.HoneypotService honeypots;
     private de.raindancer.modules.moderation.service.OreDensitySampler densitySampler;
@@ -160,6 +165,12 @@ public final class ModerationModule implements FlexModule {
         immune.load();
         pending = new PendingNotices(context.dataFolder());
         pending.load();
+        context.closeWith(() -> {
+            reportStorage.close();
+            noteStorage.close();
+            immune.close();
+            pending.close();
+        });
 
         // ── the rules ─────────────────────────────────────────────────────────────────────────
         // The permission lookup goes through a Player rather than an OfflinePlayer, and that is
@@ -198,6 +209,7 @@ public final class ModerationModule implements FlexModule {
         de.raindancer.modules.moderation.store.FineLedger fineLedger =
                 new de.raindancer.modules.moderation.store.FineLedger(context.dataFolder().resolve("fines.yml"));
         fineLedger.load();
+        context.closeWith(fineLedger::close);
         fineService = new de.raindancer.modules.moderation.service.FineService(
                 (actor, actorName, target, targetName, kind, why, detail) -> punishmentService.punish(actor,
                         actorName, target, targetName, kind, de.raindancer.modules.moderation.model.Sentence.forEver(),
@@ -238,13 +250,18 @@ public final class ModerationModule implements FlexModule {
                 punishmentService, context.plugin(), org.bukkit.plugin.ServicePriority.Normal);
         context.closeWith(() -> context.plugin().getServer().getServicesManager()
                 .unregister(punishmentService));
+        // Staff on every server of the network hear a report, a pick-up and a promotion.
+        staffAlerts = new StaffAlerts(context.core().bus(),
+                StaffAlerts.toStaffOnline(context.plugin(), server, context.chat()));
+        context.closeWith(staffAlerts::close);
         reportService = new ReportService(context.plugin(), server, reports, reportStorage,
                 context.core().audit(), context.core().messages(), context.chat(), pending,
-                this::filingRule, settings.current());
+                this::filingRule, staffAlerts, settings.current());
         suspiciousCommands = new SuspiciousCommandService(reportService, new SuspiciousCommandRule(),
                 settings.current());
         de.raindancer.modules.moderation.model.OreDensity oreDensity = new de.raindancer.modules.moderation.model.OreDensity();
-        honeypots = new de.raindancer.modules.moderation.service.HoneypotService(context.plugin(), settings.current());
+        honeypots = new de.raindancer.modules.moderation.service.HoneypotService(context.plugin(),
+                BaitSeed.load(context.core().secrets(), context.dataFolder()), settings.current());
         densitySampler = new de.raindancer.modules.moderation.service.OreDensitySampler(context.plugin(), oreDensity);
         densitySampler.settings(settings.current());
         xrayEvidence = new de.raindancer.modules.moderation.service.XrayEvidenceService(reportService,
@@ -269,9 +286,10 @@ public final class ModerationModule implements FlexModule {
         // the label and the power are kept apart.
         roster = new StaffRoster(context.dataFolder(), context.core().grants());
         roster.load();
+        context.closeWith(roster::close);
         staffService = new StaffService(context.plugin(), server, roster, context.core().grants(),
                 context.core().audit(), context.core().messages(), context.chat(),
-                context.core()::reapplyGrants, settings.current());
+                context.core()::reapplyGrants, staffAlerts, settings.current());
 
         reportService.load();
         noteService.load();
@@ -392,8 +410,8 @@ public final class ModerationModule implements FlexModule {
         context.listener(new de.raindancer.modules.moderation.listener.BanhammerListener(services));
         context.listener(new de.raindancer.modules.moderation.listener.VaultListener());
 
-        // Reports and notes reach the disk on a timer as well as on every change: the per-change save
-        // is asynchronous and can fail, and a queue that only reaches disk on shutdown is one crash
+        // Reports and notes reach the database on a timer as well as on every change: the per-change save
+        // is asynchronous and can fail, and a queue that only reaches it on shutdown is one crash
         // away from a player asking what happened to the report they filed an hour ago.
         int every = settings.current().autoSaveSeconds();
         if (every > 0) {
@@ -401,6 +419,10 @@ public final class ModerationModule implements FlexModule {
                 reportService.flush();
                 noteService.flush();
                 xrayEvidence.flush();
+                // Other servers only see these once they are written.
+                pending.flush();
+                immune.flush();
+                roster.flush();
             });
             context.closeWith(writing::cancel);
         }

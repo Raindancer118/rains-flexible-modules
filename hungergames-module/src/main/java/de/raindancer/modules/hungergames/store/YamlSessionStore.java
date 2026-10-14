@@ -54,7 +54,11 @@ public final class YamlSessionStore implements SessionStore {
     private final List<String> problems = new ArrayList<>();
 
     public YamlSessionStore(Path file) {
-        this.store = new YamlStore(file);
+        this(new YamlStore(file));
+    }
+
+    public YamlSessionStore(YamlStore store) {
+        this.store = store;
     }
 
     /** What could not be read the last time {@link #load()} ran. Empty when it was clean. */
@@ -92,10 +96,8 @@ public final class YamlSessionStore implements SessionStore {
 
     @Override
     public void clear() {
-        try {
-            java.nio.file.Files.deleteIfExists(store.file());
-        } catch (java.io.IOException failure) {
-            log.warn("session.yml could not be deleted: {}", failure.getMessage());
+        if (!store.delete()) {
+            log.warn("session.yml could not be deleted.");
         }
     }
 

@@ -1,6 +1,7 @@
 package de.raindancer.modules.moderation.store;
 
 import de.raindancer.core.data.store.YamlStore;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.moderation.model.FineRecord;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -24,16 +25,39 @@ public final class FineLedger {
 
     private final YamlStore file;
     private final Map<String, FineRecord> records = new LinkedHashMap<>();
+    private final DirtyKeys dirty = new DirtyKeys();
+    private final NetworkBus.Subscription following;
 
+    /** One ledger for the whole network: a fine given on one server is owed on every other. */
     public FineLedger(Path file) {
-        this.file = new YamlStore(file);
+        this(YamlStore.network(file));
+    }
+
+    FineLedger(YamlStore file) {
+        this.file = file;
+        this.following = file.onChange(this::reload);
+    }
+
+    public void close() {
+        following.close();
     }
 
     public synchronized void load() {
-        records.clear();
-        ConfigurationSection fines = file.read().getConfigurationSection("fines");
+        file.readIfReadable().ifPresent(this::adopt);
+    }
+
+    /** Another server changed the ledger: what this server changed goes out first, then theirs comes in. */
+    private synchronized void reload() {
+        if (save()) {
+            load();
+        }
+    }
+
+    private void adopt(YamlConfiguration yaml) {
+        Map<String, FineRecord> read = new LinkedHashMap<>();
+        ConfigurationSection fines = yaml.getConfigurationSection("fines");
         if (fines == null) {
-            return;
+            fines = new YamlConfiguration();
         }
         for (String id : fines.getKeys(false)) {
             ConfigurationSection at = fines.getConfigurationSection(id);
@@ -42,7 +66,7 @@ public final class FineLedger {
             }
             try {
                 String victim = at.getString("victim", "");
-                records.put(id, new FineRecord(id, UUID.fromString(at.getString("target", "")),
+                read.put(id, new FineRecord(id, UUID.fromString(at.getString("target", "")),
                         at.getString("punishment", ""), at.getString("source", "fine"),
                         at.getString("reason", ""), at.getLong("given-at"), at.getLong("charged"),
                         at.getLong("paid"), at.getLong("to-victim"),
@@ -52,10 +76,18 @@ public final class FineLedger {
                 // Skipped: a fine nobody can attribute to a player cannot be collected from anybody.
             }
         }
+        // A fine this server changed and could not write yet keeps this server's word.
+        records.keySet().removeIf(id -> !read.containsKey(id) && !dirty.has(id));
+        read.forEach((id, record) -> {
+            if (!dirty.has(id)) {
+                records.put(id, record);
+            }
+        });
     }
 
     public synchronized boolean add(FineRecord record) {
         records.put(record.id(), record);
+        dirty.mark(record.id());
         return save();
     }
 
@@ -93,6 +125,7 @@ public final class FineLedger {
             FineRecord after = each.paidDown(left);
             long took = after.paid() - each.paid();
             records.put(each.id(), after);
+            dirty.mark(each.id());
             left -= took;
             settled += took;
         }
@@ -109,6 +142,7 @@ public final class FineLedger {
             if (each.target().equals(player) && each.isOpen()) {
                 wiped += each.debt();
                 records.put(each.id(), each.forgivenDebt());
+                dirty.mark(each.id());
             }
         }
         if (wiped > 0) {
@@ -119,13 +153,20 @@ public final class FineLedger {
 
     public synchronized boolean replace(FineRecord record) {
         records.put(record.id(), record);
+        dirty.mark(record.id());
         return save();
     }
 
+    /** Writes the fines this server changed, and only those. */
     private boolean save() {
-        Map<String, FineRecord> snapshot = new LinkedHashMap<>(records);
-        return file.write((YamlConfiguration yaml) -> snapshot.forEach((id, each) -> {
-            String at = "fines." + id + ".";
+        return dirty.write(file, (yaml, id) -> {
+            FineRecord each = records.get(id);
+            String at = "fines." + id;
+            if (each == null) {
+                yaml.set(at, null);
+                return;
+            }
+            at += ".";
             yaml.set(at + "target", each.target().toString());
             yaml.set(at + "punishment", each.punishmentId());
             yaml.set(at + "source", each.source());
@@ -139,6 +180,6 @@ public final class FineLedger {
             yaml.set(at + "forgiven", each.forgiven());
             yaml.set(at + "revoked", each.revoked());
             yaml.set(at + "refunded", each.refunded());
-        }));
+        });
     }
 }

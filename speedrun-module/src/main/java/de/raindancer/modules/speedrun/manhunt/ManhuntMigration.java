@@ -28,7 +28,7 @@ import java.util.Map;
  * A file already in the new folder is never overwritten — the old one stays where it was and the log
  * says so. Every file that does move is copied first, then copied again into
  * {@code backup/<old folder>/}, and only once both copies read back identical is the original
- * removed. A note is left in the old folder saying where everything went.
+ * renamed to {@code <name>.imported-2.0.0}. A note is left in the old folder saying where everything went.
  */
 public final class ManhuntMigration {
 
@@ -115,7 +115,7 @@ public final class ManhuntMigration {
         return new Result(from, moved, kept);
     }
 
-    /** Copy, back up, check both, and only then remove the original. */
+    /** Copy, back up, check both, and only then set the original aside. */
     private static void carry(Path source, Path target, Path backup) throws IOException {
         Files.createDirectories(target.getParent());
         Files.createDirectories(backup.getParent());
@@ -128,7 +128,8 @@ public final class ManhuntMigration {
             Files.deleteIfExists(target);
             throw new IOException("the copy did not read back the same");
         }
-        Files.delete(source);
+        Files.move(source, source.resolveSibling(source.getFileName() + ".imported-2.0.0"),
+                StandardCopyOption.REPLACE_EXISTING);
     }
 
     private static void leaveANote(Path old, Path speedrunFolder) {

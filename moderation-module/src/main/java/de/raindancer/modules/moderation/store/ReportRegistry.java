@@ -127,6 +127,26 @@ public final class ReportRegistry {
         return PREFIX + highest.incrementAndGet();
     }
 
+    /** The highest number handed out so far, for an id that has to be above everything any server holds. */
+    public long highest() {
+        return highest.get();
+    }
+
+    /**
+     * Puts what the database holds in place of what is held — an entry another server removed goes, one it
+     * added or changed comes in — except the ids {@code keepLocal} names: this server's own, not written yet.
+     */
+    public void replaceWith(java.util.Collection<Report> stored, java.util.function.Predicate<String> keepLocal) {
+        Set<String> storedKeys = new java.util.HashSet<>();
+        for (Report each : stored) {
+            storedKeys.add(key(each.id()));
+            if (!keepLocal.test(each.id())) {
+                add(each);
+            }
+        }
+        byId.values().removeIf(each -> !storedKeys.contains(key(each.id())) && !keepLocal.test(each.id()));
+    }
+
     public void clear() {
         byId.clear();
         highest.set(0);

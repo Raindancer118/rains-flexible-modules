@@ -3,7 +3,9 @@ package de.raindancer.modules.moderation.store;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -73,21 +75,43 @@ public final class PendingNotices {
         }
     }
 
-    private final Map<UUID, CopyOnWriteArrayList<Notice>> waiting = new ConcurrentHashMap<>();
-    private final YamlStore store;
+    /** One change this server made and has not written yet: a notice kept, or one that was delivered. */
+    private record Change(UUID who, boolean kept, Notice notice) {
+    }
 
+    private final Map<UUID, CopyOnWriteArrayList<Notice>> waiting = new ConcurrentHashMap<>();
+    private final List<Change> unwritten = new ArrayList<>();
+    private final YamlStore store;
+    private final NetworkBus.Subscription following;
+
+    /** The same notices on every server: a mute handed out on one is told on whichever the player logs into. */
     public PendingNotices(Path dataFolder) {
-        this.store = new YamlStore(dataFolder.resolve("pending.yml"));
+        this(YamlStore.network(dataFolder.resolve("pending.yml")));
+    }
+
+    PendingNotices(YamlStore store) {
+        this.store = store;
+        this.following = store.onChange(this::reload);
+    }
+
+    public void close() {
+        following.close();
     }
 
     /** Keeps one for somebody who is not here to be told. */
-    public void keep(UUID who, String key, Map<String, String> values) {
+    public synchronized void keep(UUID who, String key, Map<String, String> values) {
         if (who == null || key == null || key.isBlank()) {
             return;
         }
+        Notice notice = new Notice(key.trim(), values);
+        append(who, notice);
+        unwritten.add(new Change(who, true, notice));
+    }
+
+    private void append(UUID who, Notice notice) {
         CopyOnWriteArrayList<Notice> theirs =
                 waiting.computeIfAbsent(who, id -> new CopyOnWriteArrayList<>());
-        theirs.add(new Notice(key.trim(), values));
+        theirs.add(notice);
         while (theirs.size() > MOST_PER_PLAYER) {
             theirs.removeFirst();
         }
@@ -100,14 +124,20 @@ public final class PendingNotices {
      * the same notice — and so nobody can forget the second half and tell a player the same thing on
      * every login for the rest of the year.
      */
-    public List<Notice> forgetAndTake(UUID who) {
+    public synchronized List<Notice> forgetAndTake(UUID who) {
         if (who == null) {
             return List.of();
         }
         // remove() rather than get()-then-clear(): it also drops the entry, so the map does not grow
         // by one per player who was ever offline at the wrong moment.
         CopyOnWriteArrayList<Notice> theirs = waiting.remove(who);
-        return theirs == null ? List.of() : List.copyOf(theirs);
+        if (theirs == null) {
+            return List.of();
+        }
+        List<Notice> taken = List.copyOf(theirs);
+        // Those notices only: one another server kept meanwhile is not this call's to forget.
+        taken.forEach(notice -> unwritten.add(new Change(who, false, notice)));
+        return taken;
     }
 
     /** How many players have something waiting. */
@@ -115,56 +145,119 @@ public final class PendingNotices {
         return waiting.size();
     }
 
-    /** Reads what is on disk. Called once, when the module starts. */
-    public void load() {
-        waiting.clear();
-        ConfigurationSection root = store.read().getConfigurationSection("waiting");
-        if (root == null) {
-            return;
+    /**
+     * Reads what is stored, once when the module starts. Unreadable leaves what is held as it is: empty
+     * would be every notice forgotten.
+     */
+    public synchronized void load() {
+        store.readIfReadable().ifPresent(this::adopt);
+    }
+
+    /** Another server kept or delivered something: this server's changes go out first, then theirs come in. */
+    private synchronized void reload() {
+        if (flush()) {
+            load();
         }
+    }
+
+    private void adopt(YamlConfiguration yaml) {
+        Map<UUID, List<Notice>> read = new java.util.HashMap<>();
+        ConfigurationSection root = yaml.getConfigurationSection("waiting");
         List<String> unreadable = new ArrayList<>();
-        for (String id : root.getKeys(false)) {
-            UUID who;
-            try {
-                who = UUID.fromString(id);
-            } catch (IllegalArgumentException notAnId) {
-                unreadable.add(id);
-                continue;
-            }
-            for (Map<?, ?> entry : root.getMapList(id)) {
-                Object key = entry.get("key");
-                if (key == null) {
+        if (root != null) {
+            for (String id : root.getKeys(false)) {
+                UUID who;
+                try {
+                    who = UUID.fromString(id);
+                } catch (IllegalArgumentException notAnId) {
+                    unreadable.add(id);
                     continue;
                 }
-                Map<String, String> values = new LinkedHashMap<>();
-                Object stored = entry.get("values");
-                if (stored instanceof Map<?, ?> pairs) {
-                    pairs.forEach((name, value) -> {
-                        if (name != null && value != null) {
-                            values.put(name.toString(), value.toString());
-                        }
-                    });
-                }
-                keep(who, key.toString(), values);
+                read.put(who, noticesOf(root.getMapList(id)));
             }
         }
         if (!unreadable.isEmpty()) {
             log.error("{} entry/entries in pending.yml are not player ids and have been skipped: {}.",
                     unreadable.size(), String.join(", ", unreadable));
         }
+        waiting.clear();
+        read.forEach((who, notices) -> notices.forEach(notice -> append(who, notice)));
+        // Not written yet, so not in what was read: still this server's to tell.
+        for (Change change : unwritten) {
+            if (change.kept()) {
+                append(change.who(), change.notice());
+            } else {
+                forget(waiting.get(change.who()), change.notice());
+            }
+        }
     }
 
-    /** Writes the lot. @return whether it reached the disk */
-    public boolean flush() {
-        return store.write(yaml -> waiting.forEach((who, theirs) -> {
-            List<Map<String, Object>> entries = new ArrayList<>();
-            for (Notice notice : theirs) {
-                Map<String, Object> entry = new LinkedHashMap<>();
-                entry.put("key", notice.key());
-                entry.put("values", new LinkedHashMap<>(notice.values()));
-                entries.add(entry);
+    private static List<Notice> noticesOf(List<Map<?, ?>> entries) {
+        List<Notice> notices = new ArrayList<>();
+        for (Map<?, ?> entry : entries) {
+            Object key = entry.get("key");
+            if (key == null) {
+                continue;
             }
-            yaml.set("waiting." + who, entries);
-        }));
+            Map<String, String> values = new LinkedHashMap<>();
+            Object stored = entry.get("values");
+            if (stored instanceof Map<?, ?> pairs) {
+                pairs.forEach((name, value) -> {
+                    if (name != null && value != null) {
+                        values.put(name.toString(), value.toString());
+                    }
+                });
+            }
+            notices.add(new Notice(key.toString(), values));
+        }
+        return notices;
+    }
+
+    private static void forget(List<Notice> from, Notice notice) {
+        if (from != null) {
+            from.remove(notice);
+        }
+    }
+
+    /**
+     * Writes what this server kept and delivered since the last time, onto what the database holds now —
+     * notices other servers kept for the same player stay.
+     *
+     * @return whether it reached the database
+     */
+    public synchronized boolean flush() {
+        if (unwritten.isEmpty()) {
+            return true;
+        }
+        List<Change> going = List.copyOf(unwritten);
+        boolean written = store.update(yaml -> {
+            Map<UUID, List<Notice>> theirs = new java.util.LinkedHashMap<>();
+            for (Change change : going) {
+                List<Notice> list = theirs.computeIfAbsent(change.who(),
+                        who -> new ArrayList<>(noticesOf(yaml.getMapList("waiting." + who))));
+                if (change.kept()) {
+                    list.add(change.notice());
+                    while (list.size() > MOST_PER_PLAYER) {
+                        list.removeFirst();
+                    }
+                } else {
+                    list.remove(change.notice());
+                }
+            }
+            theirs.forEach((who, list) -> {
+                List<Map<String, Object>> entries = new ArrayList<>();
+                for (Notice notice : list) {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("key", notice.key());
+                    entry.put("values", new LinkedHashMap<>(notice.values()));
+                    entries.add(entry);
+                }
+                yaml.set("waiting." + who, entries.isEmpty() ? null : entries);
+            });
+        });
+        if (written) {
+            unwritten.removeAll(going);
+        }
+        return written;
     }
 }

@@ -130,14 +130,14 @@ class StorageTest {
         }
 
         @Test
-        @DisplayName("saving nothing empties the file rather than leaving yesterday's reports")
+        @DisplayName("saving writes what it is given and leaves the other servers' reports alone")
         void savingNothing(@TempDir Path folder) throws IOException {
             ReportStorage storage = new ReportStorage(folder);
             storage.saveAll(List.of(Report.filed("R1", ayla, "Ayla", bram, "Bram", "something", when)));
 
             storage.saveAll(List.of());
 
-            assertThat(storage.load()).isEmpty();
+            assertThat(storage.load()).extracting(Report::id).containsExactly("R1");
         }
 
         @Test

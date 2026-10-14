@@ -3,8 +3,11 @@ package de.raindancer.modules.moderation.store;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.core.platform.permission.Grants;
 import de.raindancer.modules.moderation.model.StaffRank;
+
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -60,9 +63,22 @@ public final class StaffRoster {
      */
     private final Map<UUID, Set<String>> denied = new ConcurrentHashMap<>();
 
+    private final DirtyKeys dirty = new DirtyKeys();
+    private final NetworkBus.Subscription following;
+
+    /** The same roster on every server of the network; the permissions it stands for are Core's. */
     public StaffRoster(Path dataFolder, Grants grants) {
+        this(YamlStore.network(dataFolder.resolve("staff.yml")), grants);
+    }
+
+    StaffRoster(YamlStore store, Grants grants) {
         this.grants = grants;
-        this.store = new YamlStore(dataFolder.resolve("staff.yml"));
+        this.store = store;
+        this.following = store.onChange(this::reload);
+    }
+
+    public void close() {
+        following.close();
     }
 
     /** Where the roster is kept — for a diagnostic, and for a test that wants to break the file. */
@@ -81,7 +97,7 @@ public final class StaffRoster {
      *
      * @return whether anything changed
      */
-    public boolean promote(UUID who, StaffRank rank) {
+    public synchronized boolean promote(UUID who, StaffRank rank) {
         if (who == null || rank == null) {
             return false;
         }
@@ -94,6 +110,7 @@ public final class StaffRoster {
         // refused before — carrying the exclusion forward would have topUpFromPreset immediately
         // undo half of what this line just did.
         denied.remove(who);
+        dirty.mark(who.toString());
         return true;
     }
 
@@ -102,7 +119,7 @@ public final class StaffRoster {
      *
      * @return whether they were staff at all
      */
-    public boolean demote(UUID who) {
+    public synchronized boolean demote(UUID who) {
         if (who == null || ranks.remove(who) == null) {
             return false;
         }
@@ -110,6 +127,7 @@ public final class StaffRoster {
         // and nobody meant to protect.
         grants.clear(who);
         denied.remove(who);
+        dirty.mark(who.toString());
         return true;
     }
 
@@ -152,7 +170,7 @@ public final class StaffRoster {
      *
      * @return whether they now hold it
      */
-    public boolean toggle(UUID who, String node) {
+    public synchronized boolean toggle(UUID who, String node) {
         if (!isStaff(who) || node == null || !StaffRank.everyGrantableNode().contains(node)) {
             return false;
         }
@@ -161,12 +179,14 @@ public final class StaffRoster {
             // Marked, so a later join does not read the absence as "never got around to granting
             // this" and hand it straight back — see the field note on denied.
             deniedFor(who).add(node);
+            dirty.mark(who.toString());
             return false;
         }
         grants.grant(who, node);
         // Granting it by hand is exactly as deliberate as revoking it was, and un-marks whatever
         // refusal came before — a node given back on purpose is not still "denied".
         undeny(who, node);
+        dirty.mark(who.toString());
         return true;
     }
 
@@ -235,10 +255,20 @@ public final class StaffRoster {
      * actually holds, and re-applying here would silently undo every deliberate per-person toggle on
      * every restart.
      */
-    public void load() {
-        ranks.clear();
-        denied.clear();
-        var yaml = store.read();
+    public synchronized void load() {
+        store.readIfReadable().ifPresent(this::adopt);
+    }
+
+    /** Another server changed the roster: what this server changed goes out first, then theirs comes in. */
+    private synchronized void reload() {
+        if (flush()) {
+            load();
+        }
+    }
+
+    private void adopt(YamlConfiguration yaml) {
+        Map<UUID, StaffRank> readRanks = new java.util.HashMap<>();
+        Map<UUID, Set<String>> readDenied = new java.util.HashMap<>();
         var root = yaml.getConfigurationSection("staff");
         if (root != null) {
             List<String> unreadable = new ArrayList<>();
@@ -255,7 +285,7 @@ public final class StaffRoster {
                     unreadable.add(id + " (" + root.getString(id) + ")");
                     continue;
                 }
-                ranks.put(who, rank.get());
+                readRanks.put(who, rank.get());
             }
             if (!unreadable.isEmpty()) {
                 log.error("{} entry/entries in staff.yml could not be read and have been skipped: {}. "
@@ -271,7 +301,7 @@ public final class StaffRoster {
                     UUID who = UUID.fromString(id);
                     List<String> nodes = deniedRoot.getStringList(id);
                     if (!nodes.isEmpty()) {
-                        deniedFor(who).addAll(nodes);
+                        readDenied.computeIfAbsent(who, key -> new java.util.HashSet<>()).addAll(nodes);
                     }
                 } catch (IllegalArgumentException notAnId) {
                     // Already logged loudly above for the ranks that fail the same way. Losing an
@@ -280,17 +310,31 @@ public final class StaffRoster {
                 }
             }
         }
+        // Somebody this server changed and could not write yet keeps this server's word.
+        ranks.keySet().removeIf(who -> !readRanks.containsKey(who) && !dirty.has(who.toString()));
+        denied.keySet().removeIf(who -> !readDenied.containsKey(who) && !dirty.has(who.toString()));
+        readRanks.forEach((who, rank) -> {
+            if (!dirty.has(who.toString())) {
+                ranks.put(who, rank);
+            }
+        });
+        readDenied.forEach((who, nodes) -> {
+            if (!dirty.has(who.toString())) {
+                Set<String> theirs = ConcurrentHashMap.newKeySet();
+                theirs.addAll(nodes);
+                denied.put(who, theirs);
+            }
+        });
     }
 
-    /** Writes the roster. @return whether it reached the disk */
-    public boolean flush() {
-        return store.write(yaml -> {
-            ranks.forEach((who, rank) -> yaml.set("staff." + who, rank.key()));
-            denied.forEach((who, nodes) -> {
-                if (!nodes.isEmpty()) {
-                    yaml.set("denied." + who, new ArrayList<>(nodes));
-                }
-            });
+    /** Writes what this server changed since the last time. @return whether it reached the database */
+    public synchronized boolean flush() {
+        return dirty.write(store, (yaml, id) -> {
+            UUID who = UUID.fromString(id);
+            StaffRank rank = ranks.get(who);
+            yaml.set("staff." + id, rank == null ? null : rank.key());
+            Set<String> nodes = denied.get(who);
+            yaml.set("denied." + id, nodes == null || nodes.isEmpty() ? null : new ArrayList<>(nodes));
         });
     }
 

@@ -3,9 +3,11 @@ package de.raindancer.modules.moderation.store;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
 import de.raindancer.modules.moderation.model.Report;
 import de.raindancer.modules.moderation.model.ReportState;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -13,20 +15,23 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 /**
- * The reports, on disk.
+ * The reports, in the network's database.
  *
- * <h2>One file, written whole</h2>
- * Unlike claims, which get a file each: there are tens of reports rather than hundreds of claims, they
+ * <h2>One document, changed entry by entry</h2>
+ * Unlike claims, which get a document each: there are tens of reports rather than hundreds of claims, they
  * change in bursts rather than continuously, and the queue is read as a whole every time anybody looks
- * at it. A file per report would be a directory of thousands of two-line files within a year.
+ * at it. Only the reports this server changed are written, so another server's changes to the others are
+ * never put back to what this server last saw.
  *
  * <h2>The write itself is Core's</h2>
- * {@link YamlStore} owns the write-to-a-temporary-then-move dance, so a server killed mid-save has
- * either the old file or the new one and never half of each. That was written seven times inside
- * RainsCore before it was written once; this module does not make it eight.
+ * {@link YamlStore} owns the atomic replace and the merge with other servers' writes; this module does
+ * not make it eight.
  */
 public final class ReportStorage {
 
@@ -36,9 +41,77 @@ public final class ReportStorage {
     public static final int DATA_VERSION = 1;
 
     private final YamlStore store;
+    private final DirtyKeys dirty = new DirtyKeys();
+    private ReportRegistry registry;
+    private NetworkBus.Subscription following = () -> { };
 
+    /** The network's reports: every server files into, and reads, the same queue. */
     public ReportStorage(Path dataFolder) {
-        this.store = new YamlStore(dataFolder.resolve("reports.yml"));
+        this(YamlStore.network(dataFolder.resolve("reports.yml")));
+    }
+
+    ReportStorage(YamlStore store) {
+        this.store = store;
+    }
+
+    /**
+     * Keeps {@code registry} the queue the database holds: what this server changed is written alone, and
+     * when another server changes the queue this server's changes go out first and theirs come in.
+     */
+    public synchronized void bind(ReportRegistry registry) {
+        following.close();
+        this.registry = registry;
+        this.following = store.onChange(this::refresh);
+    }
+
+    public void close() {
+        following.close();
+    }
+
+    /** A report this server changed; written with the next {@link #flush()}. */
+    public synchronized void put(Report report) {
+        registry.add(report);
+        dirty.mark(report.id());
+    }
+
+    /**
+     * Files a new one under the next free id. The id is taken in the database in the same step the report is
+     * written, so two servers filing at once never both get R7; only when the database cannot be reached
+     * is it numbered here, and written when it can.
+     */
+    public Report admit(Function<String, Report> build) {
+        AtomicReference<Report> made = new AtomicReference<>();
+        long above = registry.highest();
+        boolean written = store.update(yaml -> {
+            long next = Math.max(above, NumberedIds.highestIn(yaml.getConfigurationSection("reports"), ReportRegistry.PREFIX)) + 1;
+            Report report = build.apply(ReportRegistry.PREFIX + next);
+            write(yaml, report);
+            made.set(report);
+        });
+        synchronized (this) {
+            if (written) {
+                registry.add(made.get());
+                return made.get();
+            }
+            Report offline = build.apply(registry.nextId());
+            put(offline);
+            return offline;
+        }
+    }
+
+    /** Writes what this server changed. @return whether it reached the database */
+    public synchronized boolean flush() {
+        return dirty.write(store, (yaml, id) -> {
+            registry.byId(id).ifPresent(report -> write(yaml, report));
+            yaml.set("version", DATA_VERSION);
+        });
+    }
+
+    /** Writes what is changed, then takes the queue as the database holds it. */
+    public synchronized void refresh() {
+        if (flush()) {
+            loadIfReadable().ifPresent(stored -> registry.replaceWith(stored, dirty::has));
+        }
     }
 
     /** Where they are kept, for a diagnostic and for a test that wants to break the file. */
@@ -47,14 +120,23 @@ public final class ReportStorage {
     }
 
     /**
-     * Everything on disk.
+     * Everything stored.
      *
      * <p>An entry that will not read is skipped and named, and the rest still load. One report with a
      * mangled id must not cost the server its other forty — and a moderation queue that refuses to
      * load at all is one nobody notices is empty until a player asks what happened to their report.
      */
     public List<Report> load() {
-        ConfigurationSection root = store.read().getConfigurationSection("reports");
+        return loadIfReadable().orElseGet(ArrayList::new);
+    }
+
+    /** Empty when the document could not be read, which is not the same as having no reports. */
+    public Optional<List<Report>> loadIfReadable() {
+        return store.readIfReadable().map(this::parse);
+    }
+
+    private List<Report> parse(YamlConfiguration yaml) {
+        ConfigurationSection root = yaml.getConfigurationSection("reports");
         List<Report> reports = new ArrayList<>();
         if (root == null) {
             return reports;
@@ -79,32 +161,33 @@ public final class ReportStorage {
         return reports;
     }
 
-    /** Writes the lot. @return whether it reached the disk */
+    /** Writes these, leaving every other report as it is. @return whether it reached the database */
     public boolean saveAll(Collection<Report> reports) {
-        return store.write(yaml -> {
+        return store.update(yaml -> {
             yaml.set("version", DATA_VERSION);
-            if (reports == null) {
-                return;
-            }
-            for (Report report : reports) {
-                String at = "reports." + report.id();
-                yaml.set(at + ".reporter", asText(report.reporter()));
-                yaml.set(at + ".reporter-name", report.reporterName());
-                yaml.set(at + ".subject", report.subject().toString());
-                yaml.set(at + ".subject-name", report.subjectName());
-                yaml.set(at + ".text", report.text());
-                yaml.set(at + ".at", report.at().toString());
-                yaml.set(at + ".state", report.state().name().toLowerCase(Locale.ROOT));
-                yaml.set(at + ".handler", asText(report.handler()));
-                yaml.set(at + ".handler-name", report.handlerName());
-                yaml.set(at + ".outcome", report.outcome());
-                yaml.set(at + ".closed-at", report.closedAt() == null ? null
-                        : report.closedAt().toString());
-                yaml.set(at + ".preset", report.preset());
-                place(yaml, at + ".reporter-at", report.reporterAt());
-                place(yaml, at + ".subject-at", report.subjectAt());
+            if (reports != null) {
+                reports.forEach(report -> write(yaml, report));
             }
         });
+    }
+
+    private static void write(YamlConfiguration yaml, Report report) {
+        String at = "reports." + report.id();
+        yaml.set(at, null);
+        yaml.set(at + ".reporter", asText(report.reporter()));
+        yaml.set(at + ".reporter-name", report.reporterName());
+        yaml.set(at + ".subject", report.subject().toString());
+        yaml.set(at + ".subject-name", report.subjectName());
+        yaml.set(at + ".text", report.text());
+        yaml.set(at + ".at", report.at().toString());
+        yaml.set(at + ".state", report.state().name().toLowerCase(Locale.ROOT));
+        yaml.set(at + ".handler", asText(report.handler()));
+        yaml.set(at + ".handler-name", report.handlerName());
+        yaml.set(at + ".outcome", report.outcome());
+        yaml.set(at + ".closed-at", report.closedAt() == null ? null : report.closedAt().toString());
+        yaml.set(at + ".preset", report.preset());
+        place(yaml, at + ".reporter-at", report.reporterAt());
+        place(yaml, at + ".subject-at", report.subjectAt());
     }
 
     private static Report read(String id, ConfigurationSection entry) {

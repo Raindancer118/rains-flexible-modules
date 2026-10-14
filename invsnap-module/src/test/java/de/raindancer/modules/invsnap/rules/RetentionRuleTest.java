@@ -74,4 +74,31 @@ class RetentionRuleTest {
 
         assertThat(kept).hasSize(2);
     }
+
+    @Test
+    @DisplayName("a snapshot older than the age limit goes, even when the count would keep it")
+    void ageLimit() {
+        List<Snapshot> existing = List.of(at(3 * 86_400), at(100));
+        List<Snapshot> kept = rule.applying(existing, at(0), 24, java.time.Duration.ofDays(2), Instant.now());
+
+        assertThat(kept).hasSize(2);
+        assertThat(kept).allSatisfy(snapshot ->
+                assertThat(snapshot.takenAt()).isAfter(Instant.now().minus(2, ChronoUnit.DAYS)));
+    }
+
+    @Test
+    @DisplayName("no age limit keeps old snapshots by count alone")
+    void noAgeLimit() {
+        List<Snapshot> kept = rule.applying(List.of(at(400 * 86_400L)), at(0), 24, java.time.Duration.ZERO, Instant.now());
+
+        assertThat(kept).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("the fresh snapshot is never aged out, so a player always has one")
+    void freshSurvives() {
+        List<Snapshot> kept = rule.applying(List.of(), at(5 * 86_400), 24, java.time.Duration.ofDays(1), Instant.now());
+
+        assertThat(kept).hasSize(1);
+    }
 }

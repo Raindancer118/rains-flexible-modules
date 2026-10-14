@@ -117,17 +117,23 @@ public record InvSnapSettings(
         @Describe("On: no timed snapshots and none when somebody logs off — only the one taken the instant "
                 + "before a player dies. Off: the interval above applies.")
         @Key("snapshot.only-on-death")
-        boolean onlyOnDeath) {
+        boolean onlyOnDeath,
+
+        @In("invsnap") @Title("Snapshots kept, days") @Range(min = 0, max = 3650)
+        @Describe("Snapshots older than this many days are dropped, also those of players who no longer "
+                + "play. 0 keeps them until the count above pushes them out.")
+        @Key("snapshot.retention-days")
+        int retentionDays) {
 
     /** Snapshot settings with insurance at its shipped (off) default. */
     public InvSnapSettings(int snapshotIntervalSeconds, int retentionCount) {
         this(snapshotIntervalSeconds, retentionCount, false, 0, "0", "0", false, List.of(),
-                false, 0, "0", "0", 168, 3, "0", false);
+                false, 0, "0", "0", 168, 3, "0", false, 7);
     }
 
     public static final InvSnapSettings DEFAULTS =
             new InvSnapSettings(300, 24, false, 0, "0", "0", false, List.of(),
-                    false, 0, "0", "0", 168, 3, "0", false);
+                    false, 0, "0", "0", 168, 3, "0", false, 7);
 
     /** {@link #snapshotIntervalSeconds}, clamped and widened into a real {@link Duration}. */
     public Duration snapshotInterval() {
@@ -138,7 +144,19 @@ public record InvSnapSettings(
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
                 itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, only);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, only, retentionDays);
+    }
+
+    /** {@link #retentionDays} as a span; {@link Duration#ZERO} means no age limit. */
+    public Duration retentionAge() {
+        return Duration.ofDays(Math.max(0, Math.min(3650, retentionDays)));
+    }
+
+    public InvSnapSettings withRetentionDays(int days) {
+        return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
+                insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
+                itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, days);
     }
 
     /** {@link #retentionCount}, clamped. */
@@ -149,58 +167,58 @@ public record InvSnapSettings(
     public InvSnapSettings withSnapshotIntervalSeconds(int seconds) {
         return new InvSnapSettings(seconds, retentionCount, insuranceEnabled, insurancePricePercent,
                 insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withRetentionCount(int count) {
         return new InvSnapSettings(snapshotIntervalSeconds, count, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withInsuranceEnabled(boolean enabled) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, enabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withInsurancePrice(double percent, String flat, String most) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 percent, flat, most, insuranceKeepXp, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withInsuranceKeepXp(boolean keep) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, keep, insuranceWorlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withInsuranceWorlds(List<String> worlds) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, worlds, itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withItemInsurance(boolean enabled) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
                 enabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceEveryHours, itemInsuranceMostItems, itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withItemInsurancePrice(double percent, String flat, String least) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
                 itemInsuranceEnabled, percent, flat, least, itemInsuranceEveryHours, itemInsuranceMostItems,
-                itemInsuranceClaimFee, onlyOnDeath);
+                itemInsuranceClaimFee, onlyOnDeath, retentionDays);
     }
 
     public InvSnapSettings withItemInsuranceTerms(int everyHours, int mostItems, String claimFee) {
         return new InvSnapSettings(snapshotIntervalSeconds, retentionCount, insuranceEnabled,
                 insurancePricePercent, insurancePriceFlat, insuranceMost, insuranceKeepXp, insuranceWorlds,
                 itemInsuranceEnabled, itemInsurancePricePercent, itemInsurancePriceFlat, itemInsuranceLeast,
-                everyHours, mostItems, claimFee, onlyOnDeath);
+                everyHours, mostItems, claimFee, onlyOnDeath, retentionDays);
     }
 
     /** {@link #itemInsuranceEveryHours}, clamped, as the time between two premiums. */

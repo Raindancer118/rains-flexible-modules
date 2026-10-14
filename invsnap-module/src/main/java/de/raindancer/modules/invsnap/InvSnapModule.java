@@ -50,7 +50,7 @@ import java.util.UUID;
  */
 public final class InvSnapModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.7.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("invsnap", "Inventory Snapshots", "1.8.0")
             .describedAs("Periodic inventory snapshots for every online player, with an admin "
                     + "screen to browse a player's history and restore one.")
             .by("Raindancer118");
@@ -58,6 +58,7 @@ public final class InvSnapModule implements FlexModule {
     /** Asked once a second — see {@code SnapshotDueRule} for why a fixed short poll beats scheduling
      *  the timer itself at the configured interval. */
     private static final long TICK_PERIOD_TICKS = 20L;
+    private static final long PRUNE_PERIOD_TICKS = 6L * 60 * 60 * 20;
 
     private LogChannel log;
     private SettingsStore<InvSnapSettings> settings;
@@ -142,6 +143,13 @@ public final class InvSnapModule implements FlexModule {
         });
         if (renewals != null) {
             context.closeWith(renewals::cancel);
+        }
+
+        // A sweep, because pruning on a player's own snapshot never reaches one who has stopped playing.
+        var pruning = Scheduling.globalTimer(context.plugin(), 600L, PRUNE_PERIOD_TICKS,
+                task -> snapshotService.pruneExpired());
+        if (pruning != null) {
+            context.closeWith(pruning::cancel);
         }
 
         var timer = Scheduling.globalTimer(context.plugin(), TICK_PERIOD_TICKS, TICK_PERIOD_TICKS,

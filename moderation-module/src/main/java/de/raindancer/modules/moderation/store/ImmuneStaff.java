@@ -3,6 +3,9 @@ package de.raindancer.modules.moderation.store;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
+import de.raindancer.core.platform.network.NetworkBus;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -43,11 +46,26 @@ public final class ImmuneStaff {
 
     private static final LogChannel log = Log.of("moderation");
 
+    private static final String LEGACY = "immune";
+    private static final String ACCOUNTS = "accounts";
+
     private final Set<UUID> immune = ConcurrentHashMap.newKeySet();
     private final YamlStore store;
+    private final DirtyKeys dirty = new DirtyKeys();
+    private final NetworkBus.Subscription following;
 
+    /** The same list on every server of the network. */
     public ImmuneStaff(Path dataFolder) {
-        this.store = new YamlStore(dataFolder.resolve("immune.yml"));
+        this(YamlStore.network(dataFolder.resolve("immune.yml")));
+    }
+
+    ImmuneStaff(YamlStore store) {
+        this.store = store;
+        this.following = store.onChange(this::reload);
+    }
+
+    public void close() {
+        following.close();
     }
 
     /**
@@ -55,8 +73,12 @@ public final class ImmuneStaff {
      *
      * @return whether this changed anything, so the caller can avoid a pointless write
      */
-    public boolean protect(UUID who) {
-        return who != null && immune.add(who);
+    public synchronized boolean protect(UUID who) {
+        if (who == null || !immune.add(who)) {
+            return false;
+        }
+        dirty.mark(who.toString());
+        return true;
     }
 
     /**
@@ -67,8 +89,12 @@ public final class ImmuneStaff {
      *
      * @return whether this changed anything
      */
-    public boolean unprotect(UUID who) {
-        return who != null && immune.remove(who);
+    public synchronized boolean unprotect(UUID who) {
+        if (who == null || !immune.remove(who)) {
+            return false;
+        }
+        dirty.mark(who.toString());
+        return true;
     }
 
     /** Whether this account is protected from moderators. The console is never asked. */
@@ -85,14 +111,32 @@ public final class ImmuneStaff {
         return immune.size();
     }
 
-    /** Reads what is on disk. Called once, when the module starts. */
-    public void load() {
-        List<String> ids = store.read().getStringList("immune");
-        immune.clear();
+    /**
+     * Reads the list, once when the module starts. A list that cannot be read leaves what is held as it is:
+     * an empty one would unprotect everybody until the next read.
+     */
+    public synchronized void load() {
+        store.readIfReadable().ifPresent(this::adopt);
+    }
+
+    /** Another server changed the list: what this server changed goes out first, then theirs comes in. */
+    private synchronized void reload() {
+        if (flush()) {
+            load();
+        }
+    }
+
+    private void adopt(YamlConfiguration yaml) {
+        List<String> ids = new ArrayList<>(yaml.getStringList(LEGACY));
+        ConfigurationSection accounts = yaml.getConfigurationSection(ACCOUNTS);
+        if (accounts != null) {
+            ids.addAll(accounts.getKeys(false));
+        }
+        Set<UUID> read = new java.util.HashSet<>();
         List<String> unreadable = new ArrayList<>();
         for (String id : ids) {
             try {
-                immune.add(UUID.fromString(id));
+                read.add(UUID.fromString(id));
             } catch (IllegalArgumentException notAnId) {
                 unreadable.add(id);
             }
@@ -103,14 +147,20 @@ public final class ImmuneStaff {
                     + "Those accounts are NOT protected until they next log in.",
                     unreadable.size(), String.join(", ", unreadable));
         }
+        // What this server changed and could not write yet is still its own word.
+        immune.removeIf(who -> !read.contains(who) && !dirty.has(who.toString()));
+        read.stream().filter(who -> !dirty.has(who.toString())).forEach(immune::add);
     }
 
-    /** Writes the lot. @return whether it reached the disk */
-    public boolean flush() {
-        List<String> ids = new ArrayList<>();
-        for (UUID who : immune) {
-            ids.add(who.toString());
-        }
-        return store.write(yaml -> yaml.set("immune", ids));
+    /** Writes what this server changed since the last time. @return whether it reached the database */
+    public synchronized boolean flush() {
+        return dirty.write(store, (yaml, id) -> {
+            // The 1.x file was one list; it becomes one entry per account, which can be merged value by value.
+            for (String old : yaml.getStringList(LEGACY)) {
+                yaml.set(ACCOUNTS + "." + old, true);
+            }
+            yaml.set(LEGACY, null);
+            yaml.set(ACCOUNTS + "." + id, immune.contains(UUID.fromString(id)) ? true : null);
+        });
     }
 }

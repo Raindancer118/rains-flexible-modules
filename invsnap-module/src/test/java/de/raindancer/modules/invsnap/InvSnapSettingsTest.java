@@ -24,6 +24,16 @@ class InvSnapSettingsTest {
             assertThat(defaults.retentionCount()).isEqualTo(24);
             assertThat(defaults.snapshotInterval()).isEqualTo(Duration.ofMinutes(5));
         }
+
+        @Test
+        @DisplayName("snapshots older than a week are dropped; zero days would turn the age limit off")
+        void ageLimit() {
+            assertThat(defaults.retentionDays()).isEqualTo(7);
+            assertThat(defaults.retentionAge()).isEqualTo(Duration.ofDays(7));
+            assertThat(defaults.withRetentionDays(0).retentionAge()).isEqualTo(Duration.ZERO);
+            assertThat(defaults.withRetentionDays(99_999).retentionAge()).isEqualTo(Duration.ofDays(3650));
+            assertThat(defaults.withRetentionDays(-3).retentionAge()).isEqualTo(Duration.ZERO);
+        }
     }
 
     @Nested
