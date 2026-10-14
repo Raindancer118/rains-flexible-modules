@@ -31,3 +31,9 @@ dependencies:
       # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
       # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
       join-classpath: true
+    # The anti-cheat's detections are Grim's; without it moderation still runs and only the x-ray hunt and the
+    # anti-ESP remain. join-classpath because the bridge touches GrimAPI's classes — only once Grim is enabled.
+    GrimAC:
+      load: BEFORE
+      required: false
+      join-classpath: true

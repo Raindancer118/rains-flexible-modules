@@ -104,7 +104,22 @@ public final class PlayerLookIntoMenu extends PlayerScreen {
                 Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat",
                         allowed ? antiCheatLore(subject) : List.of("<gray>What the checks saw of them.")),
                 "For whoever may use the anti-cheat",
-                click -> viewer.performCommand("anticheat " + subjectName));
+                click -> openAntiCheat(viewer, this, subject, subjectName));
+    }
+
+    /**
+     * Their page in the anti-cheat, as a page under this one: their level in every family and the evidence. Somebody
+     * not on this server has no live levels here; their evidence log answers instead.
+     */
+    static void openAntiCheat(Player viewer, de.raindancer.core.ui.menu.Menu parent, UUID subject, String subjectName) {
+        var live = de.raindancer.modules.moderation.AntiCheatCommands.running();
+        Player online = viewer.getServer().getPlayer(subject);
+        if (live.isPresent() && online != null) {
+            new PlayerChecksMenu(live.get(), viewer, parent, live.get().tracks().of(online)).open();
+        } else {
+            viewer.closeInventory();
+            viewer.performCommand("anticheat log " + subjectName);
+        }
     }
 
     /** The anti-cheat's summary of somebody, as lore lines — shared with the report card. */

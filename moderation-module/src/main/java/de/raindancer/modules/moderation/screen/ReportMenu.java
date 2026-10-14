@@ -211,6 +211,19 @@ public final class ReportMenu extends ModerationScreen {
     /** The evidence that fits what was reported: the mining record for x-ray, the anti-cheat for other cheating. */
     private void evidence(Report report, ReportPreset preset, boolean allowed) {
         if (preset == ReportPreset.XRAY) {
+            // The tunnels themselves, one click from the report: taken there if need be, drawn around you.
+            var ledger = services().xrayDetection().ledgerOf(report.subject());
+            band(MenuLayout.RULES, 4, allowed && ledger != null, glowing(Icons.of(Material.ENDER_EYE, "<yellow>Show their tunnels",
+                            "<gray>Takes you to their digging and draws it for 30 seconds,",
+                            "<gray>only you can see it: <white>grey</white> rock, <aqua>aqua</aqua> ore veins,",
+                            "<red>red</red> bait ores only an x-ray shows.")),
+                    ledger == null ? "Nothing of their digging is recorded on this server" : "For whoever may read reports",
+                    click -> {
+                        viewer.closeInventory();
+                        de.raindancer.modules.moderation.visual.XrayReplay.goAndShow(services().plugin(), viewer, ledger,
+                                drawn -> tell(drawn > 0 ? "moderation.xray.replay-shown" : "moderation.xray.replay-empty",
+                                        "player", report.subjectName(), "count", drawn));
+                    });
             band(MenuLayout.RULES, 6, allowed, Icons.of(Material.DIAMOND_PICKAXE, "<yellow>Mining evidence",
                             "<gray>Veins and bait ores, where and when."),
                     "For whoever may read reports",
@@ -224,7 +237,7 @@ public final class ReportMenu extends ModerationScreen {
                     Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat", mayUse
                             ? PlayerLookIntoMenu.antiCheatLore(report.subject()) : List.of("<gray>What the checks saw of them.")),
                     "For whoever may use the anti-cheat",
-                    click -> viewer.performCommand("anticheat " + report.subjectName()));
+                    click -> PlayerLookIntoMenu.openAntiCheat(viewer, this, report.subject(), report.subjectName()));
             return;
         }
         band(MenuLayout.RULES, 6, may(ModerationPermission.HISTORY), Icons.of(Material.BOOK, "<yellow>Their record",

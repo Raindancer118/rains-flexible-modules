@@ -71,7 +71,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.43.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.44.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -444,6 +444,8 @@ public final class ModerationModule implements FlexModule {
         // been answering "not started yet" until now. See ModerationCommands.
         ModerationCommands.ready(services);
 
+        // Grim's flags, the network's record of them, anti-ESP and the client policy: one module with moderation.
+        AntiCheat.start(context, settings);
         log.info("Moderation is up: {} reason(s), {} report(s) waiting, {} staff.", reasons.size(),
                 reports.waitingCount(), roster.size());
     }
@@ -642,7 +644,9 @@ public final class ModerationModule implements FlexModule {
 
     @Override
     public List<ModuleCommand> commands() {
-        return ModerationCommands.declared();
+        List<ModuleCommand> all = new java.util.ArrayList<>(ModerationCommands.declared());
+        all.addAll(de.raindancer.modules.moderation.AntiCheatCommands.declared());
+        return all;
     }
 
     @Override

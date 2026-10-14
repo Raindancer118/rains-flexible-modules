@@ -42,6 +42,11 @@ import java.util.List;
         @Topic(path = "moderation/staff", title = "Staff", icon = Material.PLAYER_HEAD),
         @Topic(path = "moderation/fines", title = "Fines", icon = Material.GOLD_NUGGET),
         @Topic(path = "moderation/records", title = "Records", icon = Material.BOOKSHELF),
+        @Topic(path = "moderation/anticheat", title = "Anti-cheat (Grim)", icon = Material.SHIELD),
+        @Topic(path = "moderation/anticheat/actions", title = "What Grim's flags lead to", icon = Material.IRON_BARS),
+        @Topic(path = "moderation/anticheat/checks", title = "Families of checks", icon = Material.COMPARATOR),
+        @Topic(path = "moderation/anticheat/clients", title = "Clients", icon = Material.NAME_TAG),
+        @Topic(path = "moderation/anticheat/reports", title = "Staff reports", icon = Material.WRITABLE_BOOK),
 })
 public record ModerationSettings(
 
@@ -409,7 +414,162 @@ public record ModerationSettings(
         @Describe("After telling staff about a player's attempt, further attempts by the same player are "
                 + "only counted until this many minutes have passed, then told as one.")
         @Key("punishments.attempt-alert-minutes")
-        int attemptAlertMinutes) {
+        int attemptAlertMinutes,
+
+        // ─────────────────────────────────────────────────────────── anti-cheat (Grim)
+
+        @In("moderation/anticheat") @Title("Taking Grim's flags in")
+        @Describe("Off, Grim's flags are not taken in here and nothing is remembered. Grim itself keeps checking "
+                + "and setting back. Players already flagged keep their record.")
+        @Key("anticheat.enabled")
+        boolean cheatEnabled,
+
+        @In("moderation/anticheat") @Title("Keep hidden players listed")
+        @Describe("While the anti-ESP shield hides a player behind a wall, they stay in the tab list. Reads the "
+                + "server's own connection; off, they drop off the tab list while hidden. Takes effect for players "
+                + "who join after a change.")
+        @Key("anticheat.packet-tap")
+        boolean cheatPacketTap,
+
+        @In("moderation/anticheat/reports") @Title("Server lag that excuses a flag")
+        @Describe("Flags raised while the server ran slower than this many ticks a second do not count towards a "
+                + "staff report: a lagging server makes honest clients look odd.")
+        @Key("anticheat.min-tps")
+        double cheatMinTps,
+
+        @In("moderation/anticheat/actions") @Title("Tell staff")
+        @Describe("Staff with rainsanticheat.alerts on every server of the network are told when Grim flags a "
+                + "player past a family's alert level, at most once a second per family — repeats are counted "
+                + "into the next line.")
+        @Key("anticheat.alerts")
+        boolean cheatAlerts,
+
+        @In("moderation/anticheat/actions") @Title("Kick")
+        @Describe("A player whose level for a family reaches its kick level is kicked. The kick is recorded like "
+                + "any other. Levels follow the player across the network.")
+        @Key("anticheat.auto-kick")
+        boolean cheatAutoKick,
+
+        @In("moderation/anticheat/actions") @Title("Ban")
+        @Describe("A player whose level reaches a family's ban level is punished: by the server's rules (see "
+                + "'Punish by the rules'), else banned for the ban length below. Off by default.")
+        @Key("anticheat.auto-ban")
+        boolean cheatAutoBan,
+
+        @In("moderation/anticheat/actions") @Title("Ban length")
+        @Describe("How long an automatic ban lasts: 30m, 12h, 7d, or 'forever'.")
+        @Key("anticheat.ban-length")
+        String cheatBanLength,
+
+        @In("moderation/anticheat/actions") @Title("Punish by the rules")
+        @Describe("With 'Ban' on, a player reaching a family's ban level gets what the server's rule about "
+                + "cheating (/rules) says instead of the fixed ban, counted like a moderator hands it out: 1st "
+                + "offence, 2nd, … At most once every five minutes per player. When that rule has no "
+                + "punishments, the fixed ban is used.")
+        @Key("anticheat.punish-by-rules")
+        boolean cheatPunishByRules,
+
+        @In("moderation/anticheat/actions") @Title("Rule about cheating")
+        @Describe("Which rule that is: its number in /rules, or 'auto' for the first rule whose title "
+                + "mentions cheating or hacking.")
+        @Key("anticheat.cheating-rule")
+        String cheatCheatingRule,
+
+        @In("moderation/anticheat/actions") @Title("Kick and ban levels, in percent") @Range(min = 10, max = 1000)
+        @Describe("Scales every family's kick and ban level. 200 is twice as lenient, 50 twice as strict.")
+        @Key("anticheat.punish-scale")
+        int cheatPunishScale,
+
+        @In("moderation/anticheat/actions") @Title("Keep evidence")
+        @Describe("Every flag is written down with Grim's check, its details and where it happened, for "
+                + "/anticheat log and the player's page.")
+        @Key("anticheat.evidence")
+        boolean cheatEvidence,
+
+        @In("moderation/anticheat/actions") @Title("Evidence kept per player") @Range(min = 10, max = 5000)
+        @Describe("The newest this many flags per player are kept; older ones fall off.")
+        @Key("anticheat.evidence-per-player")
+        int cheatEvidencePerPlayer,
+
+        @In("moderation/anticheat/checks") @Title("Switched off")
+        @Describe("Families whose flags are not taken in: movement, combat, world, inventory, packets, client "
+                + "(/anticheat checks lists them).")
+        @Key("anticheat.disabled-checks")
+        List<String> cheatDisabledChecks,
+
+        @In("moderation/anticheat/checks") @Title("Watch only")
+        @Describe("Families that still alert and keep evidence but never kick or ban.")
+        @Key("anticheat.silent-checks")
+        List<String> cheatSilentChecks,
+
+        @In("moderation/anticheat/checks") @Title("Grim's experimental checks")
+        @Describe("Whether the flags of checks Grim marks experimental count like the others.")
+        @Key("anticheat.experimental-checks")
+        boolean cheatExperimentalChecks,
+
+        @In("moderation/anticheat/clients") @Title("Refused clients")
+        @Describe("Client brands a player may not join with, matched as part of the name, any case. "
+                + "Brands are trivial to fake, so this only stops clients that announce themselves.")
+        @Key("anticheat.blocked-brands")
+        List<String> cheatBlockedBrands,
+
+        @In("moderation/anticheat/clients") @Title("Refused mod channels")
+        @Describe("Plugin channels a client may not register, matched as part of the name.")
+        @Key("anticheat.blocked-channels")
+        List<String> cheatBlockedChannels,
+
+        @In("moderation/anticheat/clients") @Title("Kick refused clients")
+        @Describe("On, a refused client is kicked. Off, staff are only told.")
+        @Key("anticheat.kick-blocked-clients")
+        boolean cheatKickBlockedClients,
+
+        @In("moderation/anticheat/clients") @Title("Announce every client")
+        @Describe("Tell staff which client brand every player joins with.")
+        @Key("anticheat.announce-brands")
+        boolean cheatAnnounceBrands,
+
+        @In("moderation/anticheat") @Title("Hide players behind walls")
+        @Describe("Anti-ESP: a player nobody could see — solid blocks in every line between them — is not sent "
+                + "to the other's client at all, so wallhacks and tracers have nothing to draw. They stay in the "
+                + "tab list. Costs a few ray traces per pair of nearby players, five times a second. Not on Folia.")
+        @Key("anticheat.anti-esp")
+        boolean cheatAntiEsp,
+
+        @In("moderation/anticheat") @Title("Hide behind walls within") @Range(min = 16, max = 128)
+        @Describe("Players further apart than this many blocks are left to the server's own tracking.")
+        @Key("anticheat.anti-esp-range")
+        int cheatAntiEspRange,
+
+        @In("moderation/anticheat/reports") @Title("Report cheaters")
+        @Describe("When Grim keeps flagging a player over a stretch of time — not a burst, a pattern — one "
+                + "report goes into the moderation queue, from 'the console', with what was seen and a link to "
+                + "the evidence. It never punishes: staff decide. Not filed again while an open one about the "
+                + "same player and kind waits.")
+        @Key("anticheat.auto-report")
+        boolean cheatAutoReport,
+
+        @In("moderation/anticheat/reports") @Title("Flags needed") @Range(min = 5, max = 500)
+        @Describe("How many movement flags in the window; fights and building need fewer, as they flag only "
+                + "while somebody fights or builds. Flags made at a bad ping or while the server lagged never count.")
+        @Key("anticheat.auto-report-flags")
+        int cheatAutoReportFlags,
+
+        @In("moderation/anticheat/reports") @Title("Window, in seconds") @Range(min = 30, max = 900)
+        @Describe("How far back flags count towards a report. They must fall into at least three separate "
+                + "five-second stretches of it.")
+        @Key("anticheat.auto-report-seconds")
+        int cheatAutoReportSeconds,
+
+        @In("moderation/anticheat/reports") @Title("Level still standing") @Range(min = 1, max = 200)
+        @Describe("The family's level, after its decay, must still be this high: a hack that stopped a minute "
+                + "ago has decayed away.")
+        @Key("anticheat.auto-report-level")
+        int cheatAutoReportLevel,
+
+        @In("moderation/anticheat/reports") @Title("Highest ping that counts") @Range(min = 50, max = 2000)
+        @Describe("Flags made above this ping are put down to the connection and are not counted.")
+        @Key("anticheat.auto-report-max-ping")
+        int cheatAutoReportMaxPing) {
 
     public ModerationSettings {
         suspiciousCommands = suspiciousCommands == null ? List.of() : List.copyOf(suspiciousCommands);
@@ -435,7 +595,15 @@ public record ModerationSettings(
             true, true, "<dark_aqua>[Staff]</dark_aqua>", false, true, true, false, true,
             true, 0, 300, false, true,
             true, 15, 6, 14,
-            "", 0, "0", "0", "0", true, 0, "0", 24, true, 10);
+            "", 0, "0", "0", "0", true, 0, "0", 24, true, 10,
+            true, true, 17.0,
+            true, false, false, "7d", true, "auto", 100, true, 200,
+            List.of(), List.of(), false,
+            List.of("wurst", "meteor", "liquidbounce", "aristois", "rusherhack", "konas", "bleachhack",
+            "inertia", "novoline", "tenacity"),
+            List.of("wurst", "meteor-client", "liquidbounce", "aristois", "bleachhack"),
+            true, false, false, 64,
+            true, 20, 120, 15, 300);
 
     /** The report cooldown as the rule wants it. */
     public Duration reportCooldown() {
@@ -492,7 +660,8 @@ public record ModerationSettings(
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withAnnounceLifts(boolean announce) {
@@ -508,7 +677,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withAnnounceKicks(boolean announce) {
@@ -524,7 +694,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withAnnounceWarnings(boolean announce) {
@@ -540,7 +711,8 @@ public record ModerationSettings(
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withShowModeratorName(boolean named) {
@@ -556,7 +728,8 @@ public record ModerationSettings(
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withWarnsBeforeBan(int howMany) {
@@ -572,7 +745,8 @@ public record ModerationSettings(
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withAdminsAreOp(boolean opped) {
@@ -588,7 +762,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, opped,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withModTempBanMax(String longest) {
@@ -604,7 +779,8 @@ public record ModerationSettings(
                 mayDemoteBelow, adminsAreOp, flightWhileVanished, auditEverything,
                 keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withMayPromoteBelow(boolean allowed) {
@@ -620,7 +796,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, allowed, mayDemoteBelow, adminsAreOp, flightWhileVanished,
                 auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withMayDemoteBelow(boolean allowed) {
@@ -636,7 +813,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, allowed, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withSuspiciousCommandsEnabled(boolean enabled) {
@@ -652,7 +830,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withSuspiciousCommands(List<String> commands) {
@@ -668,7 +847,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withSuspiciousCooldownSeconds(int seconds) {
@@ -684,7 +864,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withXrayDetectionEnabled(boolean enabled) {
@@ -700,7 +881,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
     public ModerationSettings withXrayOres(List<String> ores) {
@@ -716,7 +898,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
 
@@ -736,7 +919,8 @@ public record ModerationSettings(
                 vanishOnJoinForStaff, mayPromoteBelow, mayDemoteBelow, adminsAreOp,
                 flightWhileVanished, auditEverything, keepRecordsDays, autoSaveSeconds, debug, banhammer,
                 xrayHoneypots, xrayBaitVeins, xrayReportScore, xrayHalfLifeDays, warnFine, warnFinePercent, warnFineLeast, warnFineMost, modFineMax, unpaidFinesBecomeDebt,
-                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes);
+                victimSharePercent, muteBuyoffPerHour, muteBuyoffLongestHours, attemptAlerts, attemptAlertMinutes,
+                cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
     }
 
 
@@ -810,5 +994,15 @@ public record ModerationSettings(
     /** The wait before flagging the same player again, as the service wants it. */
     public java.time.Duration xrayCooldown() {
         return java.time.Duration.ofSeconds(Math.max(0, xrayCooldownSeconds));
+    }
+
+    /** The anti-cheat's part of these settings, as its services read them. */
+    public AntiCheatSettings antiCheat() {
+        return new AntiCheatSettings(cheatEnabled, cheatPacketTap, cheatMinTps, cheatAlerts, cheatAutoKick, cheatAutoBan, cheatBanLength, cheatPunishByRules, cheatCheatingRule, cheatPunishScale, cheatEvidence, cheatEvidencePerPlayer, cheatDisabledChecks, cheatSilentChecks, cheatExperimentalChecks, cheatBlockedBrands, cheatBlockedChannels, cheatKickBlockedClients, cheatAnnounceBrands, cheatAntiEsp, cheatAntiEspRange, cheatAutoReport, cheatAutoReportFlags, cheatAutoReportSeconds, cheatAutoReportLevel, cheatAutoReportMaxPing);
+    }
+
+    /** With Grim's experimental checks counting or not. */
+    public ModerationSettings withAntiCheatExperimental(boolean counted) {
+        return with("cheatExperimentalChecks", counted);
     }
 }

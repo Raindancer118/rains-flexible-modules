@@ -1,5 +1,9 @@
 # Anticheat detection review (anticheat-module 0.10.1)
 
+> **Superseded (moderation 2.44.0).** The detection checks reviewed here are gone; detection is GrimAC's and
+> the rest of the anti-cheat lives in the moderation module. Kept for the history of the decisions.
+
+
 Scope: read-only review of `anticheat-module/src/main/java/de/raindancer/modules/anticheat/` (~7.8k lines) plus test inventory. Nothing was executed against a live server. Statements are tagged **[V]** verified in code, **[I]** inference or calculation from code, **[U]** unverified external fact. Paths below are relative to the anticheat package; line numbers refer to the current files.
 
 External sources (weak; the open-source competitors' internals are mostly not documented publicly):

@@ -54,7 +54,6 @@ on:
       - 'veintoggle-module-v*'
       - 'enchants-module-v*'
       - 'economy-module-v*'
-      - 'anticheat-module-v*'
     branches:
       - '**'
   pull_request:
@@ -200,7 +199,6 @@ jobs:
             enchants-standalone/target/RainsEnchants-*.jar
             economy-standalone/target/RainsEconomy-*.jar
             ranks-standalone/target/RainsRanks-*.jar
-            anticheat-standalone/target/RainsAntiCheat-*.jar
             arena-standalone/target/RainsArena-*.jar
             arenagate-standalone/target/RainsArenaGate-*.jar
             speedrun-bundle/target/RainsSpeedrunServer-*.jar
@@ -590,7 +588,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xpbottle-module sends-module xaeromap-module wallsroads-module worldutils-module veintoggle-module enchants-module economy-module anticheat-module arena-api arena-module arenagate-module"
+          modules="modules-api modules-wrapper claims-module moderation-module names-module warp-module homes-module tpa-module essentials-module chat-module farmworld-module pack-module chained-module rtp-module speedrun-module mannequin-module worldgate-module invsnap-module xpbottle-module sends-module xaeromap-module wallsroads-module worldutils-module veintoggle-module enchants-module economy-module arena-api arena-module arenagate-module"
           new=""
           for module in $modules; do
             version="$(grep -oPm1 "(?<=<${module}\.version>)[^<]+" pom.xml)"
@@ -651,7 +649,7 @@ jobs:
           module="${tag%-v*}"
           wanted="${tag##*-v}"
           case "$module" in
-            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|essentials-module|chat-module|farmworld-module|pack-module|chained-module|rtp-module|speedrun-module|mannequin-module|worldgate-module|invsnap-module|xpbottle-module|sends-module|xaeromap-module|wallsroads-module|worldutils-module|veintoggle-module|enchants-module|economy-module|anticheat-module|arena-api|arena-module|arenagate-module) ;;
+            modules-api|modules-wrapper|claims-module|moderation-module|names-module|warp-module|homes-module|tpa-module|essentials-module|chat-module|farmworld-module|pack-module|chained-module|rtp-module|speedrun-module|mannequin-module|worldgate-module|invsnap-module|xpbottle-module|sends-module|xaeromap-module|wallsroads-module|worldutils-module|veintoggle-module|enchants-module|economy-module|arena-api|arena-module|arenagate-module) ;;
             *) echo "::error::$tag names no library module I know about"; exit 1 ;;
           esac
           echo "module=$module" >> "$GITHUB_OUTPUT"

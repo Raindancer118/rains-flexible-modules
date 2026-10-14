@@ -22,7 +22,7 @@ class VanillaClientScenarioTest {
     @Test
     @DisplayName("an idle vanilla client, teleported now and then, is squeaky clean")
     void idleIsClean() {
-        try (Server server = Server.start("vanilla-client", List.of("anticheat-standalone:RainsAntiCheat-.*"),
+        try (Server server = Server.start("vanilla-client", List.of("moderation-standalone:RainsModeration-.*"),
                 List.of("Anti-cheat is up"))) {
             try (RealClient viewer = RealClient.join(server.paper, "Viewer")) {
                 server.console("gamemode survival Viewer");

@@ -152,8 +152,13 @@
              remove them there, /invsee shows the latest saved copy of a player who is elsewhere or offline (read
              only), the staff page lists staff on every server.
              2.43.0: staff chat, punishment announcements, attempt alerts and "N staff notes" reach the staff of every
-             server (named by server); the attempt-alert switch is a Core switch and follows the player. -->
-        <plugin.version>2.43.0</plugin.version>
+             server (named by server); the attempt-alert switch is a Core switch and follows the player.
+             2.44.0: the anti-cheat lives here now, and its detections are Grim's (GrimAC, optional): Grim's flags
+             raise the levels, alerts, reports and punishments; the own movement, combat and world checks, the
+             replays and the RainsAntiCheat plugin are gone — x-ray and anti-ESP stay. Old RainsAntiCheat settings
+             are taken over once. Report cards open the suspect's checks directly; an x-ray report shows the
+             tunnels in one click. -->
+        <plugin.version>2.44.0</plugin.version>
     </properties>
 
     <dependencies>

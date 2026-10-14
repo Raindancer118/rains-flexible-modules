@@ -21,3 +21,22 @@ moderation:
   vanished: "<gray>You are invisible. <dark_gray>Players cannot see you or hear you arrive."
   xray:
     replay-empty: "<gray>None of <white><player></white>'s recorded digging is near you. Go to where they mined first."
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  The anti-cheat part: what Grim's flags, anti-ESP and the client policy say.
+# ─────────────────────────────────────────────────────────────────────────────
+anticheat:
+  kicked: "<red><white><player></white> was kicked for <yellow><check></yellow> <gray>(level <level>)."
+  kick-screen: "<red>Kicked: unfair advantage (<check>).\n<gray>Contact the staff if you believe this is a mistake."
+  client-refused: "<red><white><player></white> tried to join with <yellow><client></yellow> and was refused."
+  alerts-on: "<green>Anti-cheat alerts are on."
+  alerts-off: "<yellow>Anti-cheat alerts are off."
+  verbose-on: "<green>Verbose is on: every failure is shown."
+  not-online: "<red><white><player></white> is not online."
+  only-a-player: "<red>Only a player can do that."
+  no-permission: "<red>You do not have permission to do that."
+  info-clean: "<green> No failed checks."
+  log-empty: "<green>No evidence against <white><player></white>."
+  reset: "<green><white><player></white>'s record is cleared: violation levels and evidence."
+  check-now-on: "<green><white><check></white> is on."
+  check-now-off: "<gray><white><check></white> is off."

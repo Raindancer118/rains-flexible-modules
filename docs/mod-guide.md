@@ -40,17 +40,18 @@
 | `/spectate <player>` | Watch through their eyes |
 
 ## Anti-cheat (`/ac`)
+Detection is GrimAC's; `/ac` collects its flags into levels, alerts and reports. Also in `/reports` → "Anti-cheat suspects",
+and on every report card / `/mod <player>`. An x-ray report: "Show their tunnels" takes you there and draws them.
+
 | Command | What |
 |---|---|
 | `/ac` · `/ac <player>` | Suspects · one player |
 | `/ac log <player> [page]` · `/ac info <player>` | Flags · levels |
-| `/ac replay <player> [n]` · `/ac replay stop` | Watch it happen |
 | `/ac go <player>` · `/ac back` | Go there, come back |
 | `/ac alerts` · `/ac verbose` | Alerts on/off · every flag |
 | `/ac alert off\|on <check> [global]` · `/ac alert list` | Mute a check |
 | `/ac fresh <player>` | Restart measuring, keep evidence |
 | `/ac reset <player>` | Delete their record |
-| `/ac exempt <player> <sec>` · `/ac unexempt <player>` | Skip checks |
 | `/ac checks` · `/ac status` | Check list · state |
 
 ## Player tools
@@ -116,4 +117,4 @@
 | `/protect` · `/unprotect <player>` | Shield from mods (console only) |
 | `/lp editor` | LuckPerms web editor |
 
-Anti-cheat never punishes by itself: watch the replay, then decide.
+Anti-cheat never punishes by itself: look at the evidence, then decide.

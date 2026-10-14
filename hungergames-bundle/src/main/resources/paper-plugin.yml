@@ -45,3 +45,8 @@ dependencies:
       load: BEFORE
       required: true
       join-classpath: true
+    # Optional: moderation's anti-cheat takes its detections from Grim when it is installed.
+    GrimAC:
+      load: BEFORE
+      required: false
+      join-classpath: true

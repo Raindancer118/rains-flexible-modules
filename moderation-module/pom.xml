@@ -25,6 +25,20 @@
     </description>
 
     <dependencies>
+        <!-- The anti-ESP shield's packet tap sits in the server's own Netty pipeline; the server ships Netty. -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport</artifactId>
+            <version>4.2.7.Final</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Grim is installed beside the plugin on each server; only its API is compiled against, never shaded. -->
+        <dependency>
+            <groupId>ac.grim.grimac</groupId>
+            <artifactId>GrimAPI</artifactId>
+            <version>${grimapi.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- Paper ships the SQLite driver on a server; a test has to bring its own to search the chat log. -->
         <dependency>
             <groupId>org.xerial</groupId>

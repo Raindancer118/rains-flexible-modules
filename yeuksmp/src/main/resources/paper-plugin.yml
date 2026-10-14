@@ -33,3 +33,8 @@ dependencies:
       # The line that actually puts RainsCore's classes on this plugin's classpath. Paper plugins get isolated
       # classloaders, so without it everything above is right and the plugin dies the moment it touches one.
       join-classpath: true
+    # Optional: moderation's anti-cheat takes its detections from Grim when it is installed.
+    GrimAC:
+      load: BEFORE
+      required: false
+      join-classpath: true

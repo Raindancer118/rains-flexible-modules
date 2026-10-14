@@ -64,4 +64,45 @@ public final class XrayReplay {
         });
         return shown;
     }
+
+    /**
+     * Their tunnels, wherever the viewer is: drawn at once when they stand within range of the digging, else after
+     * taking them to the last block dug — open tunnel, so nothing to suffocate in. What a report's one button does.
+     *
+     * @param told how many dug blocks were drawn, once that is known (0: nothing of theirs in that world)
+     */
+    public static void goAndShow(Plugin plugin, Player viewer, MiningLedger ledger, java.util.function.IntConsumer told) {
+        Location at = viewer.getLocation();
+        java.util.Optional<int[]> spot = whereToStand(ledger.trail(), ledger.trailWorld(), viewer.getWorld().getName(),
+                at.getX(), at.getY(), at.getZ());
+        World world = org.bukkit.Bukkit.getWorld(ledger.trailWorld());
+        if (spot.isEmpty() || world == null) {
+            told.accept(show(plugin, viewer, ledger));
+            return;
+        }
+        int[] step = spot.get();
+        Location stand = new Location(world, step[0] + 0.5, step[1], step[2] + 0.5, at.getYaw(), at.getPitch());
+        viewer.teleportAsync(stand).thenRun(() -> Scheduling.entity(plugin, viewer,
+                () -> told.accept(show(plugin, viewer, ledger))));
+    }
+
+    /** Where to stand to see the trail: empty when already within range of it (or there is none), else its last step. */
+    static java.util.Optional<int[]> whereToStand(List<int[]> trail, String trailWorld, String viewerWorld,
+                                                  double x, double y, double z) {
+        if (trail.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        if (trailWorld.equals(viewerWorld)) {
+            for (int[] step : trail) {
+                double dx = step[0] + 0.5 - x;
+                double dy = step[1] + 0.5 - y;
+                double dz = step[2] + 0.5 - z;
+                if (dx * dx + dy * dy + dz * dz <= RANGE * RANGE) {
+                    return java.util.Optional.empty();
+                }
+            }
+        }
+        int[] last = trail.getLast();
+        return java.util.Optional.of(new int[]{last[0], last[1], last[2]});
+    }
 }

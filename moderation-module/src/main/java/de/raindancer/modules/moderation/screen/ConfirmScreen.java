@@ -36,6 +36,12 @@ public final class ConfirmScreen extends ConfirmMenu implements IModerationScree
                 onYes);
     }
 
+    /** The same page with a closing line of its own — for what is not a punishment, such as clearing a record. */
+    public ConfirmScreen(de.raindancer.core.ui.chat.Brand brand, Player viewer, Menu parent, String question,
+                         List<String> consequences, String closing, Runnable onYes) {
+        super(viewer, brand, parent, question, consequences, closing, onYes);
+    }
+
     @Override
     public String describe() {
         return "a confirmation, so a misclick costs a page rather than the thing";

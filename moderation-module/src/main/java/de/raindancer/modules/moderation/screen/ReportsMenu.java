@@ -86,16 +86,23 @@ public final class ReportsMenu extends ModerationScreen {
         door(MenuLayout.RULES, 5, allowed, all, ReportListMenu.Filter.ALL, Material.BOOKSHELF, "All",
                 "Everything ever reported.");
 
-        band(MenuLayout.LAND, 3, allowed, Icons.of(Material.PLAYER_HEAD, "<yellow>Reported players",
+        band(MenuLayout.LAND, 2, allowed, Icons.of(Material.PLAYER_HEAD, "<yellow>Reported players",
                         "<gray>Everybody with a report about them,",
                         "<gray>most live reports first."),
                 "For whoever may read reports",
                 click -> new ReportedPlayersMenu(services(), viewer, this).open());
-        band(MenuLayout.LAND, 5, allowed, Icons.of(Material.NAME_TAG, "<yellow>Search by name",
+        band(MenuLayout.LAND, 4, allowed, Icons.of(Material.NAME_TAG, "<yellow>Search by name",
                         "<gray>Every report about somebody,",
                         "<gray>and every one they filed.", "<dark_gray>You type the name."),
                 "For whoever may read reports",
                 click -> search());
+        // Who Grim keeps flagging, beside who players reported: the two ways somebody needs looking at.
+        var antiCheat = de.raindancer.modules.moderation.AntiCheatCommands.running();
+        boolean mayCheck = antiCheat.isPresent() && viewer.hasPermission(PlayerLookIntoMenu.ANTICHEAT);
+        band(MenuLayout.LAND, 6, mayCheck, Icons.of(Material.COMMAND_BLOCK, "<yellow>Anti-cheat suspects",
+                        "<gray>Who Grim keeps flagging right now,", "<gray>highest level first."),
+                antiCheat.isEmpty() ? "The anti-cheat is not running" : "For whoever may use the anti-cheat",
+                click -> antiCheat.ifPresent(live -> new SuspectsMenu(live, viewer, this).open()));
     }
 
     private void group(int band, Material pane, String title) {
