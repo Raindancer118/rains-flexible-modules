@@ -96,6 +96,24 @@ public final class Targeting implements IPlayerUtilsService {
         return verdict.allowed();
     }
 
+    /**
+     * Whether {@code sender} may point {@code action} at somebody on another server, whose permissions are not
+     * known here — so only for an action that does no harm, which never asks about the target's. Says why not.
+     */
+    public boolean mayActAt(CommandSender sender, Action action, String shownName) {
+        TargetRule.Asker asker = sender instanceof Player ? new TargetRule.Asker(false, sender::hasPermission)
+                : TargetRule.Asker.CONSOLE;
+        Verdict verdict = action.isHarmful() ? Verdict.no("playerutils.not-online", "player", shownName)
+                : rule.judge(action, asker, false, node -> false);
+        if (!verdict.allowed()) {
+            Object[] values = java.util.Arrays.copyOf(verdict.values(), verdict.values().length + 2);
+            values[values.length - 2] = "player";
+            values[values.length - 1] = shownName;
+            messages.send(sender, verdict.key(), values);
+        }
+        return verdict.allowed();
+    }
+
     /** The same question without saying anything — for greying a button. */
     public Verdict verdict(CommandSender sender, Action action, Player target) {
         boolean self = sender instanceof Player player && player.getUniqueId().equals(target.getUniqueId());

@@ -27,6 +27,16 @@ public final class SpectateListener implements IPlayerUtilsListener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        // Somebody sent here to watch: resumed once NetworkTravel has put them with the target.
+        var coming = services.reach().takeComing(player.getUniqueId());
+        if (coming.isPresent()) {
+            Scheduling.entityLater(services.plugin(), player, 40L, () -> {
+                if (player.isOnline()) {
+                    services.spectate().resume(player, coming.get());
+                }
+            });
+            return;
+        }
         if (services.spectate().isSpectating(player)) {
             Scheduling.entityLater(services.plugin(), player, 5L, () -> {
                 if (player.isOnline()) {

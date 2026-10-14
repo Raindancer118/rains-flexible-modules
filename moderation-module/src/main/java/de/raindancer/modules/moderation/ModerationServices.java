@@ -112,6 +112,8 @@ public record ModerationServices(
         de.raindancer.modules.moderation.service.LogSearchService logSearch,
         de.raindancer.modules.moderation.service.AttemptAlertService attemptAlerts,
         Supplier<de.raindancer.modules.moderation.listener.StaffChatListener> staffChatSpeaker,
+        de.raindancer.modules.moderation.service.NetworkModeration network,
+        de.raindancer.modules.moderation.service.SavedInvsee savedInvsee,
 
         Supplier<ModerationSettings> settings,
         ModerationScreensOpener screens) {

@@ -2,12 +2,15 @@ package de.raindancer.modules.playerutils.command;
 
 import de.raindancer.modules.playerutils.PlayerUtilsServices;
 import de.raindancer.modules.playerutils.model.Action;
+import de.raindancer.modules.playerutils.model.Reading;
+import de.raindancer.modules.playerutils.service.NetworkReach;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /** {@code /spectate <player>} to watch, {@code /spectate} or {@code /spectate stop} to come back. */
@@ -43,6 +46,16 @@ public final class SpectateCommand implements IPlayerUtilsCommand {
                 live.messages().send(viewer, "playerutils.spectate.not-watching");
             }
             return;
+        }
+        Reading reading = live.arguments().read(Action.SPECTATE, args);
+        if (reading.isUnderstood() && reading.target().isPresent()) {
+            Optional<NetworkReach.Remote> remote = live.reach().find(viewer, reading.target().get());
+            if (remote.isPresent()) {
+                if (live.targeting().mayActAt(viewer, Action.SPECTATE, remote.get().name())) {
+                    live.spectate().startAcross(viewer, remote.get());
+                }
+                return;
+            }
         }
         watch.run(viewer, args);
     }

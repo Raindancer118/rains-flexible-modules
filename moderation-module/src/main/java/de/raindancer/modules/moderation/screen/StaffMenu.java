@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Who is on shift.
@@ -24,9 +25,13 @@ import java.util.List;
  *
  * <p>Whether somebody is vanished is shown, not hidden, for the same reason.
  */
-public final class StaffMenu extends ModerationList<Player> {
+public final class StaffMenu extends ModerationList<StaffMenu.OnShift> {
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
+
+    /** Somebody on shift: here ({@code server} is null) or on another server of the network. */
+    public record OnShift(UUID id, String name, String server, boolean vanished, boolean talking) {
+    }
 
     public StaffMenu(ModerationServices services, Player viewer, Menu parent) {
         super(services, viewer, parent);
@@ -43,16 +48,22 @@ public final class StaffMenu extends ModerationList<Player> {
     }
 
     @Override
-    protected List<Player> entries() {
-        List<Player> staff = new ArrayList<>();
+    protected List<OnShift> entries() {
+        List<OnShift> staff = new ArrayList<>();
         for (Player who : services().server().getOnlinePlayers()) {
             // "Staff" is whoever may read a record — the same permission the history command asks
             // for, rather than a second idea of who counts.
             if (who.hasPermission(ModerationPermission.HISTORY.node())) {
-                staff.add(who);
+                staff.add(new OnShift(who.getUniqueId(), who.getName(), null,
+                        services().vanish().isVanished(who.getUniqueId()),
+                        services().staffChat().isTalking(who.getUniqueId())));
             }
         }
-        staff.sort((left, right) -> left.getName().compareToIgnoreCase(right.getName()));
+        staff.sort((left, right) -> left.name().compareToIgnoreCase(right.name()));
+        // Other servers' staff are the roster's: a permission cannot be asked about somebody who is not here.
+        boolean mayKnowVanished = services().vanish().maySeeVanished(viewer.getUniqueId());
+        services().network().staffElsewhere(mayKnowVanished, services().roster()::isStaff).forEach(there ->
+                staff.add(new OnShift(there.id(), there.name(), there.server(), there.vanished(), false)));
         return staff;
     }
 
@@ -63,25 +74,27 @@ public final class StaffMenu extends ModerationList<Player> {
     }
 
     @Override
-    protected ItemStack icon(Player who) {
+    protected ItemStack icon(OnShift who) {
         List<String> lore = new ArrayList<>();
-        services().roster().rankOf(who.getUniqueId()).ifPresentOrElse(
+        services().roster().rankOf(who.id()).ifPresentOrElse(
                 rank -> lore.add("<" + rank.colour() + ">" + rank.title()),
                 () -> lore.add("<dark_gray>No rank — permissions from somewhere else."));
-        lore.add(services().vanish().isVanished(who.getUniqueId())
-                ? "<gray>Vanished." : "<green>Visible.");
-        if (services().staffChat().isTalking(who.getUniqueId())) {
+        if (who.server() != null) {
+            lore.add("<gray>On <white>" + MINI.escapeTags(who.server()) + "</white>.");
+        }
+        lore.add(who.vanished() ? "<gray>Vanished." : "<green>Visible.");
+        if (who.talking()) {
             lore.add("<dark_aqua>In staff chat.");
         }
         lore.add("");
         lore.add("<dark_gray>Click to open their page.");
 
-        return Icons.head(who.getUniqueId(), "<yellow>" + who.getName(), lore);
+        return Icons.head(who.id(), "<yellow>" + MINI.escapeTags(who.name()), lore);
     }
 
     @Override
-    protected void onClick(Player who, InventoryClickEvent event) {
-        new PlayerMenu(services(), viewer, this, who.getUniqueId(), who.getName()).open();
+    protected void onClick(OnShift who, InventoryClickEvent event) {
+        new PlayerMenu(services(), viewer, this, who.id(), who.name()).open();
     }
 
     @Override

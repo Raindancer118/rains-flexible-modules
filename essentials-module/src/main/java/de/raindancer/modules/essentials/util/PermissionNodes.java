@@ -21,6 +21,10 @@ public final class PermissionNodes {
     public static final String IGNORE = "essentials.ignore";
     public static final String SEEN = "essentials.seen";
     public static final String PLAYERS = "essentials.players";
+    public static final String LIST = "essentials.list";
+    public static final String WHERE = "essentials.where";
+    /** Seeing where somebody stands, not only which server they are on. */
+    public static final String WHERE_LOCATION = "essentials.where.location";
     public static final String NICK = "essentials.nick";
     public static final String AFK = "essentials.afk";
     public static final String ROAST = "essentials.roast";
@@ -72,6 +76,10 @@ public final class PermissionNodes {
                 new Permission(SEEN, "Look up when somebody was last here", PermissionDefault.TRUE),
                 new Permission(PLAYERS, "Browse everybody the server has seen, online or not",
                         PermissionDefault.TRUE),
+                new Permission(LIST, "See who is online, on every server of the network", PermissionDefault.TRUE),
+                new Permission(WHERE, "See which server somebody is on with /where", PermissionDefault.TRUE),
+                new Permission(WHERE_LOCATION, "See where somebody stands with /where, not only which server",
+                        PermissionDefault.OP),
                 new Permission(NICK, "Set your own nickname", PermissionDefault.TRUE),
                 new Permission(AFK, "Mark yourself away from the keyboard", PermissionDefault.TRUE),
                 new Permission(ROAST, "Roast somebody, or yourself, in chat with /roast", PermissionDefault.TRUE),

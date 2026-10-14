@@ -35,7 +35,7 @@ import java.util.UUID;
 
 public final class PlayerUtilsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("playerutils", "Player Utils", "0.3.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("playerutils", "Player Utils", "0.4.0")
             .describedAs("Fly, heal, feed, hurt, drown, launch, scale, speed, wipe, spectate and sudo — and "
                     + "ping, status, hunger, effects, position and who is near. By name, nickname or selector.")
             .by("Raindancer118");
@@ -80,17 +80,35 @@ public final class PlayerUtilsModule implements FlexModule {
         FlightService flight = new FlightService(context.plugin(), context.core(), flightRule, now);
         spectate = new SpectateService(context.plugin(), server, messages, now);
         SudoService sudo = new SudoService(context.plugin(), server, context.core(), messages, sudoRule, now);
+        de.raindancer.modules.playerutils.service.NetworkReach reach =
+                new de.raindancer.modules.playerutils.service.NetworkReach(server, context.core().vanish(), player -> {
+                    var spot = new java.util.concurrent.CompletableFuture<java.util.Optional<
+                            de.raindancer.modules.playerutils.service.NetworkReach.Spot>>();
+                    de.raindancer.core.platform.util.Scheduling.onOwner(context.plugin(), player, () -> {
+                        org.bukkit.Location at = player.getLocation();
+                        spot.complete(java.util.Optional.of(new de.raindancer.modules.playerutils.service.NetworkReach.Spot(
+                                at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch())));
+                    });
+                    return spot.orTimeout(3, java.util.concurrent.TimeUnit.SECONDS);
+                }, System::currentTimeMillis);
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()
+                && context.core().networkTravel().isPresent()) {
+            reach.connect(context.core().networkPlayers().get(), context.core().networkCalls().get(),
+                    context.core().networkTravel().get());
+            context.closeWith(reach::disconnect);
+        }
+        spectate.reach(reach);
         InfoService info = new InfoService(context.plugin(), context.core(), messages, pings, nearRule,
                 speedRule, now);
         ActionService actions = new ActionService(context.plugin(), context.core(), messages, targeting, flight,
                 spectate, sudo, wipeRule, speedRule, now);
-        for (var service : List.of(targeting, flight, spectate, sudo, info, actions)) {
+        for (var service : List.of(targeting, flight, spectate, sudo, info, actions, reach)) {
             settings.onChange(service::settings);
         }
 
         services = new PlayerUtilsServices(context.plugin(), server, log, messages, context.chat().brand(),
                 context.core(), settings::current, settings, new ArgumentRule(), targetRule, sudoRule, pings,
-                nearRule, flightRule, wipeRule, speedRule, targeting, actions, flight, spectate, sudo, info,
+                nearRule, flightRule, wipeRule, speedRule, targeting, actions, flight, spectate, sudo, info, reach,
                 new LiveScreens());
 
         context.listener(new FlightListener(services));

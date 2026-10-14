@@ -47,6 +47,19 @@ essentials:
     never: "<gray>The server has never seen <white><player></white>."
     online: "<white><player></white> <green>is online right now. <gray>(<playtime> played)"
     offline: "<white><player></white> <gray>was last seen <white><ago></white> ago. (<playtime> played)"
+    online-elsewhere: "<white><player></white> <green>is online right now, on <white><server></white>."
+
+  # ── /list and /where ──────────────────────────────────────────────────────
+  list:
+    alone: "<gray>Online (<count>): <white><players>"
+    header: "<gold>Online: <white><count></white> <gray>on <servers> server(s)"
+    this-server: "<yellow><server></yellow> <gray>· this server (<count>): <white><players>"
+    server: "<yellow><server></yellow> <gray>(<count>): <white><players>"
+  where:
+    here: "<white><player></white> <gray>is on this server."
+    here-at: "<white><player></white> <gray>is on this server, in <white><world></white> at <white><x> <y> <z></white>."
+    there: "<white><player></white> <gray>is on <white><server></white>."
+    there-at: "<white><player></white> <gray>is on <white><server></white>, in <white><world></white> at <white><x> <y> <z></white>."
 
   # ── /players ──────────────────────────────────────────────────────────────
   players:

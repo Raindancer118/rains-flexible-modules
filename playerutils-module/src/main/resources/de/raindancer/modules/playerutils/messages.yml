@@ -114,6 +114,10 @@ playerutils:
     stopped: "<light_purple>You are back where you were."
     not-watching: "<gray>You are not watching anybody."
     target-left: "<gray><player> left, so spectating has ended."
+    travelling: "<light_purple>Taking you to <white><server></white> to watch <white><player></white>."
+    elsewhere-failed: "<red>Could not get you to <white><player></white> on <white><server></white>. You stay where you are."
+    target-gone: "<gray>The player you came to watch has left, so you are not spectating. You are where they were."
+    back-failed: "<red>Could not send you back to <white><server></white>. Use <white>/server</white> to go back yourself."
   sudo:
     switched-off: "<red>Sudo is switched off on this server."
     no-ops: "<red><player> is an operator. Making them speak needs its own permission."
@@ -136,6 +140,8 @@ playerutils:
     removed: "<gray>Took <white><effect></white> off <player>."
   position:
     done: "<gray><player> is in <white><world></white> at <white><x> <y> <z></white>, facing <white><facing></white> (yaw <yaw>, pitch <pitch>), chunk <chunkx> <chunkz>, <white><biome></white>."
+    elsewhere: "<gray><player> is on <white><server></white>, in <white><world></white> at <white><x> <y> <z></white>, chunk <chunkx> <chunkz>."
+    elsewhere-unknown: "<gray><player> is on <white><server></white>."
   near:
     nobody: "<gray>Nobody within <radius> blocks. Peaceful."
     header: "<gray><count> within <radius> blocks:"

@@ -5,6 +5,7 @@ import de.raindancer.modules.essentials.command.AfkCommand;
 import de.raindancer.modules.essentials.command.EnchantCommand;
 import de.raindancer.modules.essentials.command.IgnoreCommand;
 import de.raindancer.modules.essentials.command.JokeCommand;
+import de.raindancer.modules.essentials.command.ListCommand;
 import de.raindancer.modules.essentials.command.MsgCommand;
 import de.raindancer.modules.essentials.command.NickCommand;
 import de.raindancer.modules.essentials.command.PlayerCommand;
@@ -16,6 +17,7 @@ import de.raindancer.modules.essentials.command.SeenCommand;
 import de.raindancer.modules.essentials.command.SetSpawnCommand;
 import de.raindancer.modules.essentials.command.SpawnCommand;
 import de.raindancer.modules.essentials.command.UnignoreCommand;
+import de.raindancer.modules.essentials.command.WhereCommand;
 
 import java.util.List;
 
@@ -59,6 +61,12 @@ public final class EssentialsCommands {
                 ModuleCommand.of("seen", "When somebody was last here, and for how long they have played",
                                 new SeenCommand(EssentialsCommands::require))
                         .taking("<player>", "(nothing) — opens a list to pick from"),
+                ModuleCommand.of("list", "Everybody online, on every server of the network",
+                        new ListCommand(EssentialsCommands::require))
+                        .aliased("online"),
+                ModuleCommand.of("where", "Which server somebody is on, and where they stand",
+                                new WhereCommand(EssentialsCommands::require))
+                        .taking("<player>"),
                 ModuleCommand.of("players", "Everybody the server has ever seen, online or not",
                         new PlayersCommand(EssentialsCommands::require)),
                 ModuleCommand.of("player", "Opens one player's profile directly, by name",

@@ -67,6 +67,7 @@ public final class PunishmentService implements IModerationService {
 
     private volatile ModerationSettings settings;
     private volatile FineService fines;
+    private volatile NetworkModeration network;
 
     public PunishmentService(Plugin plugin, Server server, Punishments punishments,
                              PunishmentGuard guard, VanillaBanBridge bridge, Audit audit,
@@ -90,6 +91,26 @@ public final class PunishmentService implements IModerationService {
     /** Lets a warning cost money; without it warnings never do. Set once by the module, before anything is handed out. */
     public void fines(FineService fines) {
         this.fines = fines;
+    }
+
+    /** Lets a punishment reach a player who is on another server; without it nobody is. Set once by the module. */
+    public void network(NetworkModeration network) {
+        this.network = network;
+    }
+
+    /**
+     * Throws a player of this server off, for a kick that another server asked for.
+     *
+     * @return whether they were here and went
+     */
+    public java.util.concurrent.CompletableFuture<Boolean> kickHere(Player player, String reason, boolean ban) {
+        java.util.concurrent.CompletableFuture<Boolean> done = new java.util.concurrent.CompletableFuture<>();
+        Component why = ban ? guard.joinRefusal(player.getUniqueId()).orElseGet(() -> plain(reason)) : plain(reason);
+        Scheduling.entity(plugin, player, () -> {
+            player.kick(why);
+            done.complete(true);
+        }, () -> done.complete(false));
+        return done.orTimeout(3, java.util.concurrent.TimeUnit.SECONDS).exceptionally(failed -> false);
     }
 
     /**
@@ -133,6 +154,20 @@ public final class PunishmentService implements IModerationService {
      */
     public Punishment punish(UUID actor, String actorName, UUID subject, String subjectName,
                              PunishmentKind kind, Sentence sentence, String reason, String detail) {
+        return punish(actor, actorName, subject, subjectName, kind, sentence, reason, detail, false);
+    }
+
+    /**
+     * Records a kick that has already happened — on another server, which was asked and did it — with the same
+     * record, audit line and announcement as one made here.
+     */
+    public Punishment punishKicked(UUID actor, String actorName, UUID subject, String subjectName, String reason) {
+        return punish(actor, actorName, subject, subjectName, PunishmentKind.KICK, Sentence.forEver(), reason, null, true);
+    }
+
+    private Punishment punish(UUID actor, String actorName, UUID subject, String subjectName,
+                              PunishmentKind kind, Sentence sentence, String reason, String detail,
+                              boolean alreadyGone) {
         Sentence howLong = sentence == null ? Sentence.forEver() : sentence;
         FineService money = fines;
         Optional<FineService.Warned> warnFine = kind == PunishmentKind.WARNING && money != null
@@ -150,7 +185,9 @@ public final class PunishmentService implements IModerationService {
             // So vanilla /banlist still agrees, and so the ban survives this plugin being removed.
             bridge.mirrorBan(subject, given.reason(), given.endsAt());
         }
-        removeThemIfNeeded(kind, subject, given);
+        if (!alreadyGone) {
+            removeThemIfNeeded(kind, subject, given);
+        }
         tellThem(kind, subject, given, shown);
 
         record(kind.name().toLowerCase(Locale.ROOT), actor, actorName, subject, subjectName,
@@ -250,6 +287,10 @@ public final class PunishmentService implements IModerationService {
         }
         Player here = server.getPlayer(subject);
         if (here == null) {
+            NetworkModeration elsewhere = network;
+            if (elsewhere != null) {
+                elsewhere.kickAnywhere(subject, given.reason(), kind == PunishmentKind.BAN);
+            }
             return;
         }
         Component why = kind == PunishmentKind.BAN
@@ -277,6 +318,17 @@ public final class PunishmentService implements IModerationService {
                 messages.send(here, "moderation.fine.warning-cost", "amount", shown);
             }
             return;
+        }
+        NetworkModeration elsewhere = network;
+        if (elsewhere != null && elsewhere.whereIs(subject, true).isPresent()) {
+            // On another server right now: told there, where they can read it, not on their next join here.
+            boolean told = elsewhere.tell(subject, key, "reason", given.reason(), "length", lengthOf(given, shown));
+            if (told && kind == PunishmentKind.WARNING && shown != null) {
+                elsewhere.tell(subject, "moderation.fine.warning-cost", "amount", shown);
+            }
+            if (told) {
+                return;
+            }
         }
         // Not dropped. Somebody muted for spam very often logs off in a huff, and the version that
         // gave up here is the version where they come back, cannot talk, and conclude the server is

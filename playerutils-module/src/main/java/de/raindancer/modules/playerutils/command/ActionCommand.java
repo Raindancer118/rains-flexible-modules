@@ -6,6 +6,7 @@ import de.raindancer.modules.playerutils.model.Action;
 import de.raindancer.modules.playerutils.model.Parameter;
 import de.raindancer.modules.playerutils.model.Reading;
 import de.raindancer.modules.playerutils.screen.ConfirmScreen;
+import de.raindancer.modules.playerutils.service.NetworkReach;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,6 +17,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -87,6 +89,9 @@ public final class ActionCommand implements IPlayerUtilsCommand {
             }
             return;
         }
+        if (action == Action.POSITION && reading.target().isPresent() && elsewhere(live, sender, reading.target().get())) {
+            return;
+        }
         List<Player> targets = live.targeting().resolve(sender, reading.target());
         if (targets.isEmpty()) {
             return;
@@ -104,6 +109,18 @@ public final class ActionCommand implements IPlayerUtilsCommand {
             return;
         }
         perform(live, sender, targets, reading);
+    }
+
+    /** Whether the name meant somebody on another server, and so was answered from there. */
+    private boolean elsewhere(PlayerUtilsServices live, CommandSender sender, String typed) {
+        Optional<NetworkReach.Remote> remote = live.reach().find(sender, typed);
+        if (remote.isEmpty()) {
+            return false;
+        }
+        if (live.targeting().mayActAt(sender, action, remote.get().name())) {
+            live.info().positionElsewhere(sender, remote.get(), live.reach());
+        }
+        return true;
     }
 
     private void perform(PlayerUtilsServices live, CommandSender sender, List<Player> targets, Reading reading) {

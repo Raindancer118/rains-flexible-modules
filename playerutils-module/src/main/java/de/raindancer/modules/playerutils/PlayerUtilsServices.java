@@ -48,6 +48,7 @@ public record PlayerUtilsServices(
         SpectateService spectate,
         SudoService sudo,
         InfoService info,
+        de.raindancer.modules.playerutils.service.NetworkReach reach,
         IPlayerUtilsScreensOpener screens) {
 
     public PlayerUtilsSettings config() {

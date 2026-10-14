@@ -41,7 +41,7 @@ import java.util.List;
  */
 public final class EssentialsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.25.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("essentials", "Essentials", "1.26.0")
             .describedAs("The boring stuff players immediately expect: /spawn, AFK, private "
                     + "messages, /seen, join and quit lines, a nickname, /rules, and /admin for staff")
             .by("Raindancer118");
@@ -115,6 +115,21 @@ public final class EssentialsModule implements FlexModule {
                 messaging.connect(link, server::getPlayerExact);
                 context.closeWith(messaging::disconnect);
             });
+        }
+        de.raindancer.modules.essentials.service.NetworkWho whoIsWhere = new de.raindancer.modules.essentials.service.NetworkWho(
+                server, context.core().vanish(), player -> {
+                    var spot = new java.util.concurrent.CompletableFuture<java.util.Optional<
+                            de.raindancer.modules.essentials.service.NetworkWho.Spot>>();
+                    Scheduling.onOwner(context.plugin(), player, () -> {
+                        org.bukkit.Location at = player.getLocation();
+                        spot.complete(java.util.Optional.of(new de.raindancer.modules.essentials.service.NetworkWho.Spot(
+                                at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ())));
+                    });
+                    return spot.orTimeout(3, java.util.concurrent.TimeUnit.SECONDS);
+                });
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
+            whoIsWhere.connect(context.core().networkPlayers().get(), context.core().networkCalls().get());
+            context.closeWith(whoIsWhere::disconnect);
         }
         NicknameService nicknames = new NicknameService(store, blocklist,
                 context.core().identities(), context.core().nicknames(), context.core().messages(),
@@ -195,7 +210,7 @@ public final class EssentialsModule implements FlexModule {
         services = new EssentialsServices(context.plugin(), server, context.core(), log,
                 context.core().messages(), context.chat(), context.chat().brand(),
                 settings::current, store, blocklist, spawn, afk, messaging, nicknames, welcome, reactions,
-                enchanting, repairing, fun, skyTokens, rules, adminMode);
+                enchanting, repairing, fun, skyTokens, rules, adminMode, whoIsWhere);
 
         settings.onChange(fresh -> {
             spawn.settings(fresh);

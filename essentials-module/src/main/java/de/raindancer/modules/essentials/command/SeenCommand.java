@@ -6,6 +6,7 @@ import de.raindancer.core.ui.profile.ProfileLink;
 import de.raindancer.core.ui.profile.ProfileMenu;
 import de.raindancer.core.world.time.Times;
 import de.raindancer.modules.essentials.EssentialsServices;
+import de.raindancer.modules.essentials.service.NetworkWho;
 import de.raindancer.modules.essentials.util.PermissionNodes;
 import de.raindancer.modules.essentials.util.Players;
 import de.raindancer.modules.essentials.util.SeenService;
@@ -95,6 +96,16 @@ public final class SeenCommand implements IEssentialsCommand {
                     Optional.of(Instant.ofEpochMilli(them.getLastLogin())));
         }
 
+        if (!seen.online()) {
+            // Online on another server of the network beats "last seen here"; a vanished player is only found by
+            // somebody who may see them.
+            Optional<NetworkWho.Found> elsewhere = live.who().elsewhere(sender, them.getUniqueId());
+            if (elsewhere.isPresent()) {
+                live.messages().send(sender, "essentials.seen.online-elsewhere",
+                        "player", Players.nameOf(them), "server", elsewhere.get().server());
+                return;
+            }
+        }
         if (!seen.everJoined()) {
             chat.tell(sender, live.messages().raw("essentials.seen.never"), Chat.formatted("player", name));
             return;

@@ -50,7 +50,8 @@ public record EssentialsServices(
         de.raindancer.modules.essentials.service.FunService fun,
         de.raindancer.modules.essentials.service.SkyTokenService skyTokens,
         de.raindancer.modules.essentials.service.RulesService rules,
-        de.raindancer.modules.essentials.service.AdminModeService adminMode) {
+        de.raindancer.modules.essentials.service.AdminModeService adminMode,
+        de.raindancer.modules.essentials.service.NetworkWho who) {
 
     /** The settings as they are right now. */
     public EssentialsSettings config() {

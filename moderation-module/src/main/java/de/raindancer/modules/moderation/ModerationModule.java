@@ -71,7 +71,7 @@ import java.util.UUID;
  */
 public final class ModerationModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.41.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("moderation", "Moderation", "2.42.0")
             .describedAs("Bans, mutes, reports, staff notes and the screens for them — over "
                     + "RainsCore's punishments, which stay whether or not this is installed")
             .by("Raindancer118");
@@ -231,6 +231,18 @@ public final class ModerationModule implements FlexModule {
                 },
                 context.core().audit(), log, settings.current());
         punishmentService.fines(fineService);
+
+        de.raindancer.modules.moderation.service.NetworkModeration network =
+                new de.raindancer.modules.moderation.service.NetworkModeration(server, punishmentService::kickHere);
+        if (context.core().networkPlayers().isPresent() && context.core().networkCalls().isPresent()) {
+            network.connect(context.core().networkPlayers().get(), context.core().networkCalls().get());
+            context.closeWith(network::disconnect);
+        }
+        punishmentService.network(network);
+        de.raindancer.modules.moderation.service.SavedInvsee savedInvsee =
+                new de.raindancer.modules.moderation.service.SavedInvsee(context.plugin(), context.core().inventories(),
+                        context.core().audit(), context.core().messages(), context.core()::savedInventories,
+                        network::isNetwork);
         buyoffService = new de.raindancer.modules.moderation.service.BuyoffService(
                 who -> context.core().punishments().active(who, de.raindancer.core.moderation.punishment.PunishmentKind.MUTE),
                 (who, name, why) -> punishmentService.lift(who, name, who, name,
@@ -344,7 +356,7 @@ public final class ModerationModule implements FlexModule {
                 new de.raindancer.modules.moderation.service.RuleBreachService(punishmentService,
                         ruleOffences(context), staffRule, this::banLimitRule, context.core().messages(), fineService),
                 fineService, buyoffService, logSearch, attemptAlerts,
-                () -> staffChatListener,
+                () -> staffChatListener, network, savedInvsee,
                 settings::current, new LiveScreens());
 
         // Rules broken where no moderator saw it (the anti-cheat) get the same ladder and count.

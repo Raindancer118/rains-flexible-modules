@@ -257,6 +257,8 @@ moderation:
   # ── inventories ──────────────────────────────────────────────────────────
   invsee:
     refused: "<red>That inventory could not be opened: <gray><reason>"
+    saved-copy: "<gray>This is <white><player></white>'s inventory as <white><server></white> saved it <white><ago></white> ago. Read only, and it may be out of date."
+    no-copy: "<red>No server has saved an inventory of <white><player></white> yet."
 
   # ── staff chat ───────────────────────────────────────────────────────────
   staff-chat:

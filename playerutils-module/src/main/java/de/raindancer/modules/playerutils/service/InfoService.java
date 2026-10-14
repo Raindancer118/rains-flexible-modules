@@ -94,6 +94,23 @@ public final class InfoService implements IPlayerUtilsService {
         }
     }
 
+    /** Where somebody on another server stands, asked of their server; at least which server they are on. */
+    public void positionElsewhere(CommandSender sender, NetworkReach.Remote target, NetworkReach reach) {
+        reach.locate(target).whenComplete((spot, failed) -> {
+            if (failed != null || spot == null || spot.isEmpty()) {
+                messages.send(sender, "playerutils.position.elsewhere-unknown", "player", target.name(),
+                        "server", target.server());
+                return;
+            }
+            NetworkReach.Spot at = spot.get();
+            long x = (long) Math.floor(at.x());
+            long y = (long) Math.floor(at.y());
+            long z = (long) Math.floor(at.z());
+            messages.send(sender, "playerutils.position.elsewhere", "player", target.name(), "server", target.server(),
+                    "world", at.world(), "x", x, "y", y, "z", z, "chunkx", x >> 4, "chunkz", z >> 4);
+        });
+    }
+
     private void ping(CommandSender sender, Player target) {
         PingRule.Grade grade = pings.grade(target.getPing());
         boolean self = sender instanceof Player player && player.equals(target);

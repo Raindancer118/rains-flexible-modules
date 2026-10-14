@@ -147,8 +147,11 @@
              2.41.0: RainsCore 2.0 network edition: reports, notes, pending notices, protected accounts, the staff
              roster, rule offences and fines are the network's, the same on every server and reloaded when another
              server changes them; the bait seed is one network secret; staff on every server hear a new report, a
-             pick-up and a promotion. -->
-        <plugin.version>2.41.0</plugin.version>
+             pick-up and a promotion.
+             2.42.0: network commands: /kick reaches a player on another server, /ban and /mute and /freeze tell and
+             remove them there, /invsee shows the latest saved copy of a player who is elsewhere or offline (read
+             only), the staff page lists staff on every server. -->
+        <plugin.version>2.42.0</plugin.version>
     </properties>
 
     <dependencies>

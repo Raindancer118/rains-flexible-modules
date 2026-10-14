@@ -1,6 +1,10 @@
 package de.raindancer.modules.moderation.command;
 
 import de.raindancer.core.moderation.invsee.Access;
+import de.raindancer.core.moderation.invsee.Inventories;
+import de.raindancer.core.platform.util.Scheduling;
+import de.raindancer.core.world.time.Times;
+import de.raindancer.modules.moderation.service.SavedInvsee;
 import de.raindancer.modules.moderation.ModerationServices;
 import de.raindancer.modules.moderation.model.ModerationPermission;
 import de.raindancer.modules.moderation.util.Players;
@@ -9,7 +13,10 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -62,6 +69,14 @@ public final class InvseeCommand extends StaffCommand {
         Access wanted = watcher.hasPermission(ModerationPermission.INVSEE_EDIT.node())
                 ? Access.EDIT : Access.READ_ONLY;
 
+        if (!them.isOnline() && moderation.savedInvsee().wanted()) {
+            lookAtSavedCopy(moderation, watcher, them);
+            return;
+        }
+        openAsUsual(moderation, watcher, them, wanted);
+    }
+
+    private static void openAsUsual(ModerationServices moderation, Player watcher, OfflinePlayer them, Access wanted) {
         moderation.inventories().open(watcher, them.getUniqueId(), Players.nameOf(them), wanted,
                 outcome -> {
                     // Always answered, and always on this thread. A command that opens nothing and
@@ -71,5 +86,39 @@ public final class InvseeCommand extends StaffCommand {
                                 "reason", outcome.saying());
                     }
                 });
+    }
+
+    /**
+     * On a network somebody who is not here is on another server or on none, and their inventory is that server's:
+     * the newest saved copy is shown read only, and never written. With no copy at all, this server's own save
+     * file is looked at, still read only.
+     */
+    private static void lookAtSavedCopy(ModerationServices moderation, Player watcher, OfflinePlayer them) {
+        if (!moderation.inventories().isEnabled()) {
+            moderation.messages().send(watcher, "moderation.invsee.refused",
+                    "reason", Inventories.Outcome.SWITCHED_OFF.saying());
+            return;
+        }
+        UUID id = them.getUniqueId();
+        String name = Players.nameOf(them);
+        Scheduling.async(moderation.plugin(), () -> {
+            Optional<SavedInvsee.Copy> copy = moderation.savedInvsee().latest(id);
+            Scheduling.entity(moderation.plugin(), watcher, () -> {
+                if (copy.isPresent()) {
+                    if (!moderation.savedInvsee().show(watcher, id, name, copy.get())) {
+                        moderation.messages().send(watcher, "moderation.invsee.refused",
+                                "reason", Inventories.Outcome.BEING_EDITED.saying());
+                        return;
+                    }
+                    moderation.messages().send(watcher, "moderation.invsee.saved-copy", "player", name,
+                            "server", copy.get().server(), "ago", Times.describe(Duration.between(
+                                    Instant.ofEpochMilli(copy.get().savedAt()), Instant.now())));
+                } else if (moderation.inventories().knows(id)) {
+                    openAsUsual(moderation, watcher, them, Access.READ_ONLY);
+                } else {
+                    moderation.messages().send(watcher, "moderation.invsee.no-copy", "player", name);
+                }
+            });
+        });
     }
 }
