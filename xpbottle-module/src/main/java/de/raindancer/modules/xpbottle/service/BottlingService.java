@@ -64,7 +64,7 @@ public final class BottlingService implements IXpBottleService {
     private final FeeBank bank;
     private final FillAmountRule fill;
     private final BottleForge forge;
-    private final Cooldowns<UUID> between = new Cooldowns<>();
+    private final Cooldowns<UUID> between = Cooldowns.shared("xpbottle:fill");
 
     private volatile XpBottleSettings settings;
 

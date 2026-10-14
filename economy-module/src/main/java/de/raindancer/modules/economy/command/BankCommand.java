@@ -2,7 +2,9 @@ package de.raindancer.modules.economy.command;
 
 import de.raindancer.core.social.desk.ServiceDesk;
 import de.raindancer.core.social.desk.ServiceDesks;
+import de.raindancer.modules.economy.EconomyClient;
 import de.raindancer.modules.economy.EconomyServices;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import de.raindancer.modules.economy.model.DealerGame;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import org.bukkit.command.CommandSender;
@@ -81,6 +83,15 @@ public final class BankCommand extends EconomyCommand {
                 }
             }
         });
+    }
+
+    @Override
+    public void executeClient(EconomyClient client, CommandSourceStack source, String[] args) {
+        if (door == Door.BALTOP) {
+            ClientWallet.baltop(client, source, args);
+        } else {
+            client.refuse(source.getSender());
+        }
     }
 
     @Override

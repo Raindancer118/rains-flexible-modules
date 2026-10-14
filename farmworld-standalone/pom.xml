@@ -41,7 +41,8 @@
              1.4.0: Paper 26.3 natively (paper-api 26.3, api-version 26.3); no longer loads on 26.2.
           1.5.0: RainsCore 2.0 — the "migrated from Core" marker is a key in the farm worlds document instead of
           a file (a 1.x marker file is honoured and renamed to *.imported-2.0.0); the migration also runs on PostgreSQL. -->
-        <plugin.version>1.5.0</plugin.version>
+        <!-- 1.6.0: the wait between farm world trips follows the player across the network. -->
+        <plugin.version>1.6.0</plugin.version>
     </properties>
 
     <dependencies>

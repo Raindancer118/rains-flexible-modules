@@ -29,6 +29,22 @@ economy:
   baltop:
     off: "<red>The richest players list is switched off on this server."
 
+  client:
+    on-the-bank: "<red>That is on <white><server></white>, the server that keeps the network's money. <gray>Go there to use it."
+    restart: "<red>This server was made the network's bank, but its economy started as a client. <gray>Restart it to open the bank here — until then nothing can be paid."
+    unavailable: "<red>The bank on <white><server></white> cannot be reached right now. <gray>Nothing was taken — try again in a moment."
+    balance-yours: "<gray>You have <amount><gray>. <dark_gray>(the bank is on <server>)"
+    balance-theirs: "<white><player></white><gray> has <amount><gray>."
+    no-account: "<red><player> has no account yet."
+    nobody: "<red>Nobody called <white><player></white> is online on the network or known here."
+    pay-usage: "<gray>/pay <player> <amount>"
+    pay-failed: "<red>That payment could not be confirmed — check /balance before trying again."
+    pay-confirm: "<yellow>Pay <amount><yellow> to <white><player></white>? <click:run_command:'/pay <player> <typed> confirm'><green>[Pay]</green></click>"
+    pay-received: "<green><white><player></white> paid you <amount><green>."
+    top-header: "<gold>The richest players <dark_gray>(from <server>)"
+    top-line: "<gray>#<place> <white><player></white> <dark_gray>— <amount>"
+    top-you: "<gray>You are <white>#<place></white> on the list."
+
   usage:
     fund: "<gray>/fund  ·  /fund <name> <amount>"
     eco-supply: "<gray>/eco health  ·  /eco fund start <name> <target> [boost <percent> <hours> | command <a> && <b>]  ·  /eco fund remove <name>  ·  /eco season end [confirm]"

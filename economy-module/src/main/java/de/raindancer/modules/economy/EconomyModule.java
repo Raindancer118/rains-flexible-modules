@@ -35,6 +35,8 @@ import de.raindancer.modules.economy.screen.SlotsMenu;
 import de.raindancer.modules.economy.screen.TradeMenu;
 import de.raindancer.modules.economy.screen.WithdrawMenu;
 import de.raindancer.modules.economy.service.BalanceNotifier;
+import de.raindancer.modules.economy.service.BankClient;
+import de.raindancer.modules.economy.service.BankTop;
 import de.raindancer.modules.economy.service.BillService;
 import de.raindancer.modules.economy.service.CashService;
 import de.raindancer.modules.economy.service.DailyService;
@@ -85,7 +87,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.38.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.39.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -118,6 +120,12 @@ public final class EconomyModule implements FlexModule {
         int registered = PermissionNodes.register(server);
         if (registered > 0) {
             log.info("{} permission(s) registered.", registered);
+        }
+
+        BankClient bankClient = bankClient(context);
+        if (bankClient != null && bankClient.elsewhere()) {
+            enableClient(context, bankClient);
+            return;
         }
 
         Database database = context.core().databases().of(EconomyDatabase.NAME, EconomyDatabase.SCHEMA);
@@ -200,6 +208,7 @@ public final class EconomyModule implements FlexModule {
         InterestService interest = new InterestService(economy, messages, System::currentTimeMillis, now);
         DailyService daily = new DailyService(economy, messages, effects, Clock.systemDefaultZone(), now);
         LeaderboardService leaderboard = new LeaderboardService(book, System::currentTimeMillis);
+        serveTheNetwork(context, bankClient, leaderboard, payments, settings);
         var sidebar = new de.raindancer.modules.economy.service.SidebarService(economy, leaderboard,
                 context.core().scoreboards(), now);
         var displays = new de.raindancer.modules.economy.service.LeaderboardDisplayService(context.plugin(), server,
@@ -395,6 +404,66 @@ public final class EconomyModule implements FlexModule {
         } catch (RuntimeException unreadable) {
             log.warn("config.yml could not be read for old enchanted-book settings: {}", unreadable.getMessage());
         }
+    }
+
+    /** On a network: this server's view of who keeps the money. Null on a server of its own. */
+    private BankClient bankClient(ModuleContext context) {
+        var core = context.core();
+        if (!core.network().isNetwork() || core.networkCalls().isEmpty() || core.networkRoles().isEmpty()) {
+            return null;
+        }
+        BankClient bank = new BankClient(core.networkCalls().get(), core.networkRoles().get(),
+                core.network().serverId(), id -> core.networkPlayers()
+                .flatMap(players -> players.servers().stream().filter(found -> found.id().equals(id)).findFirst())
+                .map(de.raindancer.core.platform.network.NetworkServers.Server::name).orElse(id));
+        offTheServerThread(bank::refresh);
+        return bank;
+    }
+
+    /**
+     * Another server is the network's bank: no ledger is opened here and none of the bank's systems run. What is left
+     * is {@code /balance}, {@code /pay} and {@code /baltop}, each a question to the bank.
+     */
+    private void enableClient(ModuleContext context, BankClient bank) {
+        EconomyCommands.readyClient(new EconomyClient(context.plugin(), context.plugin().getServer(), context.core().messages(),
+                context.core(), bank, true));
+        watchBank(context, bank, true);
+        log.info("The economy runs here as a client: {} keeps the network's money. /balance, /pay and /baltop go to it; "
+                + "everything else is on that server.", bank.bankName());
+    }
+
+    /** The bank can be moved with {@code /network bank here confirm}: look again every few seconds. */
+    private void watchBank(ModuleContext context, BankClient bank, boolean startedAsClient) {
+        var watching = Scheduling.asyncTimer(context.plugin(), 5, 5, task -> {
+            boolean keptHere = bank.keepsIt();
+            bank.refresh();
+            if (startedAsClient && bank.keepsIt() && !keptHere) {
+                log.error("This server was made the network's bank, but its economy started as a client and has no ledger. "
+                        + "Restart the server to run the bank here — until then nothing on the network can be paid.");
+            }
+        });
+        if (watching != null) {
+            context.closeWith(watching::cancel);
+        }
+    }
+
+    /** On a network the bank answers for everybody: the richest list, and payees told wherever they are. */
+    private void serveTheNetwork(ModuleContext context, BankClient bank, LeaderboardService leaderboard,
+                                 PaymentService payments, SettingsStore<EconomySettings> settings) {
+        payments.remote((player, key, values) -> context.core().networkPlayers().ifPresent(players ->
+                Scheduling.async(context.plugin(), () -> players.tell(player, key, values))));
+        if (bank == null) {
+            return;
+        }
+        String self = context.core().network().serverId();
+        context.core().networkCalls().ifPresent(calls -> context.closeWith(BankTop.serve(calls, leaderboard,
+                () -> context.core().networkRoles().flatMap(roles -> roles.holder(
+                        de.raindancer.core.social.economy.NetworkEconomy.ROLE)).filter(self::equals).isPresent(),
+                () -> settings.current().baltopEnabled(),
+                task -> Scheduling.global(context.plugin(), task))::close));
+        EconomyCommands.readyClient(new EconomyClient(context.plugin(), context.plugin().getServer(), context.core().messages(),
+                context.core(), bank, false));
+        watchBank(context, bank, false);
     }
 
     private de.raindancer.modules.economy.store.CashSeal cashSeal(ModuleContext context) {

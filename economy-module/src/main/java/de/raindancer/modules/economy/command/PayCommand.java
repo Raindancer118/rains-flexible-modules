@@ -1,5 +1,6 @@
 package de.raindancer.modules.economy.command;
 
+import de.raindancer.modules.economy.EconomyClient;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -30,6 +31,16 @@ public final class PayCommand extends EconomyCommand {
             target(live, sender, args[0]).ifPresent(who -> amount(live, sender, args[1])
                     .ifPresent(amount -> live.payments().pay(player, who, amount, false)));
         });
+    }
+
+    @Override
+    public void executeClient(EconomyClient client, CommandSourceStack source, String[] args) {
+        ClientWallet.pay(client, source, args);
+    }
+
+    @Override
+    public Collection<String> suggestClient(EconomyClient client, CommandSourceStack source, String[] args) {
+        return args.length <= 1 ? ClientWallet.players(client, source, args.length == 0 ? "" : args[0]) : List.of();
     }
 
     @Override

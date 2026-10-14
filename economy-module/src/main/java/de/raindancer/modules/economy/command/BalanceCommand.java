@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy.command;
 
 import de.raindancer.core.platform.command.PlayerTargets;
+import de.raindancer.modules.economy.EconomyClient;
 import de.raindancer.modules.economy.EconomyServices;
 import de.raindancer.modules.economy.util.PermissionNodes;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -38,6 +39,16 @@ public final class BalanceCommand extends EconomyCommand {
                 "player", PlayerTargets.shownName(who),
                 "amount", live.currency().render(live.economy().balance(who.getUniqueId())),
                 "place", String.valueOf(live.leaderboard().placeOf(who.getUniqueId()))));
+    }
+
+    @Override
+    public void executeClient(EconomyClient client, CommandSourceStack source, String[] args) {
+        ClientWallet.balance(client, source, args);
+    }
+
+    @Override
+    public Collection<String> suggestClient(EconomyClient client, CommandSourceStack source, String[] args) {
+        return args.length <= 1 ? ClientWallet.players(client, source, args.length == 0 ? "" : args[0]) : List.of();
     }
 
     @Override

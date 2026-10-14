@@ -82,8 +82,21 @@ public final class SendService implements ISendsService {
         this.network = network;
     }
 
+    /** On the live server: the wait between sends follows the player across the network. */
+    public static SendService live(Plugin plugin, Server server, LogChannel log, Messages messages, Effects effects,
+                                   SendBook book, SendableItemsRule itemsRule, SendsSettings settings) {
+        return new SendService(plugin, server, log, messages, effects, book, itemsRule, System::currentTimeMillis,
+                settings, Cooldowns.shared("sends:send"));
+    }
+
     public SendService(Plugin plugin, Server server, LogChannel log, Messages messages, Effects effects,
                        SendBook book, SendableItemsRule itemsRule, LongSupplier clock, SendsSettings settings) {
+        this(plugin, server, log, messages, effects, book, itemsRule, clock, settings, new Cooldowns<>(clock));
+    }
+
+    private SendService(Plugin plugin, Server server, LogChannel log, Messages messages, Effects effects,
+                        SendBook book, SendableItemsRule itemsRule, LongSupplier clock, SendsSettings settings,
+                        Cooldowns<UUID> cooldown) {
         this.plugin = plugin;
         this.server = server;
         this.log = log;
@@ -92,7 +105,7 @@ public final class SendService implements ISendsService {
         this.book = book;
         this.itemsRule = itemsRule;
         this.clock = clock;
-        this.cooldown = new Cooldowns<>(clock);
+        this.cooldown = cooldown;
         settings(settings);
     }
 

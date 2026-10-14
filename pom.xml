@@ -52,7 +52,7 @@
         <warp-module.version>1.9.2</warp-module.version>
         <homes-module.version>2.8.3</homes-module.version>
         <tpa-module.version>2.9.1</tpa-module.version>
-        <farmworld-module.version>1.5.0</farmworld-module.version>
+        <farmworld-module.version>1.6.0</farmworld-module.version>
         <pack-module.version>1.1.0</pack-module.version>
         <chained-module.version>1.4.0</chained-module.version>
         <rtp-module.version>1.4.1</rtp-module.version>
@@ -62,8 +62,8 @@
         <worldutils-module.version>0.4.0</worldutils-module.version>
         <mannequin-module.version>1.11.0</mannequin-module.version>
         <invsnap-module.version>1.9.0</invsnap-module.version>
-        <xpbottle-module.version>1.3.0</xpbottle-module.version>
-        <sends-module.version>0.2.0</sends-module.version>
+        <xpbottle-module.version>1.4.0</xpbottle-module.version>
+        <sends-module.version>0.3.0</sends-module.version>
         <oneblock-module.version>0.3.1</oneblock-module.version>
         <twitch-module.version>0.3.0</twitch-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
@@ -73,7 +73,7 @@
         <veintoggle-module.version>0.5.0</veintoggle-module.version>
         <enchants-module.version>0.2.0</enchants-module.version>
         <performance-module.version>0.2.0</performance-module.version>
-        <economy-module.version>0.38.1</economy-module.version>
+        <economy-module.version>0.39.0</economy-module.version>
         <roles-module.version>0.8.0</roles-module.version>
         <ranks-module.version>0.5.0</ranks-module.version>
         <jobs-module.version>0.9.1</jobs-module.version>

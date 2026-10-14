@@ -91,7 +91,7 @@ public final class GamblingService implements IEconomyService {
     private final RouletteRule roulette = new RouletteRule();
     private final GameSounds sounds;
     private final SecureRandom random = new SecureRandom();
-    private final Cooldowns<UUID> between = new Cooldowns<>();
+    private final Cooldowns<UUID> between = Cooldowns.shared("economy:gamble");
     private final Map<UUID, Challenge> challenges = new ConcurrentHashMap<>();
     private final Map<UUID, DayLoss> losses = new ConcurrentHashMap<>();
     private volatile EconomySettings settings;

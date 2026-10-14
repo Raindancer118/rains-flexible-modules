@@ -243,7 +243,7 @@ public final class AccountBook {
             List<Auction> listed = new ArrayList<>();
             try (PreparedStatement select = connection.prepareStatement(
                     "SELECT id, seller, seller_name, item, item_name, start, buyout, bid, bidder, bidder_name, bids, "
-                            + "seconds, listed_at, ends_at FROM auction ORDER BY listed_at, rowid");
+                            + "seconds, listed_at, ends_at FROM auction ORDER BY listed_at, id");
                  ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     String bidder = rows.getString(9);
@@ -256,7 +256,7 @@ public final class AccountBook {
             }
             List<AuctionClaim> owed = new ArrayList<>();
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT id, player, item, item_name, reason, at FROM auction_claim ORDER BY at, rowid");
+                    "SELECT id, player, item, item_name, reason, at FROM auction_claim ORDER BY at, id");
                  ResultSet rows = select.executeQuery()) {
                 while (rows.next()) {
                     owed.add(new AuctionClaim(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)),
@@ -2050,8 +2050,8 @@ public final class AccountBook {
                 }
                 try (PreparedStatement total = connection.prepareStatement(
                         "INSERT INTO ledger_total (account, kind, gained, lost) VALUES (?, ?, ?, ?) "
-                                + "ON CONFLICT(account, kind) DO UPDATE SET gained = gained + excluded.gained, "
-                                + "lost = lost + excluded.lost")) {
+                                + "ON CONFLICT(account, kind) DO UPDATE SET gained = ledger_total.gained + excluded.gained, "
+                                + "lost = ledger_total.lost + excluded.lost")) {
                     for (Transaction line : lines) {
                         total.setString(1, line.account().toString());
                         total.setString(2, line.kind().name());

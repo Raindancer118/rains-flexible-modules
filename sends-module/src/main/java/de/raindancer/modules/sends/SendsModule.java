@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class SendsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("sends", "Sends", "0.2.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("sends", "Sends", "0.3.0")
             .describedAs("Send items to another player: put them in a window, they accept with a click.")
             .by("Raindancer118");
 
@@ -87,9 +87,9 @@ public final class SendsModule implements FlexModule {
                 System::currentTimeMillis);
         offTheServerThread(book::load);
 
-        sends = new SendService(context.plugin(), server, log, context.core().messages(), context.core().effects(),
+        sends = SendService.live(context.plugin(), server, log, context.core().messages(), context.core().effects(),
                 book, new SendableItemsRule(item -> BoundItems.isBound(item) || InsuredItems.isInsured(item)),
-                System::currentTimeMillis, settings.current());
+                settings.current());
         settings.onChange(sends::settings);
         connectNetwork(context, book);
 

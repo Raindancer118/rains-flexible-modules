@@ -31,10 +31,22 @@ public final class PaymentService implements IEconomyService {
     private final Effects effects;
     private final ChatButtons buttons;
     private final PaymentRule rule = new PaymentRule();
-    private final Cooldowns<UUID> between = new Cooldowns<>();
+    private final Cooldowns<UUID> between = Cooldowns.shared("economy:pay");
     private volatile EconomySettings settings;
 
     private volatile SupplyService supply;
+    private volatile RemoteTell remote;
+
+    /** Says a message to a player on another server of the network. */
+    @FunctionalInterface
+    public interface RemoteTell {
+        void tell(UUID player, String key, String... values);
+    }
+
+    /** Where a payee who is not on this server is told they were paid. */
+    public void remote(RemoteTell remote) {
+        this.remote = remote;
+    }
 
     /** The money supply's settings; the shipped ones, which change nothing, until wired. */
     public void supply(SupplyService service) {
@@ -235,6 +247,9 @@ public final class PaymentService implements IEconomyService {
         if (online != null) {
             effects.play(online.getUniqueId(), Cues.EARNED);
             messages.send(online, "economy.pay.received", "amount", currency.render(amount.minus(tax)),
+                    "player", payer.name());
+        } else if (remote != null) {
+            remote.tell(target.getUniqueId(), "economy.pay.received", "amount", currency.format(amount.minus(tax)),
                     "player", payer.name());
         }
     }

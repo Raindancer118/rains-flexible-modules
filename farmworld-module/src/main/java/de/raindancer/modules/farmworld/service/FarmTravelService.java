@@ -142,7 +142,7 @@ public final class FarmTravelService implements IFarmWorldService {
                              ChatButtons buttons) {
         this.passes = passes;
         this.buttons = buttons;
-        this.between = clock == null ? new Cooldowns<>() : new Cooldowns<>(clock);
+        this.between = clock == null ? Cooldowns.shared("farmworld:travel") : new Cooldowns<>(clock);
         this.catalogue = catalogue;
         this.travel = travel;
         this.access = access;

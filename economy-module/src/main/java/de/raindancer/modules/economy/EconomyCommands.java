@@ -1,6 +1,7 @@
 package de.raindancer.modules.economy;
 
 import de.raindancer.modules.api.ModuleCommand;
+import de.raindancer.modules.economy.command.IEconomyCommand;
 import de.raindancer.modules.economy.command.BalanceCommand;
 import de.raindancer.modules.economy.command.BankCommand;
 import de.raindancer.modules.economy.command.BillCommand;
@@ -10,6 +11,12 @@ import de.raindancer.modules.economy.command.GambleCommand;
 import de.raindancer.modules.economy.command.PayCommand;
 import de.raindancer.modules.economy.command.ShopCommand;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.command.CommandSender;
+
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -19,12 +26,13 @@ import java.util.List;
 public final class EconomyCommands {
 
     private static volatile EconomyServices services;
+    private static volatile EconomyClient client;
 
     private EconomyCommands() {
     }
 
     public static List<ModuleCommand> declared() {
-        return List.of(
+        return routed(List.of(
                 ModuleCommand.of("balance", "Your balance, or somebody else's",
                         new BalanceCommand(EconomyCommands::require)).aliased("bal", "money").taking("[player]"),
                 ModuleCommand.of("pay", "Pay another player", new PayCommand(EconomyCommands::require))
@@ -117,7 +125,52 @@ public final class EconomyCommands {
                                 "menu|reprice|draw|calm|coin", "leaderboard place|remove", "dealer place <game>|remove", "agent place|remove",
                                 "auction stop|clear", "raffle <prize> <ticket price> [length] | cancel <number>",
                                 "giveaway <prize> [length]", "tax <percent> [confirm]", "packs [give <player> <pack>]")
-                        .auditUsage());
+                        .auditUsage()));
+    }
+
+    /** Each command, answering as a client of the bank when this server is not the bank. */
+    private static List<ModuleCommand> routed(List<ModuleCommand> declared) {
+        return declared.stream().map(command -> command.handler() instanceof IEconomyCommand own
+                ? new ModuleCommand(command.name(), command.description(), command.aliases(), new Routed(own),
+                command.options(), command.permission(), command.audited()) : command).toList();
+    }
+
+    private record Routed(IEconomyCommand command) implements BasicCommand {
+
+        @Override
+        public void execute(CommandSourceStack source, String[] args) throws CommandSyntaxException {
+            EconomyClient client = active();
+            if (client == null) {
+                command.execute(source, args);
+            } else {
+                command.executeClient(client, source, args);
+            }
+        }
+
+        @Override
+        public Collection<String> suggest(CommandSourceStack source, String[] args) {
+            EconomyClient client = active();
+            return client == null ? command.suggest(source, args) : command.suggestClient(client, source, args);
+        }
+
+        @Override
+        public boolean canUse(CommandSender sender) {
+            return command.canUse(sender);
+        }
+
+        @Override
+        public String permission() {
+            return command.permission();
+        }
+    }
+
+    private static EconomyClient active() {
+        EconomyClient live = client;
+        return live != null && live.active() ? live : null;
+    }
+
+    static void readyClient(EconomyClient live) {
+        client = live;
     }
 
     static void ready(EconomyServices live) {
@@ -126,6 +179,7 @@ public final class EconomyCommands {
 
     static void stopped() {
         services = null;
+        client = null;
     }
 
     public static boolean isRunning() {
