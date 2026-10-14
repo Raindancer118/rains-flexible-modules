@@ -24,7 +24,6 @@
         -->
         <java.version>25</java.version>
         <paper.api.version>26.3.build.169-beta</paper.api.version>
-        <paper.api.version>26.2.build.111-stable</paper.api.version>
         <rainscore.version>1.137.1</rainscore.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -59,8 +58,6 @@
         <essentials-module.version>1.24.0</essentials-module.version>
         <worldgate-module.version>1.4.0</worldgate-module.version>
         <!-- 0.x until it is everything that was asked for; the first release of World Utils. -->
-        <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
-        <!-- 0.x until it has been heard working on a live server with real players. -->
         <worldutils-module.version>0.4.0</worldutils-module.version>
         <mannequin-module.version>1.10.0</mannequin-module.version>
         <invsnap-module.version>1.7.0</invsnap-module.version>
@@ -68,6 +65,7 @@
         <sends-module.version>0.1.0</sends-module.version>
         <oneblock-module.version>0.2.1</oneblock-module.version>
         <twitch-module.version>0.1.3</twitch-module.version>
+        <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.5.0</arena-api.version>
         <arena-module.version>0.13.1</arena-module.version>
         <arenagate-module.version>0.7.1</arenagate-module.version>
@@ -84,6 +82,7 @@
         <xaeromap-module.version>1.3.0</xaeromap-module.version>
         <wallsroads-module.version>1.3.0</wallsroads-module.version>
         <hungergames-module.version>2.9.0</hungergames-module.version>
+        <!-- 0.x until it has been heard working on a live server with real players. -->
         <voicebridge-module.version>0.2.0</voicebridge-module.version>
         <voicechat-api.version>2.6.0</voicechat-api.version>
         <jda.version>6.7.0</jda.version>
@@ -406,6 +405,9 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>playerutils-module</artifactId>
                 <version>${playerutils-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
                 <artifactId>voicebridge-module</artifactId>
                 <version>${voicebridge-module.version}</version>
             </dependency>
