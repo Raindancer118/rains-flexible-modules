@@ -281,7 +281,7 @@ public final class OrderService {
         if (ledger.current().filter(OrderService::running).isEmpty()) {
             return false;
         }
-        if (!book.putNow(id, ledger.with(ledger.order().in(Order.State.FAILED)))) {
+        if (!book.putNow(id, ledger, ledger.with(ledger.order().in(Order.State.FAILED)))) {
             return false;
         }
         hide(player);
@@ -309,7 +309,7 @@ public final class OrderService {
             return;
         }
         OrderBook.Ledger paid = held.get().with(moved.in(Order.State.PAID));
-        if (!book.putNow(id, paid)) {
+        if (!book.putNow(id, held.get(), paid)) {
             // Lost to another server that paid it: nothing left to count. Otherwise counted on, to try again.
             book.refresh(id);
             if (book.of(id).flatMap(OrderBook.Ledger::current).filter(each -> running(each) && each.startedAt() == order.startedAt()).isPresent()) {
@@ -349,7 +349,7 @@ public final class OrderService {
                 return;
             }
             if (order.state() == Order.State.OPEN && now >= order.endsAt()) {
-                if (book.putNow(player, ledger.with(order.in(Order.State.FAILED)))) {
+                if (book.putNow(player, ledger, ledger.with(order.in(Order.State.FAILED)))) {
                     Player online = server.getPlayer(player);
                     if (online != null) {
                         ended.add(online);
@@ -358,7 +358,7 @@ public final class OrderService {
                             "progress", String.valueOf(order.progress()), "units", String.valueOf(order.units()));
                 }
             } else if (order.state() == Order.State.OWED) {
-                if (!book.putNow(player, ledger.with(order.in(Order.State.PAID)))) {
+                if (!book.putNow(player, ledger, ledger.with(order.in(Order.State.PAID)))) {
                     return;
                 }
                 EconomyResult result = pay(player, order.pay(), "Order: " + order.says() + " (owed)");

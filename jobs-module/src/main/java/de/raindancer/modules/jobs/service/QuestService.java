@@ -287,7 +287,7 @@ public final class QuestService {
         UUID id = player.getUniqueId();
         Quest quest = day.quests().get(index);
         QuestDay paid = day.with(index, quest.in(Quest.State.PAID));
-        if (!book.putNow(id, paid)) {
+        if (!book.putNow(id, day, paid)) {
             book.refresh(id);
             Optional<QuestDay> now = book.of(id).filter(each -> each.quests().size() == day.quests().size());
             if (now.isPresent() && !now.get().quests().get(index).open()) {
@@ -356,7 +356,7 @@ public final class QuestService {
                     continue;
                 }
                 QuestDay paid = now.with(i, quest.in(Quest.State.PAID));
-                if (!book.putNow(player, paid)) {
+                if (!book.putNow(player, now, paid)) {
                     return;
                 }
                 String title = template(quest).map(QuestTemplate::title).orElse(quest.template());

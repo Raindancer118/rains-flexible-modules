@@ -271,7 +271,26 @@ public final class OrderBook {
     }
 
     /** @return false, and nothing changed, when it could not be written */
+    /** The same order (work, start) in the same state, or both without one. */
+    private static boolean sameOrder(Ledger a, Ledger b) {
+        Order one = a == null ? null : a.order();
+        Order two = b == null ? null : b.order();
+        if (one == null || two == null) {
+            return one == two;
+        }
+        return one.state() == two.state() && one.work().equals(two.work()) && one.startedAt() == two.startedAt();
+    }
+
     public boolean putNow(UUID player, Ledger after) {
+        return putNow(player, null, after);
+    }
+
+    /**
+     * As {@link #putNow(UUID, Ledger)}, refused unless the order is still in the state {@code expected} has — the
+     * ledger the caller decided on. A payment decided on an open order is not made once another server's payment has
+     * reached this one: without this the change would look like no change at all, and be "written".
+     */
+    public boolean putNow(UUID player, Ledger expected, Ledger after) {
         if (!readable || !known(player)) {
             return false;
         }
@@ -282,6 +301,9 @@ public final class OrderBook {
             Entry held = cache.get(player);
             before = held.ledger;
             rev = held.rev;
+        }
+        if (expected != null && !sameOrder(before, expected)) {
+            return false;
         }
         boolean[] conflict = new boolean[1];
         boolean ran = database.write(connection -> {

@@ -105,15 +105,30 @@ class QuestBookTest {
     }
 
     @Test
+    @DisplayName("a server that decided to pay on an open quest is refused once the other server's payment reached it")
+    void decidedOnOpenButPaidMeanwhile() {
+        QuestBook smp = servers.quests("smp");
+        QuestBook arena = servers.quests("arena");
+        smp.putNow(ana, day("2026-10-10", 290, Quest.State.OPEN));
+        servers.settle();
+        QuestDay seenOpen = arena.of(ana).orElseThrow();
+        assertThat(smp.putNow(ana, day("2026-10-10", 300, Quest.State.PAID))).isTrue();
+        servers.settle();
+        arena.refresh(ana);
+        assertThat(arena.putNow(ana, seenOpen, seenOpen.with(0, seenOpen.quests().getFirst().in(Quest.State.PAID))))
+                .as("paid elsewhere since it looked").isFalse();
+    }
+
+    @Test
     @DisplayName("a quest done on two servers is paid by one: only one can change it from open")
     void paidOnce() {
         QuestBook smp = servers.quests("smp");
         QuestBook arena = servers.quests("arena");
         smp.putNow(ana, day("2026-10-10", 290, Quest.State.OPEN));
         servers.settle();
-        arena.of(ana);
+        QuestDay seen = arena.of(ana).orElseThrow();
         assertThat(smp.putNow(ana, day("2026-10-10", 300, Quest.State.PAID))).isTrue();
-        assertThat(arena.putNow(ana, day("2026-10-10", 300, Quest.State.PAID))).as("already paid elsewhere").isFalse();
+        assertThat(arena.putNow(ana, seen, day("2026-10-10", 300, Quest.State.PAID))).as("already paid elsewhere").isFalse();
         servers.settle();
         assertThat(arena.of(ana).orElseThrow().quests().getFirst().state()).isEqualTo(Quest.State.PAID);
     }

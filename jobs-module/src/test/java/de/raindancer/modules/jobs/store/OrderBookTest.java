@@ -64,8 +64,24 @@ class OrderBookTest {
         servers.settle();
         assertThat(smp.of(ana).orElseThrow().order().progress()).isEqualTo(13);
 
+        OrderBook.Ledger seen = arena.of(ana).orElseThrow();
         assertThat(smp.putNow(ana, smp.of(ana).orElseThrow().with(smp.of(ana).orElseThrow().order().in(Order.State.PAID)))).isTrue();
-        assertThat(arena.putNow(ana, ledger(40, Order.State.PAID))).as("already paid").isFalse();
+        assertThat(arena.putNow(ana, seen, ledger(40, Order.State.PAID))).as("already paid").isFalse();
+    }
+
+    @Test
+    @DisplayName("a server that decided to pay on an open order is refused once the other server's payment reached it")
+    void decidedOnOpenButPaidMeanwhile() {
+        OrderBook smp = servers.orders("smp");
+        OrderBook arena = servers.orders("arena");
+        smp.putNow(ana, ledger(40, Order.State.OPEN));
+        servers.settle();
+        OrderBook.Ledger seenOpen = arena.of(ana).orElseThrow();
+        assertThat(smp.putNow(ana, smp.of(ana).orElseThrow().with(smp.of(ana).orElseThrow().order().in(Order.State.PAID)))).isTrue();
+        servers.settle();
+        arena.refresh(ana);
+        assertThat(arena.putNow(ana, seenOpen, seenOpen.with(seenOpen.order().in(Order.State.PAID))))
+                .as("paid elsewhere since it looked").isFalse();
     }
 
     @Test

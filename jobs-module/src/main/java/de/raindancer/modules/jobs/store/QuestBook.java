@@ -289,6 +289,15 @@ public final class QuestBook {
 
     /** Puts a player's day and writes it now. @return false, and nothing changed, when it could not be written */
     public boolean putNow(UUID player, QuestDay after) {
+        return putNow(player, null, after);
+    }
+
+    /**
+     * As {@link #putNow(UUID, QuestDay)}, refused unless the quests are still in the states {@code expected} has —
+     * the day the caller decided on. A payment decided on an open quest is not made once another server's payment
+     * has reached this one: without this the change would look like no change at all, and be "written".
+     */
+    public boolean putNow(UUID player, QuestDay expected, QuestDay after) {
         if (!readable || !known(player)) {
             return false;
         }
@@ -299,6 +308,9 @@ public final class QuestBook {
             Entry held = cache.get(player);
             before = held.day;
             rev = held.rev;
+        }
+        if (expected != null && (before == null || !sameStates(before, expected))) {
+            return false;
         }
         boolean[] conflict = new boolean[1];
         boolean ran = database.write(connection -> {
