@@ -39,10 +39,11 @@ public final class ShardListener implements IEnchantsListener {
         this.mobs = mobs;
     }
 
-    /** Nothing harmless lives in the shard world. */
+    /** Nothing harmless lives in the shard world; now and then a warden comes instead of a monster. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onArrival(CreatureSpawnEvent event) {
-        if (mobs.refused(event.getEntity(), event.getSpawnReason())) {
+        if (mobs.refused(event.getEntity(), event.getSpawnReason())
+                || mobs.wardenInstead(event.getEntity(), event.getSpawnReason())) {
             event.setCancelled(true);
         }
     }

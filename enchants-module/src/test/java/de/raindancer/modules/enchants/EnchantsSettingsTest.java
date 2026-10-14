@@ -28,6 +28,7 @@ class EnchantsSettingsTest {
         assertThat(defaults.shardWorldMonsters()).isEqualTo(140);
         assertThat(defaults.portalKey()).isEqualTo(org.bukkit.Material.AMETHYST_SHARD);
         assertThat(defaults.shardDropPercent()).isEqualTo(100);
+        assertThat(defaults.crystalWardenPerMille()).isEqualTo(2);
         assertThat(defaults.shardsPerHour()).isEqualTo(150);
     }
 

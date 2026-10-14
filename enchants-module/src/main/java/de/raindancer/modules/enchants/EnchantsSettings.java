@@ -117,8 +117,14 @@ public record EnchantsSettings(
         @In("enchants/shards") @Title("Haze specks") @Range(min = 0, max = 100)
         @Describe("Dark red specks drifting around each player in the shard world, every half second; 0 for none.")
         @Key("shard-world-haze")
-        int shardWorldHaze) {
+        int shardWorldHaze,
+
+        @In("enchants/shards") @Title("Crystal Wardens, per mille") @Range(min = 0, max = 1000)
+        @Describe("How many in a thousand monsters coming by themselves under the open sky of the shard world come as a "
+                + "warden instead, of any kind from Shadowed to Overlord, dropping five times that kind's shards. 0 for none.")
+        @Key("crystal-warden-per-mille")
+        int crystalWardenPerMille) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12, 2);
 }

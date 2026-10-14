@@ -12,17 +12,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ShardTierTest {
 
     @Test
-    @DisplayName("most are the weakest kind, a few are tyrants")
+    @DisplayName("most are the weakest kind, six in a hundred are tyrants")
     void rolls() {
         Map<ShardTier, Integer> seen = new EnumMap<>(ShardTier.class);
         Random random = new Random(11);
         for (int i = 0; i < 50_000; i++) {
             seen.merge(ShardTier.roll(random), 1, Integer::sum);
         }
-        assertThat(seen.get(ShardTier.SHADOWED)).isBetween(29_000, 31_000);
+        assertThat(seen.get(ShardTier.SHADOWED)).isBetween(26_800, 28_200);
         assertThat(seen.get(ShardTier.SHARDBORN)).isBetween(13_300, 14_700);
         assertThat(seen.get(ShardTier.CRYSTAL)).isBetween(4_500, 5_500);
-        assertThat(seen.get(ShardTier.TYRANT)).isBetween(800, 1_200);
+        assertThat(seen.get(ShardTier.TYRANT)).isBetween(2_700, 3_300);
         assertThat(seen.get(ShardTier.OVERLORD)).as("rarer still: one in a hundred").isBetween(350, 650);
     }
 

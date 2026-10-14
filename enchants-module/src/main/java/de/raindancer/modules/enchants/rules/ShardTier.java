@@ -8,10 +8,10 @@ import java.util.random.RandomGenerator;
  * how many shards it drops — the harder, the more, and the likelier a rare enchantment's shard.
  */
 public enum ShardTier {
-    SHADOWED("<gray>Shadowed <name>", 59, 1.0, 0, 1.0, 0, 1, 1, 1),
+    SHADOWED("<gray>Shadowed <name>", 55, 1.0, 0, 1.0, 0, 1, 1, 1),
     SHARDBORN("<light_purple>Shardborn <name>", 28, 1.5, 2, 1.05, 2, 2, 2, 1),
     CRYSTAL("<aqua>Crystal <name>", 10, 2.5, 4, 1.15, 6, 3, 4, 2),
-    TYRANT("<gold><bold>Shard Tyrant</bold> <name>", 2, 5.0, 8, 1.2, 12, 6, 8, 4),
+    TYRANT("<gold><bold>Shard Tyrant</bold> <name>", 6, 5.0, 8, 1.2, 12, 6, 8, 4),
     /** Above the tyrant, below only the Crystal Wither. */
     OVERLORD("<dark_red><bold>Shard Overlord</bold> <name>", 1, 8.0, 12, 1.25, 16, 10, 14, 6);
 

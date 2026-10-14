@@ -56,8 +56,10 @@ public final class ShardDropService {
         }
         ShardTier tier = kind.get();
         Map<String, Integer> found = new LinkedHashMap<>();
+        int kindShards = mob.getType() == org.bukkit.entity.EntityType.WARDEN
+                ? de.raindancer.modules.enchants.rules.CrystalWarden.shards(tier.shards(random)) : tier.shards(random);
         int count = de.raindancer.modules.enchants.rules.ShardBonus.apply(
-                boss ? de.raindancer.modules.enchants.rules.CrystalWither.shards(random) : tier.shards(random), random);
+                boss ? de.raindancer.modules.enchants.rules.CrystalWither.shards(random) : kindShards, random);
         int rareFactor = boss ? de.raindancer.modules.enchants.rules.CrystalWither.RARE_FACTOR : tier.rareFactor();
         for (int i = 0; i < count && (boss || cap.take(killer.getUniqueId(), config.shardsPerHour())); i++) {
             String enchantment = ShardRules.pick(random, rareFactor);

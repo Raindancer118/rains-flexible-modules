@@ -46,9 +46,50 @@ public final class ShardMobService {
     /** Creatures already hunting: a chunk made with its creatures announces them twice. */
     private final java.util.Set<java.util.UUID> hunting = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    public ShardMobService(Plugin plugin, ShardWorldService worlds) {
+    private final java.util.function.Supplier<de.raindancer.modules.enchants.EnchantsSettings> settings;
+
+    public ShardMobService(Plugin plugin, ShardWorldService worlds,
+                           java.util.function.Supplier<de.raindancer.modules.enchants.EnchantsSettings> settings) {
         this.plugin = plugin;
         this.worlds = worlds;
+        this.settings = settings;
+    }
+
+    /**
+     * A monster coming by itself under the open sky of the shard world may come as a warden instead
+     * ({@link de.raindancer.modules.enchants.rules.CrystalWarden}). The warden comes a tick later, by itself too, so it
+     * rolls its kind like any other.
+     *
+     * @return true if the monster is replaced and its spawn is to be cancelled
+     */
+    public boolean wardenInstead(LivingEntity entity, CreatureSpawnEvent.SpawnReason reason) {
+        if (reason != CreatureSpawnEvent.SpawnReason.NATURAL || !(entity instanceof Mob)
+                || !worlds.isShardWorld(entity.getWorld())
+                || ShardSpawnRule.of(entity.getType()) == ShardSpawnRule.REFUSED) {
+            return false;
+        }
+        org.bukkit.Location at = entity.getLocation();
+        if (!de.raindancer.modules.enchants.rules.CrystalWarden.rises(ThreadLocalRandom.current(),
+                settings.get().crystalWardenPerMille(), entity.getType(), roomUnderSky(at))) {
+            return false;
+        }
+        Scheduling.regionLater(plugin, at, 1L,
+                () -> at.getWorld().spawnEntity(at, org.bukkit.entity.EntityType.WARDEN, CreatureSpawnEvent.SpawnReason.NATURAL));
+        return true;
+    }
+
+    /** Nothing above but sky, and room for a warden's three blocks of height. */
+    private static boolean roomUnderSky(org.bukkit.Location at) {
+        org.bukkit.block.Block feet = at.getBlock();
+        if (at.getWorld().getHighestBlockYAt(feet.getX(), feet.getZ()) >= feet.getY()) {
+            return false;
+        }
+        for (int up = 0; up < 3; up++) {
+            if (!feet.getRelative(0, up, 0).isPassable()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
