@@ -13,18 +13,24 @@ import java.util.Optional;
  */
 public enum IslandDimension {
 
-    OVERWORLD(World.Environment.NORMAL, "", Material.GRASS_BLOCK, "plains", BlockSpot.START),
-    NETHER(World.Environment.NETHER, "_nether", Material.NETHERRACK, "nether_wastes", BlockSpot.START),
+    OVERWORLD(World.Environment.NORMAL, "", Material.GRASS_BLOCK, "plains", BlockSpot.START,
+            "oneblock.dimension.overworld"),
+    NETHER(World.Environment.NETHER, "_nether", Material.NETHERRACK, "nether_wastes", BlockSpot.START,
+            "oneblock.dimension.nether"),
     // Away from 0/0: an end world builds its exit portal there on the first tick, on top of whatever stands at 0/0.
-    END(World.Environment.THE_END, "_end", Material.END_STONE, "the_end", new BlockSpot(0, 64, 40));
+    END(World.Environment.THE_END, "_end", Material.END_STONE, "the_end", new BlockSpot(0, 64, 40),
+            "oneblock.dimension.end");
 
     private final World.Environment environment;
     private final String worldSuffix;
     private final Material icon;
     private final String biome;
     private final BlockSpot start;
+    private final String nameKey;
 
-    IslandDimension(World.Environment environment, String worldSuffix, Material icon, String biome, BlockSpot start) {
+    IslandDimension(World.Environment environment, String worldSuffix, Material icon, String biome, BlockSpot start,
+                    String nameKey) {
+        this.nameKey = nameKey;
         this.environment = environment;
         this.worldSuffix = worldSuffix;
         this.icon = icon;
@@ -59,7 +65,7 @@ public enum IslandDimension {
 
     /** The message key of its name. */
     public String nameKey() {
-        return "oneblock.dimension." + id();
+        return nameKey;
     }
 
     public static Optional<IslandDimension> byId(String raw) {

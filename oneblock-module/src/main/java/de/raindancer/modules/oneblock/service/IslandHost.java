@@ -8,24 +8,24 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The island plugin, seen from this module: the one seam to BentoBox, so everything else is tested without it.
+ * The islands, seen from the invites and the sidebar: the one seam to them, so both are tested without a server.
  * Called on the server thread only.
  */
 public interface IslandHost {
 
-    /** Whether the game mode is loaded — false before BentoBox has finished starting, or without it. */
+    /** Whether the islands are loaded and can be asked. */
     boolean ready();
 
     /** The inviter's island and what decides an invite to it; empty when they have none. */
     Optional<IslandFacts> facts(UUID inviter, UUID invitee);
 
-    /** BentoBox's own team invite, so its accept command — confirmation, team limits, leaving an old island — runs it. */
+    /** A second record of a team invite, for an island host that keeps its own; nothing for one that does not. */
     void offerTeam(Invite invite);
 
-    /** Takes BentoBox's invite back, if it is still this one. */
+    /** Takes that record back, if it is still this one. */
     void withdrawTeam(Invite invite);
 
-    /** Runs BentoBox's accept for the invited player, who is online here. */
+    /** Puts the invited player, online here, on the inviter's team. */
     void join(Invite invite);
 
     /** Takes the player, online here, to a safe spot on that island. */
@@ -37,6 +37,14 @@ public interface IslandHost {
     /** The island the player, online here, stands on — or their own while they are elsewhere; empty with neither. */
     Optional<IslandView> view(UUID player);
 
-    /** The game mode's own command: their island, or a new one. */
+    /** To their island, or to making one. */
     void home(UUID player);
+
+    /**
+     * Somebody arrived on the island server with nothing accepted to finish: back where they left off on an island, or
+     * to their own — or to making one.
+     */
+    default void arrived(UUID player) {
+        home(player);
+    }
 }

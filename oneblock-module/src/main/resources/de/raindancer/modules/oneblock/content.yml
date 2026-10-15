@@ -1,0 +1,354 @@
+# Rain's OneBlock — what the islands are made of.
+#
+# Written to plugins/RainsOneBlock/content.yml the first time the island server starts; edit that copy and run
+# /islandadmin reload. Names are Minecraft's own ids (coal_ore, cow), without "minecraft:".
+#
+# How a break works: every installed block or mob upgrade of that dimension takes part in ONE roll. Their level
+# chances add up (two 5% upgrades mix in 10% of the breaks). A roll that hits none of them picks from the
+# dimension's pool by weight. A mob upgrade spawns its mob on top and leaves the block to the pool.
+
+shards:
+  # One award every this many breaks, all of an island's blocks counted together.
+  every-blocks: 10
+  amount: 1
+
+# What opening a dimension costs, in shards. Only the island's owner can buy it.
+unlock:
+  nether: 400
+  end: 1200
+
+# The most players on one island, the owner included.
+team-size: 6
+
+# A mob upgrade stops spawning once this many of its kind are within 16 blocks of the block.
+mob-cap: 12
+
+pools:
+  overworld:
+    grass_block: 20
+    dirt: 18
+    oak_log: 18
+    stone: 18
+    oak_leaves: 6
+    cobblestone: 6
+    ice: 3
+    clay: 3
+    moss_block: 2
+    pumpkin: 1
+    melon: 1
+    hay_block: 1
+  nether:
+    netherrack: 50
+    soul_sand: 10
+    soul_soil: 8
+    basalt: 8
+    blackstone: 8
+    magma_block: 5
+    crimson_stem: 4
+    warped_stem: 3
+    nether_wart_block: 4
+    nether_quartz_ore: 4
+    nether_gold_ore: 3
+    glowstone: 3
+  end:
+    end_stone: 70
+    purpur_block: 8
+    end_stone_bricks: 5
+    obsidian: 4
+
+upgrades:
+  # ---------------------------------------------------------------- overworld blocks
+  coal:
+    name: "Coal"
+    kind: block
+    block: coal_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 4, price: 20}
+      - {chance: 8, price: 50}
+      - {chance: 12, price: 100}
+  copper:
+    name: "Copper"
+    kind: block
+    block: copper_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 4, price: 30}
+      - {chance: 8, price: 70}
+  iron:
+    name: "Iron"
+    kind: block
+    block: iron_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 3, price: 40}
+      - {chance: 6, price: 90}
+      - {chance: 9, price: 180}
+  sand:
+    name: "Sand"
+    kind: block
+    block: sand
+    dimensions: [overworld]
+    levels:
+      - {chance: 5, price: 30}
+      - {chance: 10, price: 60}
+  gravel:
+    name: "Gravel"
+    kind: block
+    block: gravel
+    dimensions: [overworld]
+    levels:
+      - {chance: 4, price: 30}
+  birch:
+    name: "Birch"
+    kind: block
+    block: birch_log
+    dimensions: [overworld]
+    levels:
+      - {chance: 5, price: 25}
+  spruce:
+    name: "Spruce"
+    kind: block
+    block: spruce_log
+    dimensions: [overworld]
+    levels:
+      - {chance: 5, price: 25}
+  cherry:
+    name: "Cherry"
+    kind: block
+    block: cherry_log
+    dimensions: [overworld]
+    levels:
+      - {chance: 4, price: 40}
+  gold:
+    name: "Gold"
+    kind: block
+    block: gold_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 2, price: 60}
+      - {chance: 4, price: 140}
+      - {chance: 6, price: 280}
+  redstone:
+    name: "Redstone"
+    kind: block
+    block: redstone_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 3, price: 60}
+      - {chance: 6, price: 140}
+  lapis:
+    name: "Lapis"
+    kind: block
+    block: lapis_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 2, price: 80}
+      - {chance: 4, price: 160}
+  diamond:
+    name: "Diamond"
+    kind: block
+    block: diamond_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 1, price: 200}
+      - {chance: 2, price: 450}
+      - {chance: 3, price: 900}
+  emerald:
+    name: "Emerald"
+    kind: block
+    block: emerald_ore
+    dimensions: [overworld]
+    levels:
+      - {chance: 1, price: 300}
+      - {chance: 2, price: 700}
+  obsidian:
+    name: "Obsidian"
+    kind: block
+    block: obsidian
+    dimensions: [overworld]
+    levels:
+      - {chance: 1, price: 300}
+      - {chance: 2, price: 600}
+
+  # ---------------------------------------------------------------- overworld mobs
+  cow:
+    name: "Cows"
+    kind: mob
+    mob: cow
+    icon: cow_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 3, price: 30}
+      - {chance: 6, price: 60}
+  sheep:
+    name: "Sheep"
+    kind: mob
+    mob: sheep
+    icon: sheep_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 3, price: 30}
+  chicken:
+    name: "Chickens"
+    kind: mob
+    mob: chicken
+    icon: chicken_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 3, price: 25}
+  pig:
+    name: "Pigs"
+    kind: mob
+    mob: pig
+    icon: pig_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 3, price: 25}
+  zombie:
+    name: "Zombies"
+    kind: mob
+    mob: zombie
+    icon: zombie_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 2, price: 40}
+      - {chance: 4, price: 90}
+  skeleton:
+    name: "Skeletons"
+    kind: mob
+    mob: skeleton
+    icon: skeleton_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 2, price: 50}
+      - {chance: 4, price: 110}
+  spider:
+    name: "Spiders"
+    kind: mob
+    mob: spider
+    icon: spider_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 2, price: 50}
+  creeper:
+    name: "Creepers"
+    kind: mob
+    mob: creeper
+    icon: creeper_spawn_egg
+    dimensions: [overworld]
+    levels:
+      - {chance: 1, price: 120}
+
+  # ---------------------------------------------------------------- nether
+  quartz:
+    name: "Quartz"
+    kind: block
+    block: nether_quartz_ore
+    dimensions: [nether]
+    levels:
+      - {chance: 5, price: 60}
+      - {chance: 10, price: 140}
+  ancient-debris:
+    name: "Ancient debris"
+    kind: block
+    block: ancient_debris
+    dimensions: [nether]
+    levels:
+      - {chance: 1, price: 600}
+      - {chance: 2, price: 1400}
+  glowstone:
+    name: "Glowstone"
+    kind: block
+    block: glowstone
+    dimensions: [nether]
+    levels:
+      - {chance: 4, price: 80}
+  wart:
+    name: "Nether wart"
+    kind: block
+    block: nether_wart_block
+    dimensions: [nether]
+    levels:
+      - {chance: 4, price: 60}
+  blaze:
+    name: "Blazes"
+    kind: mob
+    mob: blaze
+    icon: blaze_spawn_egg
+    dimensions: [nether]
+    levels:
+      - {chance: 2, price: 150}
+      - {chance: 4, price: 350}
+  wither-skeleton:
+    name: "Wither skeletons"
+    kind: mob
+    mob: wither_skeleton
+    icon: wither_skeleton_spawn_egg
+    dimensions: [nether]
+    levels:
+      - {chance: 1, price: 400}
+  magma-cube:
+    name: "Magma cubes"
+    kind: mob
+    mob: magma_cube
+    icon: magma_cube_spawn_egg
+    dimensions: [nether]
+    levels:
+      - {chance: 2, price: 120}
+  piglin:
+    name: "Piglins"
+    kind: mob
+    mob: piglin
+    icon: piglin_spawn_egg
+    dimensions: [nether]
+    levels:
+      - {chance: 2, price: 150}
+
+  # ---------------------------------------------------------------- end
+  purpur:
+    name: "Purpur"
+    kind: block
+    block: purpur_block
+    dimensions: [end]
+    levels:
+      - {chance: 6, price: 80}
+  enderman:
+    name: "Endermen"
+    kind: mob
+    mob: enderman
+    icon: enderman_spawn_egg
+    dimensions: [end]
+    levels:
+      - {chance: 2, price: 200}
+      - {chance: 4, price: 450}
+  shulker:
+    name: "Shulkers"
+    kind: mob
+    mob: shulker
+    icon: shulker_spawn_egg
+    dimensions: [end]
+    levels:
+      - {chance: 1, price: 800}
+      - {chance: 2, price: 1600}
+
+  # ---------------------------------------------------------------- specials, every dimension
+  smelt:
+    name: "Auto-smelt"
+    kind: smelt
+    icon: blast_furnace
+    dimensions: [overworld, nether, end]
+    levels:
+      - {chance: 25, price: 150}
+      - {chance: 50, price: 350}
+      - {chance: 75, price: 700}
+      - {chance: 100, price: 1200}
+  auto-break:
+    name: "Auto-break"
+    kind: auto-break
+    icon: diamond_pickaxe
+    dimensions: [overworld, nether, end]
+    levels:
+      - {chance: 25, price: 400}
+      - {chance: 50, price: 900}
+      - {chance: 100, price: 2000}

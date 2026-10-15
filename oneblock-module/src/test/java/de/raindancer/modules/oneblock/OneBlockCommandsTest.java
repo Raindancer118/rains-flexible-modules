@@ -16,9 +16,12 @@ class OneBlockCommandsTest {
     void declaringNeedsNothingLive() {
         List<ModuleCommand> declared = OneBlockCommands.declared();
 
-        assertThat(declared).extracting(ModuleCommand::name).containsExactly("island");
+        assertThat(declared).extracting(ModuleCommand::name).containsExactly("island", "islandadmin");
         assertThat(declared.getFirst().aliases()).contains("is");
-        assertThat(declared.getFirst().options()).contains("invite <player>", "guest <player>", "accept [player]");
+        assertThat(declared.getFirst().options()).contains("invite <player>", "guest <player>", "accept [player]",
+                "nether", "end", "unlock <nether|end>", "upgrades [dimension]");
+        assertThat(declared.get(1).options()).contains("up <island> [time|forever]", "down <island> [time|forever]",
+                "autounload <island> on|off");
     }
 
     @Test

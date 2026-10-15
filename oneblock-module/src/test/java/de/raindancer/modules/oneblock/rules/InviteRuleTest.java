@@ -20,7 +20,7 @@ class InviteRuleTest {
     private final UUID bo = UUID.randomUUID();
 
     private static IslandFacts island(int rank, int members, int most) {
-        return new IslandFacts("is-1", rank, OWNER, members, most, false, false);
+        return new IslandFacts("is-1", rank, OWNER, members, most, false, false, de.raindancer.modules.oneblock.model.EconomyMode.PURE);
     }
 
     @Test
@@ -42,9 +42,9 @@ class InviteRuleTest {
         assertThat(rule.judge(InviteKind.GUEST, ada, bo, Optional.of(island(MEMBER - 1, 1, 4))))
                 .as("coops and visitors cannot bring guests").contains("oneblock.refuse.rank");
         assertThat(rule.judge(InviteKind.TEAM, ada, bo,
-                Optional.of(new IslandFacts("is-1", OWNER, OWNER, 2, 4, true, false)))).contains("oneblock.refuse.already-member");
+                Optional.of(new IslandFacts("is-1", OWNER, OWNER, 2, 4, true, false, de.raindancer.modules.oneblock.model.EconomyMode.PURE)))).contains("oneblock.refuse.already-member");
         assertThat(rule.judge(InviteKind.GUEST, ada, bo,
-                Optional.of(new IslandFacts("is-1", OWNER, OWNER, 2, 4, false, true)))).contains("oneblock.refuse.banned");
+                Optional.of(new IslandFacts("is-1", OWNER, OWNER, 2, 4, false, true, de.raindancer.modules.oneblock.model.EconomyMode.PURE)))).contains("oneblock.refuse.banned");
     }
 
     @Test

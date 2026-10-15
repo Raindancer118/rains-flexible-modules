@@ -1,0 +1,23 @@
+{
+  "primaries": ["a1ecd8ef-6e59-4a4a-b99f-a85fe1082cdd"],
+  "deleted": false,
+  "uniqueId": "AOneBlock18be87da-ae72-4295-afb7-3d9cd6da83d7",
+  "center": ["oneblock_world", -800.0, 80.0, 800.0, 0.0, 0.0],
+  "range": 400,
+  "protectionRange": 50,
+  "bonusRanges": [],
+  "maxEverProtectionRange": 50,
+  "world": "oneblock_world",
+  "gameMode": "AOneBlock",
+  "createdDate": 1791993424878,
+  "owner": "3673c488-98af-41b2-9b72-6894f42640de",
+  "members": {
+    "a1ecd8ef-6e59-4a4a-b99f-a85fe1082cdd": 500,
+    "46af6aa4-4e65-414c-9c11-6323ea55aaf2": 500,
+    "3673c488-98af-41b2-9b72-6894f42640de": 1000,
+    "11111111-2222-3333-4444-555555555555": 0,
+    "99999999-2222-3333-4444-555555555555": -1
+  },
+  "spawnPoint": {"NORMAL": ["oneblock_world", -797.5, 81.0, 803.5, 90.0, 0.0]},
+  "flags": {"PVP_OVERWORLD": -1}
+}

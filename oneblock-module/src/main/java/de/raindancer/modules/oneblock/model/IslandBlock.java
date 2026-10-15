@@ -11,7 +11,9 @@ import java.util.Map;
 public record IslandBlock(BlockSpot spot, long broken, Map<String, Integer> upgrades) {
 
     public IslandBlock {
-        upgrades = Map.copyOf(upgrades);
+        // In the order they were bought: the shared roll walks them in this order, and Map.copyOf would give each
+        // start of the server another one.
+        upgrades = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(upgrades));
     }
 
     public static IslandBlock fresh(BlockSpot spot) {

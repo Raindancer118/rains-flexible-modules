@@ -38,7 +38,7 @@ class InviteServiceTest {
     static final class FakeHost implements IslandHost {
         boolean ready = true;
         boolean onIslands = false;
-        Optional<IslandFacts> facts = Optional.of(new IslandFacts("is-1", 1000, 1000, 1, 4, false, false));
+        Optional<IslandFacts> facts = Optional.of(new IslandFacts("is-1", 1000, 1000, 1, 4, false, false, de.raindancer.modules.oneblock.model.EconomyMode.PURE));
         final List<String> did = new ArrayList<>();
 
         @Override
@@ -100,7 +100,7 @@ class InviteServiceTest {
         assertThat(reply.key()).isEqualTo("oneblock.invite.sent-team");
         assertThat(reply.values()).containsExactly("player", "Bo", "minutes", "5");
         assertThat(host.did).containsExactly("offer Bo");
-        assertThat(told).containsExactly("Bo oneblock.invite.received-team [player, Ada, minutes, 5]");
+        assertThat(told).containsExactly("Bo oneblock.invite.received-team.pure [player, Ada, minutes, 5]");
     }
 
     @Test

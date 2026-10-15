@@ -85,10 +85,18 @@ public final class RemoteGateway implements IslandsGateway {
                 "from", from == null ? "" : from, "accept", String.valueOf(accept)));
     }
 
-    /** Nothing to ask: going there is the proxy's job, and BentoBox's once they arrive. */
+    /** Nothing to ask: going there is the proxy's job, and the island server's once they arrive. */
     @Override
     public CompletableFuture<Reply> home(Requester who) {
         return CompletableFuture.completedFuture(Reply.ok("oneblock.going").andTransfer());
+    }
+
+    /** The island server keeps it for their arrival; they go over even when it could not be asked. */
+    @Override
+    public CompletableFuture<Optional<Reply>> then(Requester who, String arguments) {
+        Reply going = Reply.ok("oneblock.going").andTransfer();
+        return island.ask(IslandProtocol.THEN, Map.of("player", who.id().toString(), "arguments", arguments), wait)
+                .handle((answer, failed) -> Optional.of(going));
     }
 
     private CompletableFuture<Reply> ask(String topic, Map<String, String> data) {

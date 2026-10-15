@@ -7,6 +7,8 @@ public final class IslandProtocol {
     public static final String INVITE = "oneblock:invite";
     /** {@code player}, {@code name}, {@code from} (may be empty), {@code accept}. */
     public static final String ANSWER = "oneblock:answer";
+    /** {@code player}, {@code arguments}: an {@code /island} to run once they arrive. */
+    public static final String THEN = "oneblock:then";
 
     private IslandProtocol() {
     }

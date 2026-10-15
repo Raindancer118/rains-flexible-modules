@@ -12,11 +12,20 @@ import java.util.Optional;
 public enum EconomyMode {
 
     /** OneBlock on its own: no SMP money on the island server, nothing bought, everything broken out of the block. */
-    PURE,
+    PURE("oneblock.mode.pure.badge", "oneblock.mode.pure.name"),
     /** The SMP's money comes along: {@code /shop}, {@code /pay}, {@code /balance} work on the island. */
-    SMP,
+    SMP("oneblock.mode.smp.badge", "oneblock.mode.smp.name"),
     /** Not chosen yet. Plays as {@link #PURE}. */
-    UNDECIDED;
+    UNDECIDED("oneblock.mode.undecided.badge", "oneblock.mode.undecided.name");
+
+    // Written out whole rather than put together, so the test that every key has wording finds each of them.
+    private final String badgeKey;
+    private final String nameKey;
+
+    EconomyMode(String badgeKey, String nameKey) {
+        this.badgeKey = badgeKey;
+        this.nameKey = nameKey;
+    }
 
     public String wire() {
         return name().toLowerCase(Locale.ROOT);
@@ -44,11 +53,11 @@ public enum EconomyMode {
 
     /** The message key of the badge others see. */
     public String badgeKey() {
-        return "oneblock.mode." + wire() + ".badge";
+        return badgeKey;
     }
 
-    /** The message key of the sentence that names it. */
+    /** The message key of the words that name it. */
     public String nameKey() {
-        return "oneblock.mode." + wire() + ".name";
+        return nameKey;
     }
 }

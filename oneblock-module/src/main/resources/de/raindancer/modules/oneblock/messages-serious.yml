@@ -10,7 +10,7 @@ oneblock:
     no-island: "<red>You have no island yet. <click:run_command:'/island'><yellow>[Create one]</yellow></click>"
     already-member: "<red><white><player></white> is already on your island."
     banned: "<red><white><player></white> is banned from your island. Unban them first."
-    rank: "<red>Your rank on this island does not allow inviting."
+    rank: "<red>Only the island's owner invites to the team. Invite <white><player></white> as a guest instead."
     full: "<red>Your team is full (<white><most></white>). <white><player></white> cannot join."
     nobody: "<red><white><player></white> is not online on the network."
     asleep: "<red>The island server is not reachable. Try again shortly."
@@ -24,6 +24,5 @@ oneblock:
   visit:
     taking-you: "<green>Taking you to <white><player></white>'s island."
   sidebar:
-    last-phase: " <dark_gray>This is the last phase."
     shown: "<green>Sidebar shown."
 

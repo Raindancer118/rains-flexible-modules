@@ -17,16 +17,9 @@
 
     <name>Rain's Flexible Modules — OneBlock</name>
     <description>
-        OneBlock islands (BentoBox + AOneBlock) on their own server of the network, with /island on every server:
-        going there, and team and guest invites to and from players wherever they are.
+        OneBlock islands on their own server of the network, each its own world with a nether and an end, unloaded
+        while nobody plays; /island on every server: going there, and team and guest invites wherever players are.
     </description>
-
-    <repositories>
-        <repository>
-            <id>bentoboxworld</id>
-            <url>https://repo.codemc.io/repository/bentoboxworld/</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -53,19 +46,6 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.49.1.0</version>
             <scope>test</scope>
-        </dependency>
-        <!-- The island server's own plugin, there at runtime; only BentoIslands names its types. -->
-        <dependency>
-            <groupId>world.bentobox</groupId>
-            <artifactId>bentobox</artifactId>
-            <version>3.23.3</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>*</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
     </dependencies>
 </project>

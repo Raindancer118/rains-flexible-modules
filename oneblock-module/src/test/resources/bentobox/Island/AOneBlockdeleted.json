@@ -1,0 +1,11 @@
+{
+  "deleted": true,
+  "uniqueId": "AOneBlockdeleted",
+  "center": ["oneblock_world", 800.0, 80.0, 1600.0, 0.0, 0.0],
+  "range": 400,
+  "protectionRange": 50,
+  "world": "oneblock_world",
+  "gameMode": "AOneBlock",
+  "owner": "77777777-2222-3333-4444-555555555555",
+  "members": {"77777777-2222-3333-4444-555555555555": 1000}
+}

@@ -5,12 +5,9 @@ import de.raindancer.core.ui.profile.PlayerSwitch;
 import de.raindancer.core.ui.scoreboard.ScoreboardPriority;
 import de.raindancer.core.ui.scoreboard.Scoreboards;
 import de.raindancer.core.ui.scoreboard.Sidebar;
-import de.raindancer.core.ui.text.Markup;
 import de.raindancer.modules.oneblock.OneBlockSettings;
 import de.raindancer.modules.oneblock.model.IslandView;
-import de.raindancer.modules.oneblock.model.Progress;
 import de.raindancer.modules.oneblock.rules.RankNameRule;
-import de.raindancer.modules.oneblock.util.ProgressBar;
 import net.kyori.adventure.text.Component;
 
 import java.util.ArrayList;
@@ -20,14 +17,13 @@ import java.util.UUID;
 import java.util.function.IntFunction;
 
 /**
- * The island server's sidebar: the island you are on, its phase and how far to the next, the team. Low in
+ * The island server's sidebar: the island you are on, the money it plays with, its shards, the block, the team. Low in
  * Core's arbitration, so a game's own sidebar wins while it runs. Every line is a message key; each player can hide it.
  */
 public final class SidebarService implements IOneBlockService {
 
     public static final PlayerSwitch SHOWN = new PlayerSwitch("rainsoneblock", "sidebar", true);
     private static final String OWNER = "oneblock";
-    private static final int BAR_CELLS = 10;
 
     private final Messages messages;
     private final Scoreboards scoreboards;
@@ -38,7 +34,7 @@ public final class SidebarService implements IOneBlockService {
         this.scoreboards = scoreboards;
     }
 
-    /** Redraws everybody's; server thread, for BentoBox. Core skips what has not changed. */
+    /** Redraws everybody's; server thread. Core skips what has not changed. */
     public void refresh(Iterable<? extends org.bukkit.entity.Player> online, IslandHost host) {
         for (org.bukkit.entity.Player player : online) {
             UUID id = player.getUniqueId();
@@ -79,7 +75,12 @@ public final class SidebarService implements IOneBlockService {
             IslandView view = island.get();
             lines.add(whose(view));
             lines.add(line("oneblock.sidebar.you", "rank", messages.raw(ranks.keyFor(view.rank()))));
-            view.progress().ifPresent(progress -> phase(lines, progress));
+            lines.add(line("oneblock.sidebar.mode", "mode", messages.get(view.mode().badgeKey())));
+            lines.add(Component.empty());
+            lines.add(line("oneblock.sidebar.shards", "shards", String.format("%,d", view.shards())));
+            view.dimension().ifPresent(dimension -> lines.add(line("oneblock.sidebar.dimension",
+                    "dimension", messages.get(dimension.nameKey()))));
+            lines.add(line("oneblock.sidebar.blocks", "blocks", String.format("%,d", view.broken())));
             lines.add(Component.empty());
             lines.add(view.mostMembers() < 0
                     ? line("oneblock.sidebar.team-unlimited", "members", String.valueOf(view.members()),
@@ -100,18 +101,6 @@ public final class SidebarService implements IOneBlockService {
         }
         return view.owner() == null ? line("oneblock.sidebar.unowned")
                 : line("oneblock.sidebar.theirs", "player", view.owner());
-    }
-
-    private void phase(List<Component> lines, Progress progress) {
-        lines.add(Component.empty());
-        lines.add(line("oneblock.sidebar.phase"));
-        lines.add(line("oneblock.sidebar.phase-name", "phase", progress.phase()));
-        lines.add(line("oneblock.sidebar.progress", "bar", Markup.of(ProgressBar.mini(progress.percent(), BAR_CELLS)),
-                "percent", String.valueOf(Math.clamp(progress.percent(), 0, 100))));
-        lines.add(progress.next().isBlank() ? line("oneblock.sidebar.last-phase")
-                : line("oneblock.sidebar.next", "phase", progress.next(),
-                "blocks", String.valueOf(progress.toNext())));
-        lines.add(line("oneblock.sidebar.blocks", "blocks", String.format("%,d", progress.blocks())));
     }
 
     private Component line(String key, Object... values) {
