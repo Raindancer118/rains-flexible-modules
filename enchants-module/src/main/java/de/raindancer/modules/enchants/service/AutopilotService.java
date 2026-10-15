@@ -44,7 +44,10 @@ public final class AutopilotService {
     /** No flight as a way out of a fight: not this soon after a player's hit. */
     private static final long FIGHT_MILLIS = 15_000;
     private static final int LANDING_TICKS = 20;
-    private static final int PREFETCH_TICKS = 24;
+    /** How far ahead along the way the land is asked to load, in blocks: past what the pilot looks at. */
+    private static final double PREFETCH_BLOCKS = de.raindancer.modules.enchants.rules.AutopilotPilot.LOOKAHEAD + 48;
+    /** The orbit camera goes back to circling by itself this long after the mouse last moved it. */
+    private static final long MOUSE_HOLD_MILLIS = 3_000;
     private static final double CEILING_MARGIN = 12;
 
     private final Plugin plugin;
@@ -60,22 +63,34 @@ public final class AutopilotService {
         final GameMode mode;
         final Mannequin flier;
         final ItemDisplay camera;
-        final Autopilot.Plan plan;
+        final de.raindancer.modules.enchants.rules.AutopilotPilot autopilot;
         final double[] heading;
+        final Location to;
+        Autopilot.Point at;
+        double orbitYaw;
+        double orbitPitch = Autopilot.ORBIT_PITCH;
+        long mouseAt;
+        Float lastYaw;
+        Float lastPitch;
         int tick;
         int landedFor = -1;
-        volatile Autopilot.Camera view = Autopilot.Camera.CHASE;
+        volatile Autopilot.Camera view = Autopilot.Camera.ORBIT;
         boolean left;
         boolean right;
         long ticketChunk = Long.MIN_VALUE;
 
-        Flight(Player pilot, GameMode mode, Mannequin flier, ItemDisplay camera, Autopilot.Plan plan, double[] heading) {
+        Flight(Player pilot, GameMode mode, Mannequin flier, ItemDisplay camera,
+               de.raindancer.modules.enchants.rules.AutopilotPilot autopilot, double[] heading, Location to,
+               Autopilot.Point at) {
             this.pilot = pilot;
             this.mode = mode;
             this.flier = flier;
             this.camera = camera;
-            this.plan = plan;
+            this.autopilot = autopilot;
             this.heading = heading;
+            this.to = to;
+            this.at = at;
+            this.orbitYaw = at.yaw() + 180;
         }
     }
 
@@ -173,9 +188,12 @@ public final class AutopilotService {
         pilot.getPersistentDataContainer().set(FROM, PersistentDataType.STRING, String.join("|", world.getName(),
                 String.valueOf(from.getX()), String.valueOf(from.getY()), String.valueOf(from.getZ()),
                 String.valueOf(from.getYaw()), String.valueOf(from.getPitch()), mode.name()));
-        Autopilot.Plan plan = Autopilot.plan(new double[]{from.getX(), from.getY(), from.getZ()},
-                new double[]{to.getX(), to.getY(), to.getZ()}, world.getMaxHeight() - CEILING_MARGIN);
+        de.raindancer.modules.enchants.rules.AutopilotPilot autopilot = new de.raindancer.modules.enchants.rules.AutopilotPilot(
+                new double[]{from.getX(), from.getY(), from.getZ()}, new double[]{to.getX(), to.getY(), to.getZ()},
+                world.getMaxHeight() - CEILING_MARGIN);
         double[] heading = {to.getX() - from.getX(), to.getZ() - from.getZ()};
+        Autopilot.Point start = new Autopilot.Point(from.getX(), from.getY(), from.getZ(),
+                (float) Math.toDegrees(Math.atan2(-heading[0], heading[1])), 0, Autopilot.Phase.LAUNCH);
         Mannequin flier = world.spawn(from, Mannequin.class, made -> {
             made.setProfile(skinOf(pilot));
             made.setPersistent(false);
@@ -194,12 +212,12 @@ public final class AutopilotService {
             gear.setItemInMainHand(copy(own.getItemInMainHand()));
             gear.setItemInOffHand(copy(own.getItemInOffHand()));
         });
-        Autopilot.Point first = Autopilot.camera(plan.at(0), heading);
+        Autopilot.Point first = Autopilot.camera(start, heading);
         ItemDisplay camera = world.spawn(at(world, first), ItemDisplay.class, made -> {
             made.setPersistent(false);
             made.setTeleportDuration(2);
         });
-        Flight flight = new Flight(pilot, mode, flier, camera, plan, heading);
+        Flight flight = new Flight(pilot, mode, flier, camera, autopilot, heading, to.clone(), start);
         flights.put(pilot.getUniqueId(), flight);
         pilot.setGameMode(GameMode.SPECTATOR);
         pilot.setSpectatorTarget(camera);
@@ -249,31 +267,45 @@ public final class AutopilotService {
             }
             return true;
         }
-        int next = Math.min(flight.tick + 1, flight.plan.ticks());
-        Autopilot.Point point = flight.plan.at(next);
-        int chunkX = (int) Math.floor(point.x()) >> 4;
-        int chunkZ = (int) Math.floor(point.z()) >> 4;
-        Autopilot.Point ahead = flight.plan.at(next + PREFETCH_TICKS);
-        world.getChunkAtAsync((int) Math.floor(ahead.x()) >> 4, (int) Math.floor(ahead.z()) >> 4);
-        if (!world.isChunkLoaded(chunkX, chunkZ)) {
-            // Waits for the land to load rather than flying into nothing.
-            world.getChunkAtAsync(chunkX, chunkZ);
+        prefetch(world, flight);
+        Optional<Autopilot.Point> moved = flight.autopilot.step((x, z) -> {
+            if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                // Waits for the land to load rather than flying into it unseen.
+                world.getChunkAtAsync(x >> 4, z >> 4);
+                return java.util.OptionalInt.empty();
+            }
+            return java.util.OptionalInt.of(world.getHighestBlockYAt(x, z, org.bukkit.HeightMap.MOTION_BLOCKING) + 1);
+        });
+        if (moved.isEmpty()) {
             return true;
         }
+        Autopilot.Point point = moved.get();
+        int next = ++flight.tick;
+        flight.at = point;
+        int chunkX = (int) Math.floor(point.x()) >> 4;
+        int chunkZ = (int) Math.floor(point.z()) >> 4;
         long chunk = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
         if (chunk != flight.ticketChunk) {
             world.addPluginChunkTicket(chunkX, chunkZ, plugin);
             release(world, flight.ticketChunk);
             flight.ticketChunk = chunk;
         }
-        flight.tick = next;
         flight.flier.teleportAsync(at(world, point));
         // Gliding as a player on an elytra glides: the pose alone is drawn as swimming.
         boolean glide = point.phase() != Autopilot.Phase.LAUNCH || next >= 6;
         if (flight.flier.isGliding() != glide) {
             flight.flier.setGliding(glide);
         }
-        Optional<Autopilot.Point> view = Autopilot.camera(point, flight.heading, flight.view);
+        Optional<Autopilot.Point> view;
+        if (flight.view == Autopilot.Camera.ORBIT) {
+            if (System.currentTimeMillis() - flight.mouseAt > MOUSE_HOLD_MILLIS) {
+                flight.orbitYaw += Autopilot.ORBIT_STEP;
+                flight.orbitPitch += (Autopilot.ORBIT_PITCH - flight.orbitPitch) * 0.1;
+            }
+            view = Optional.of(Autopilot.orbit(point, flight.orbitYaw, flight.orbitPitch));
+        } else {
+            view = Autopilot.camera(point, flight.heading, flight.view, next);
+        }
         view.ifPresent(camera -> flight.camera.teleportAsync(at(world, camera)));
         org.bukkit.entity.Entity watched = view.isPresent() ? flight.camera : flight.flier;
         if (pilot.getSpectatorTarget() != watched) {
@@ -282,7 +314,7 @@ public final class AutopilotService {
         if (next % 3 == 0) {
             world.spawnParticle(Particle.CLOUD, at(world, point), 2, 0.1, 0.1, 0.1, 0.01);
         }
-        if (next >= flight.plan.ticks()) {
+        if (flight.autopilot.landed()) {
             Location landed = at(world, point);
             flight.flier.setGliding(false);
             pose(flight.flier, Pose.SNEAKING);
@@ -293,6 +325,45 @@ public final class AutopilotService {
             flight.landedFor = 0;
         }
         return true;
+    }
+
+    /** Asks the land along the way, past what the pilot looks at, to load — every second, not every tick. */
+    private void prefetch(World world, Flight flight) {
+        if (flight.tick % 20 != 0) {
+            return;
+        }
+        double dx = flight.to.getX() - flight.at.x();
+        double dz = flight.to.getZ() - flight.at.z();
+        double left = Math.hypot(dx, dz);
+        if (left < 1e-6) {
+            return;
+        }
+        for (double along = 0; along <= Math.min(PREFETCH_BLOCKS, left) + 16; along += 16) {
+            world.getChunkAtAsync((int) Math.floor(flight.at.x() + dx / left * along) >> 4,
+                    (int) Math.floor(flight.at.z() + dz / left * along) >> 4);
+        }
+    }
+
+    /**
+     * The mouse in flight: its turn swings the orbit camera round the flier (the view is the camera's, but the
+     * player's own look still reaches the server). The orbit holds there a while, then circles on by itself.
+     */
+    public void looked(Player pilot, float yaw, float pitch) {
+        Flight flight = flights.get(pilot.getUniqueId());
+        if (flight == null) {
+            return;
+        }
+        if (flight.lastYaw != null && flight.view == Autopilot.Camera.ORBIT) {
+            float turned = yaw - flight.lastYaw;
+            float tilted = pitch - flight.lastPitch;
+            if (Math.abs(turned) > 0.01 || Math.abs(tilted) > 0.01) {
+                flight.orbitYaw += turned;
+                flight.orbitPitch = Autopilot.orbitPitch(flight.orbitPitch + tilted);
+                flight.mouseAt = System.currentTimeMillis();
+            }
+        }
+        flight.lastYaw = yaw;
+        flight.lastPitch = pitch;
     }
 
     private static void pose(Mannequin flier, Pose pose) {
@@ -314,7 +385,8 @@ public final class AutopilotService {
     /** Landed: the player is put where the mannequin stands, in the mode they took off in. */
     private void handOver(Flight flight) {
         Player pilot = flight.pilot;
-        Location landed = flight.flier.getLocation();
+        Location landed = flight.to.clone();
+        landed.setYaw(flight.flier.getLocation().getYaw());
         landed.setPitch(0);
         end(flight);
         pilot.setSpectatorTarget(null);

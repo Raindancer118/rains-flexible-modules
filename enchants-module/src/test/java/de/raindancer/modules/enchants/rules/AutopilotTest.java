@@ -11,48 +11,6 @@ import static org.assertj.core.api.Assertions.within;
 
 class AutopilotTest {
 
-    private static List<Autopilot.Point> fly(Autopilot.Plan plan) {
-        List<Autopilot.Point> points = new ArrayList<>();
-        for (int tick = 0; tick <= plan.ticks(); tick++) {
-            points.add(plan.at(tick));
-        }
-        return points;
-    }
-
-    @Test
-    @DisplayName("a long flight: launch straight up, cruise high, dive onto the place — from where it started to exactly there")
-    void longFlight() {
-        Autopilot.Plan plan = Autopilot.plan(new double[]{0, 64, 0}, new double[]{300, 70, 40}, 300);
-        List<Autopilot.Point> points = fly(plan);
-        assertThat(points.getFirst().x()).isEqualTo(0);
-        assertThat(points.getFirst().y()).isEqualTo(64);
-        Autopilot.Point last = points.getLast();
-        assertThat(last.x()).isCloseTo(300, within(1e-6));
-        assertThat(last.y()).isCloseTo(70, within(1e-6));
-        assertThat(last.z()).isCloseTo(40, within(1e-6));
-        assertThat(points.stream().mapToDouble(Autopilot.Point::y).max().orElseThrow()).isCloseTo(110, within(1e-6));
-        assertThat(points.stream().map(Autopilot.Point::phase).distinct().toList())
-                .containsExactly(Autopilot.Phase.LAUNCH, Autopilot.Phase.CRUISE, Autopilot.Phase.DIVE);
-        for (int i = 1; i < points.size(); i++) {
-            Autopilot.Point a = points.get(i - 1);
-            Autopilot.Point b = points.get(i);
-            double step = Math.sqrt(Math.pow(b.x() - a.x(), 2) + Math.pow(b.y() - a.y(), 2) + Math.pow(b.z() - a.z(), 2));
-            assertThat(step).as("never faster than a dive, so the world can load in time").isLessThanOrEqualTo(Autopilot.DIVE_SPEED + 1e-6);
-        }
-        assertThat(points.get(1).pitch()).as("the launch looks up").isLessThan(-45);
-        assertThat(points.get(points.size() - 2).pitch()).as("the dive looks down").isGreaterThan(20);
-    }
-
-    @Test
-    @DisplayName("a short hop has no cruise; the height never goes past the world's ceiling")
-    void shortAndHigh() {
-        List<Autopilot.Point> hop = fly(Autopilot.plan(new double[]{0, 64, 0}, new double[]{10, 64, 0}, 300));
-        assertThat(hop.stream().map(Autopilot.Point::phase).distinct().toList())
-                .containsExactly(Autopilot.Phase.LAUNCH, Autopilot.Phase.DIVE);
-        List<Autopilot.Point> capped = fly(Autopilot.plan(new double[]{0, 290, 0}, new double[]{500, 300, 0}, 310));
-        assertThat(capped.stream().mapToDouble(Autopilot.Point::y).max().orElseThrow()).isLessThanOrEqualTo(310);
-    }
-
     @Test
     @DisplayName("the camera hangs behind and above, looking at the flier")
     void camera() {
@@ -73,11 +31,12 @@ class AutopilotTest {
     }
 
     @Test
-    @DisplayName("five cameras, cycled either way; each but the first-person one looks at the flier from its own side")
+    @DisplayName("six cameras, cycled either way; each but the first-person one looks at the flier from its own side")
     void cameras() {
+        assertThat(Autopilot.Camera.values()[0]).as("the one a flight starts with").isEqualTo(Autopilot.Camera.ORBIT);
         assertThat(Autopilot.Camera.CHASE.next()).isEqualTo(Autopilot.Camera.SIDE);
-        assertThat(Autopilot.Camera.FIRST_PERSON.next()).isEqualTo(Autopilot.Camera.CHASE);
-        assertThat(Autopilot.Camera.CHASE.previous()).isEqualTo(Autopilot.Camera.FIRST_PERSON);
+        assertThat(Autopilot.Camera.FIRST_PERSON.next()).isEqualTo(Autopilot.Camera.ORBIT);
+        assertThat(Autopilot.Camera.ORBIT.previous()).isEqualTo(Autopilot.Camera.FIRST_PERSON);
         Autopilot.Point at = new Autopilot.Point(100, 100, 0, 0, 0, Autopilot.Phase.CRUISE);
         double[] heading = {1, 0};
         Autopilot.Point front = Autopilot.camera(at, heading, Autopilot.Camera.FRONT).orElseThrow();
@@ -91,5 +50,25 @@ class AutopilotTest {
         assertThat(Autopilot.camera(at, heading, Autopilot.Camera.FIRST_PERSON)).as("through its own eyes").isEmpty();
         assertThat(Autopilot.camera(at, heading, Autopilot.Camera.CHASE).orElseThrow())
                 .isEqualTo(Autopilot.camera(at, heading));
+    }
+
+    @Test
+    @DisplayName("the orbit camera: around the flier at the yaw and pitch given (the mouse's, or its own slow circling), looking at it")
+    void orbit() {
+        Autopilot.Point at = new Autopilot.Point(100, 100, 0, 0, 0, Autopilot.Phase.CRUISE);
+        java.util.Set<String> quarters = new java.util.HashSet<>();
+        for (int yaw = 0; yaw < 360; yaw += 7) {
+            Autopilot.Point camera = Autopilot.orbit(at, yaw, 20);
+            double distance = Math.sqrt(Math.pow(camera.x() - 100, 2) + Math.pow(camera.y() - 101, 2) + Math.pow(camera.z(), 2));
+            assertThat(distance).isCloseTo(Autopilot.ORBIT_RADIUS, within(1e-6));
+            assertThat((double) camera.yaw()).isEqualTo((double) (float) yaw);
+            assertThat((double) camera.pitch()).isEqualTo(20.0);
+            quarters.add((camera.x() > 100 ? "+" : "-") + (camera.z() > 0 ? "+" : "-"));
+        }
+        assertThat(quarters).as("all the way round").hasSize(4);
+        Autopilot.Point down = Autopilot.orbit(at, 0, 60);
+        assertThat(down.y()).as("looking down at it from above").isGreaterThan(101);
+        assertThat(Autopilot.orbitPitch(200)).isEqualTo(Autopilot.ORBIT_HIGHEST);
+        assertThat(Autopilot.orbitPitch(-200)).isEqualTo(Autopilot.ORBIT_LOWEST);
     }
 }

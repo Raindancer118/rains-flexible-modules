@@ -57,6 +57,14 @@ public final class AutopilotListener implements IEnchantsListener {
         }
     }
 
+    /** The mouse turns the orbit camera in flight. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onLook(org.bukkit.event.player.PlayerMoveEvent event) {
+        if (autopilot.flying(event.getPlayer().getUniqueId())) {
+            autopilot.looked(event.getPlayer(), event.getTo().getYaw(), event.getTo().getPitch());
+        }
+    }
+
     /** A and D switch the camera in flight. */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInput(org.bukkit.event.player.PlayerInputEvent event) {

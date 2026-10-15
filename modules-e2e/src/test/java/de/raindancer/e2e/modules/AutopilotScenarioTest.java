@@ -27,6 +27,18 @@ class AutopilotScenarioTest {
         return Math.abs(bot.position().getX() - x) < 2 && Math.abs(bot.position().getZ() - z) < 2;
     }
 
+    private static double cameraYaw(Server server) {
+        java.util.regex.Matcher found = java.util.regex.Pattern.compile("(-?[0-9.]+)f").matcher(
+                server.console("data get entity @e[type=item_display,limit=1] Rotation[0]"));
+        return found.find() ? Double.parseDouble(found.group(1)) : Double.NaN;
+    }
+
+    /** From one yaw to another, the short way round. */
+    private static double turn(double from, double to) {
+        double turned = (to - from) % 360;
+        return turned > 180 ? turned - 360 : turned < -180 ? turned + 360 : turned;
+    }
+
     private static boolean mannequin(Server server) {
         return server.console("execute if entity @e[type=mannequin]").contains("passed");
     }
@@ -37,9 +49,9 @@ class AutopilotScenarioTest {
         try (Server server = Server.start("autopilot", List.of("enchants-standalone:RainsEnchants-.*",
                 "homes-standalone:RainsHomes-.*"), List.of("Enchants are up"))) {
             server.console("gamerule spawn_mobs false");
-            server.console("forceload add -64 -16 96 16");
-            server.console("fill -64 " + (Y - 1) + " -8 96 " + (Y - 1) + " 8 minecraft:stone");
-            server.console("fill -64 " + Y + " -8 96 " + (Y + 6) + " 8 minecraft:air");
+            server.console("forceload add -64 -16 208 16");
+            server.console("fill -64 " + (Y - 1) + " -8 200 " + (Y - 1) + " 8 minecraft:stone");
+            server.console("fill -64 " + Y + " -8 200 " + (Y + 6) + " 8 minecraft:air");
             // Ten minutes at I — Autopilot III flies again the moment it lands, which the flights below rely on.
             assertThat(server.console("settings set autopilot-cooldown-seconds 600")).contains("is now");
             Bot pilot = server.player("Pilot");
@@ -47,7 +59,7 @@ class AutopilotScenarioTest {
             server.console("item replace entity Pilot armor.chest with elytra[enchantments={\"rainsenchants:autopilot\":3}]");
 
             // --- a home of one's own -------------------------------------------------------------------------------
-            server.console("tp Pilot 80.5 " + Y + " 0.5");
+            server.console("tp Pilot 180.5 " + Y + " 0.5");
             Await.ticks(20);
             pilot.run("sethome summit");
             Await.ticks(20);
@@ -59,17 +71,32 @@ class AutopilotScenarioTest {
             pilot.click("summit");
             Await.until("a spectator, watching", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
             Await.until("a mannequin of the pilot flies", Duration.ofSeconds(5), () -> mannequin(server));
-            // D for the next camera: from the chase camera to the side one.
+            // The orbit camera, which a flight starts with: the mouse swings it round the flier, and it stays there.
+            pilot.look(10, 0);
+            Await.ticks(3);
+            pilot.look(20, 0);
+            Await.ticks(4);
+            double swungFrom = cameraYaw(server);
+            pilot.look(110, 0);
+            Await.ticks(4);
+            double swungTo = cameraYaw(server);
+            assertThat(turn(swungFrom, swungTo)).as("swung round by the mouse's 90 degrees").isCloseTo(90,
+                    org.assertj.core.api.Assertions.within(6.0));
+            Await.ticks(10);
+            assertThat(turn(swungTo, cameraYaw(server))).as("and held there, not circling on").isCloseTo(0,
+                    org.assertj.core.api.Assertions.within(3.0));
+
+            // D for the next camera: from the orbit camera to the chase one; A back.
             pilot.keys(false, false, false, true, false, false, false);
             Await.ticks(2);
             pilot.keys(false, false, false, false, false, false, false);
-            Await.until("the side camera", Duration.ofSeconds(3),
-                    () -> pilot.actionBars().stream().anyMatch(line -> line.contains("Camera: Side")));
+            Await.until("the chase camera", Duration.ofSeconds(3),
+                    () -> pilot.actionBars().stream().anyMatch(line -> line.contains("Camera: Chase")));
             pilot.keys(false, false, true, false, false, false, false);
             Await.ticks(2);
             pilot.keys(false, false, false, false, false, false, false);
-            Await.until("A goes back to the chase camera", Duration.ofSeconds(3),
-                    () -> pilot.actionBars().stream().anyMatch(line -> line.contains("Camera: Chase")));
+            Await.until("A goes back to the orbit camera", Duration.ofSeconds(3),
+                    () -> pilot.actionBars().stream().anyMatch(line -> line.contains("Camera: Orbit")));
             Await.until("gliding on the elytra, not swimming", Duration.ofSeconds(5), () -> server.console(
                     "execute if entity @e[type=mannequin,nbt={FallFlying:1b}]").contains("passed"));
             assertThat(pilot.soundsHeard()).as("off like a rocket").contains("entity.firework_rocket.launch")
@@ -82,7 +109,7 @@ class AutopilotScenarioTest {
             Await.ticks(5);
             assertThat(near(pilot, -60.5, 0.5)).as("no teleport away mid-flight").isFalse();
             Await.until("landed and handed back", FLIGHT, () -> pilot.gameMode() == GameMode.SURVIVAL);
-            Await.until("at the home", Duration.ofSeconds(5), () -> near(pilot, 80.5, 0.5));
+            Await.until("at the home", Duration.ofSeconds(5), () -> near(pilot, 180.5, 0.5));
             assertThat(mannequin(server)).as("the mannequin is gone").isFalse();
             assertThat(server.console("advancement test Pilot rainsenchants:autopilot")).doesNotContain("not");
 

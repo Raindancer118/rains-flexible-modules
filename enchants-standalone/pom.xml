@@ -49,7 +49,8 @@
         <!-- 0.24.0: Heat-seeking has two modes, switched per player with /heatseeking: precise (the default — locks only within 5 degrees of the crosshair) and wide (the level's cone, up to 45 degrees at III). -->
         <!-- 0.25.0: Autopilot's cinematic cameras — chase, side, front, overhead, first person — switched in flight with A and D (a spectator's number keys never reach the server). -->
         <!-- 0.26.0: Launch III has no cooldown. -->
-        <plugin.version>0.26.0</plugin.version>
+        <!-- 0.27.0: Autopilot follows the land — low over it, climbing early before mountains, never through it, landing on the roof above a covered place — and its orbit camera circles the flier and is turned with the mouse. -->
+        <plugin.version>0.27.0</plugin.version>
     </properties>
 
     <dependencies>
