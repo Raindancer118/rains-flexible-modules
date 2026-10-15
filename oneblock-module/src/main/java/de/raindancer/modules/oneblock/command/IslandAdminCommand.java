@@ -1,5 +1,6 @@
 package de.raindancer.modules.oneblock.command;
 
+import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.platform.util.Times;
 import de.raindancer.modules.oneblock.OneBlockServices;
 import de.raindancer.modules.oneblock.model.Hold;
@@ -63,12 +64,15 @@ public final class IslandAdminCommand implements IOneBlockCommand {
                     list(live, islands.get(), sender);
                 }
             }
-            case "reload" -> {
+            // content.yml is a document in the database: read off the server thread, answered back on it.
+            case "reload" -> Scheduling.async(live.plugin(), () -> {
                 List<String> problems = islands.get().content().reload();
-                live.messages().send(sender, problems.isEmpty() ? "oneblock.admin.reloaded"
-                        : "oneblock.admin.reloaded-with-problems", "problems", String.valueOf(problems.size()));
-                problems.forEach(problem -> sender.sendMessage(" - " + problem));
-            }
+                Scheduling.global(live.plugin(), () -> {
+                    live.messages().send(sender, problems.isEmpty() ? "oneblock.admin.reloaded"
+                            : "oneblock.admin.reloaded-with-problems", "problems", String.valueOf(problems.size()));
+                    problems.forEach(problem -> sender.sendMessage(" - " + problem));
+                });
+            });
             case "migrate" -> live.migration().ifPresentOrElse(
                     migration -> migration.run(sender, args.length > 1 && args[1].equalsIgnoreCase("confirm")),
                     () -> live.messages().send(sender, "oneblock.migrate.unavailable"));

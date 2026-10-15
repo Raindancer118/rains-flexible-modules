@@ -75,6 +75,8 @@ public final class OneBlockModule implements FlexModule {
     private static final long LIFECYCLE_TICKS = 100L;
     private static final long AUTO_BREAK_TICKS = 20L;
     private static final long FLUSH_SECONDS = 2L;
+    /** Long enough for a teleport to land before a window is opened on the player. */
+    private static final long ARRIVED_TICKS = 40L;
     /** How often the other servers ask which money the islands of their players play with, for the tablist. */
     private static final long BADGE_TICKS = 300L;
 
@@ -215,7 +217,8 @@ public final class OneBlockModule implements FlexModule {
                 player -> new ChooseModeMenu(built.get(), self.get(), player, null, false).open(),
                 storage, new PendingCommands(System::currentTimeMillis),
                 task -> Scheduling.async(context.plugin(), task),
-                (player, task) -> Scheduling.entity(context.plugin(), player, task));
+                (player, task) -> Scheduling.entity(context.plugin(), player, task),
+                (player, task) -> Scheduling.entityLater(context.plugin(), player, ARRIVED_TICKS, task));
         IslandServer islands = new IslandServer(book, storage, content, worlds, islandTravel, service, oneBlock,
                 lifecycle, admin, host, context.chat().brand());
         self.set(islands);

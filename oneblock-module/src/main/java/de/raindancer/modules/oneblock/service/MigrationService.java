@@ -91,16 +91,17 @@ public final class MigrationService implements IOneBlockService {
         Path source = islands.worlds().folderOf(SOURCE_WORLD).toPath();
         Path players = server.getWorlds().getFirst().getWorldFolder().toPath();
         Path levelRoot = levelRoot(players);
-        Map<String, String> already = migrated();
         Scheduling.async(plugin, () -> {
             try {
+                Map<String, String> already = migrated();
                 BentoReader.Result read = BentoReader.read(bentoFolder().resolve("database/Island"),
                         bentoFolder().resolve("database/OneBlockIslands"));
                 BentoReader.Phases phases = BentoReader.phases(bentoFolder().resolve("addons/AOneBlock/phases"));
                 Scheduling.global(plugin, () -> plan(sender, confirm, read, phases, source, levelRoot, already));
-            } catch (IOException | RuntimeException failed) {
+            } catch (IOException | RuntimeException | LinkageError failed) {
+                // A task off the server thread that dies says nothing anywhere; this one says why.
                 running.set(false);
-                log.warn("Reading BentoBox's islands failed: {}", failed.toString());
+                log.error(failed, "Reading BentoBox's islands failed.");
                 Scheduling.global(plugin, () -> messages.send(sender, "oneblock.migrate.failed", "why", failed.toString()));
             }
         });
@@ -130,6 +131,9 @@ public final class MigrationService implements IOneBlockService {
         }
         for (Planned one : planned) {
             Island island = one.island();
+            log.info("Migration plan: {}'s island, team {}, {} blocks -> {} shards, {}, block at {} {} {}.",
+                    island.ownerName(), island.everyone().size(), one.bento().lifetime(), island.shards(),
+                    island.unlockedDimensions(), one.bento().x(), one.bento().y(), one.bento().z());
             messages.send(sender, "oneblock.migrate.island", "player", island.ownerName(),
                     "team", String.valueOf(island.everyone().size()), "blocks", String.format("%,d", one.bento().lifetime()),
                     "shards", String.format("%,d", island.shards()),
@@ -137,9 +141,14 @@ public final class MigrationService implements IOneBlockService {
                     "spot", one.bento().x() + " " + one.bento().y() + " " + one.bento().z(),
                     "regions", String.valueOf(rule.regions(one.bento()).size()));
         }
-        skipped.forEach(line -> messages.send(sender, "oneblock.migrate.skipped", "why", line));
+        skipped.forEach(line -> {
+            log.info("Migration skips {}.", line);
+            messages.send(sender, "oneblock.migrate.skipped", "why", line);
+        });
         if (!confirm || planned.isEmpty()) {
             running.set(false);
+            log.info(planned.isEmpty() ? "Migration: nothing left to move over."
+                    : "Migration: {} island(s) would move over; nothing changed yet.", planned.size());
             messages.send(sender, planned.isEmpty() ? "oneblock.migrate.nothing" : "oneblock.migrate.dry-run",
                     "count", String.valueOf(planned.size()));
             return;
@@ -192,13 +201,14 @@ public final class MigrationService implements IOneBlockService {
                         "why", result.outcome().name());
             }
         }
-        record(moved);
         long now = System.currentTimeMillis();
         int done = added;
         Scheduling.async(plugin, () -> {
+            record(moved);
             islands.book().flush();
             positions.forEach((player, spot) -> islands.storage().savePosition(player, spot, now));
             running.set(false);
+            log.info("Migration: moved {} island(s) over; {} player position(s) kept.", done, positions.size());
             Scheduling.global(plugin, () -> messages.send(sender, "oneblock.migrate.done",
                     "count", String.valueOf(done), "positions", String.valueOf(positions.size())));
         });
@@ -276,6 +286,7 @@ public final class MigrationService implements IOneBlockService {
         return name == null ? player.toString().substring(0, 8) : name;
     }
 
+    /** Blocking: the record is a document in the database. */
     private Map<String, String> migrated() {
         Map<String, String> known = new LinkedHashMap<>();
         YamlConfiguration yaml = done.readIfReadable().orElseGet(YamlConfiguration::new);
@@ -285,6 +296,7 @@ public final class MigrationService implements IOneBlockService {
         return known;
     }
 
+    /** Blocking, like {@link #migrated()}. */
     private void record(Map<String, String> moved) {
         if (moved.isEmpty()) {
             return;

@@ -45,11 +45,13 @@ public final class OwnIslands implements IslandHost {
     private final PendingCommands pending;
     private final Executor async;
     private final BiConsumer<Player, Runnable> onPlayer;
+    /** A little later on the player's thread: after a teleport, which closes whatever window was open. */
+    private final BiConsumer<Player, Runnable> afterArriving;
 
     public OwnIslands(Server server, IslandBook book, IslandService islands, IslandTravel travel, Messages messages,
                       Supplier<Content> content, Predicate<UUID> hidden, Consumer<Player> noIsland,
                       Consumer<Player> undecided, IslandStorage storage, PendingCommands pending, Executor async,
-                      BiConsumer<Player, Runnable> onPlayer) {
+                      BiConsumer<Player, Runnable> onPlayer, BiConsumer<Player, Runnable> afterArriving) {
         this.server = server;
         this.book = book;
         this.islands = islands;
@@ -63,6 +65,7 @@ public final class OwnIslands implements IslandHost {
         this.pending = pending;
         this.async = async;
         this.onPlayer = onPlayer;
+        this.afterArriving = afterArriving;
     }
 
     public PendingCommands pending() {
@@ -201,11 +204,18 @@ public final class OwnIslands implements IslandHost {
         return true;
     }
 
-    /** An owner whose island came over from BentoBox chooses its money before anything else. */
+    /**
+     * An owner whose island came over from BentoBox chooses its money before anything else — once they have arrived,
+     * since the teleport there closes any window opened before it.
+     */
     private void askForTheMoney(Player player) {
-        book.ofPlayer(player.getUniqueId())
-                .filter(island -> island.owner().equals(player.getUniqueId()) && !island.mode().decided())
-                .ifPresent(island -> undecided.accept(player));
+        afterArriving.accept(player, () -> {
+            if (player.isOnline()) {
+                book.ofPlayer(player.getUniqueId())
+                        .filter(island -> island.owner().equals(player.getUniqueId()) && !island.mode().decided())
+                        .ifPresent(island -> undecided.accept(player));
+            }
+        });
     }
 
     private static Optional<UUID> parse(String id) {

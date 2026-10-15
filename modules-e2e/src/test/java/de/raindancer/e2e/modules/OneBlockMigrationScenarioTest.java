@@ -23,12 +23,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Moving a real BentoBox island over, the way S15 will be moved: the island server first runs BentoBox and AOneBlock
- * (the versions S15 runs), a player makes an island, breaks the block, builds on it and logs out there; then BentoBox
+ * (the versions S15 runs), a player makes an island, gets far, builds on it and logs out there; then BentoBox
  * goes, RainsOneBlock comes, and {@code /islandadmin migrate confirm} moves it.
  *
- * <p>What is proved: the block and the build keep their exact coordinates in the island's own world; the breaks pay
- * their shards; the player comes back exactly where they logged out; the owner is asked for the money; nothing logs an
- * error.
+ * <p>What is proved: the block and the build keep their exact coordinates in the island's own world; the count pays
+ * its shards and a nether AOneBlock had reached comes unlocked; the player comes back exactly where they logged out;
+ * the owner is asked for the money; running it again moves nothing twice; nothing logs an error.
  */
 @Tag("e2e")
 class OneBlockMigrationScenarioTest {
@@ -71,22 +71,19 @@ class OneBlockMigrationScenarioTest {
             int x = center[0];
             int y = center[1];
             int z = center[2];
-            server.console("gamemode creative Ada");
-            ada.flying(true);
-            server.console("execute in minecraft:oneblock_world run tp Ada " + (x + 0.5) + " " + (y + 2) + " " + (z + 2.5) + " 180 60");
-            Await.ticks(20);
-            for (int i = 0; i < 12; i++) {
-                ada.dig(x, y, z);
-                Await.ticks(6);
-            }
+            Await.until("AOneBlock put its block at the centre", WAIT, () -> !server.console(
+                    "execute in minecraft:oneblock_world if block " + x + " " + y + " " + z + " minecraft:air").contains("passed"));
+            // Past AOneBlock's nether phase (7500), so the nether comes unlocked: AOneBlock's own admin command, as
+            // breaking eight thousand blocks by bot would take the afternoon.
+            server.console("obadmin setcount Ada 8000");
             server.console("execute in minecraft:oneblock_world run setblock " + (x + 3) + " " + y + " " + z + " minecraft:gold_block");
             server.console("execute in minecraft:oneblock_world run tp Ada " + (x + 3.5) + " " + (y + 1) + " " + (z + 0.5) + " 90 0");
             Await.ticks(20);
             ada.leave();
             server.console("save-all flush");
-            Await.until("AOneBlock counted the breaks", WAIT, () -> count(plugins) >= 12);
-            long counted = count(plugins);
             server.stop();
+            long counted = count(plugins);
+            assertThat(counted).as("AOneBlock saved the count on its way down").isGreaterThanOrEqualTo(8000);
 
             // ── phase two: BentoBox out, RainsOneBlock in ─────────────────────────────────────────────────────────
             try (Stream<Path> jars = Files.list(plugins)) {
@@ -103,10 +100,10 @@ class OneBlockMigrationScenarioTest {
             server.awaitLog("This is the island server", WAIT);
 
             assertThat(server.console("islandadmin migrate")).isNotNull();
-            server.awaitLog("would move over", WAIT);
+            server.awaitLog("would move over; nothing changed yet", WAIT);
             assertThat(server.console("islandadmin info Ada")).contains("No island");
             server.console("islandadmin migrate confirm");
-            server.awaitLog("Moved 1 island", WAIT);
+            server.awaitLog("moved 1 island\\(s\\) over", WAIT);
             assertThat(server.console("islandadmin info Ada")).contains("Ada's island");
 
             // ── Ada is back where she logged out, the build where she left it, the shards paid ─────────────────────
@@ -130,6 +127,14 @@ class OneBlockMigrationScenarioTest {
             back.expectSidebar("Shards " + (counted / 10));
             back.expectSidebar(String.format("%,d blocks broken", counted));
 
+            // ── the nether came unlocked with the progress ──────────────────────────────────────────────────────────
+            back.run("island nether");
+            Await.until("Ada is in her island's nether", WAIT, () -> back.world().contains(world + "_nether"));
+            Await.ticks(40);
+            back.run("island home");
+            Await.until("and home again", WAIT, () -> back.world().equals("minecraft:" + world));
+            Await.ticks(40);
+
             // ── and the block still works where it always stood ──────────────────────────────────────────────────
             server.console("gamemode creative Ada");
             back.flying(true);
@@ -141,6 +146,7 @@ class OneBlockMigrationScenarioTest {
 
             server.console("islandadmin migrate confirm");
             server.awaitLog("moved already", WAIT);
+            server.awaitLog("nothing left to move over", WAIT);
 
             assertThat(server.errorsFrom("RainsOneBlock", "RainsCore").stream()
                     .filter(line -> !line.contains("resource pack server could not start")).toList()).isEmpty();
@@ -187,7 +193,9 @@ class OneBlockMigrationScenarioTest {
         try (Stream<Path> files = Files.list(folder)) {
             for (Path file : files.filter(path -> path.toString().endsWith(".json")).toList()) {
                 var json = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
-                return json.has("lifetime") ? json.get("lifetime").getAsLong() : json.get("blockNumber").getAsLong();
+                // As the migration reads it: the larger of the two — setcount moves blockNumber only.
+                long lifetime = json.has("lifetime") ? json.get("lifetime").getAsLong() : 0;
+                return Math.max(lifetime, json.has("blockNumber") ? json.get("blockNumber").getAsLong() : 0);
             }
         } catch (java.io.IOException | RuntimeException notYet) {
             return 0;
