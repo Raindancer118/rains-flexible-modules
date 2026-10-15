@@ -40,10 +40,11 @@ class AutopilotScenarioTest {
             server.console("forceload add -64 -16 96 16");
             server.console("fill -64 " + (Y - 1) + " -8 96 " + (Y - 1) + " 8 minecraft:stone");
             server.console("fill -64 " + Y + " -8 96 " + (Y + 6) + " 8 minecraft:air");
-            assertThat(server.console("settings set autopilot-cooldown-seconds 0")).contains("is now");
+            // Ten minutes at I — Autopilot III flies again the moment it lands, which the flights below rely on.
+            assertThat(server.console("settings set autopilot-cooldown-seconds 600")).contains("is now");
             Bot pilot = server.player("Pilot");
             server.console("gamemode survival Pilot");
-            server.console("item replace entity Pilot armor.chest with elytra[enchantments={\"rainsenchants:autopilot\":1}]");
+            server.console("item replace entity Pilot armor.chest with elytra[enchantments={\"rainsenchants:autopilot\":3}]");
 
             // --- a home of one's own -------------------------------------------------------------------------------
             server.console("tp Pilot 80.5 " + Y + " 0.5");
@@ -54,9 +55,17 @@ class AutopilotScenarioTest {
             Await.ticks(20);
             pilot.run("autopilot");
             pilot.awaitWindow("Autopilot");
+            pilot.forgetEffects();
             pilot.click("summit");
             Await.until("a spectator, watching", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
             Await.until("a mannequin of the pilot flies", Duration.ofSeconds(5), () -> mannequin(server));
+            Await.until("gliding on the elytra, not swimming", Duration.ofSeconds(5), () -> server.console(
+                    "execute if entity @e[type=mannequin,nbt={FallFlying:1b}]").contains("passed"));
+            assertThat(pilot.soundsHeard()).as("off like a rocket").contains("entity.firework_rocket.launch")
+                    .noneMatch(sound -> sound.contains("trident"));
+            Await.ticks(20);
+            assertThat(server.console("execute if entity @e[type=mannequin,nbt={FallFlying:1b}]")).as("still gliding")
+                    .contains("passed");
             // A spectator in flight jumps to nobody: the spectator menu's teleport is refused.
             server.console("execute as Pilot run tp Pilot -60.5 " + Y + " 0.5");
             Await.ticks(5);

@@ -63,4 +63,12 @@ class AutopilotTest {
         assertThat(camera.pitch()).as("looking down at it").isPositive();
         assertThat((double) camera.yaw()).as("facing +x").isCloseTo(-90, within(1e-3));
     }
+
+    @Test
+    @DisplayName("the cooldown: the setting at I, half at II, none at III")
+    void cooldown() {
+        assertThat(Autopilot.cooldownSeconds(1, 60)).isEqualTo(60);
+        assertThat(Autopilot.cooldownSeconds(2, 60)).isEqualTo(30);
+        assertThat(Autopilot.cooldownSeconds(3, 60)).isZero();
+    }
 }

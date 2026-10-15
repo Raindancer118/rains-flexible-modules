@@ -202,7 +202,8 @@ public final class AutopilotService {
         pilot.setSpectatorTarget(camera);
         messages.send(pilot, "enchants.autopilot-off");
         world.spawnParticle(Particle.SONIC_BOOM, from, 1);
-        world.playSound(from, Sound.ITEM_TRIDENT_RIPTIDE_3, 1.5f, 0.8f);
+        world.playSound(from, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.5f, 0.8f);
+        world.playSound(from, Sound.ENTITY_BREEZE_WIND_BURST, 1f, 0.7f);
         Scheduling.entityTimer(plugin, flier, 1L, 1L, task -> {
             if (!step(flight)) {
                 task.cancel();
@@ -263,7 +264,11 @@ public final class AutopilotService {
         }
         flight.tick = next;
         flight.flier.teleportAsync(at(world, point));
-        pose(flight.flier, point.phase() == Autopilot.Phase.LAUNCH && next < 6 ? Pose.STANDING : Pose.FALL_FLYING);
+        // Gliding as a player on an elytra glides: the pose alone is drawn as swimming.
+        boolean glide = point.phase() != Autopilot.Phase.LAUNCH || next >= 6;
+        if (flight.flier.isGliding() != glide) {
+            flight.flier.setGliding(glide);
+        }
         flight.camera.teleportAsync(at(world, Autopilot.camera(point, flight.heading)));
         if (pilot.getSpectatorTarget() != flight.camera) {
             pilot.setSpectatorTarget(flight.camera);
@@ -273,6 +278,7 @@ public final class AutopilotService {
         }
         if (next >= flight.plan.ticks()) {
             Location landed = at(world, point);
+            flight.flier.setGliding(false);
             pose(flight.flier, Pose.SNEAKING);
             world.spawnParticle(Particle.EXPLOSION_EMITTER, landed, 1);
             world.spawnParticle(Particle.SONIC_BOOM, landed, 1);
@@ -316,7 +322,10 @@ public final class AutopilotService {
             pilot.setFallDistance(0);
             pilot.getPersistentDataContainer().remove(FROM);
         }));
-        readyAt.put(pilot.getUniqueId(), System.currentTimeMillis() + settings.get().autopilotCooldownSeconds() * 1000L);
+        ItemStack chest = pilot.getInventory().getChestplate();
+        int level = chest == null ? 1 : CustomEnchantments.levelOn(chest, RainsEnchants.AUTOPILOT);
+        readyAt.put(pilot.getUniqueId(), System.currentTimeMillis()
+                + Autopilot.cooldownSeconds(level, settings.get().autopilotCooldownSeconds()) * 1000L);
         messages.send(pilot, "enchants.autopilot-landed");
         advancements.used(pilot.getUniqueId(), RainsEnchants.AUTOPILOT);
     }

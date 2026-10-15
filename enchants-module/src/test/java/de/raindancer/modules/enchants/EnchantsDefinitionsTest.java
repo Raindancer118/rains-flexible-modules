@@ -27,6 +27,7 @@ class EnchantsDefinitionsTest {
                 RainsEnchants.ARMOR_PIERCE, RainsEnchants.BERSERK, RainsEnchants.OVERPOWER, RainsEnchants.UNDYING,
                 RainsEnchants.FUSION, RainsEnchants.AUTOPILOT);
         assertThat(def(RainsEnchants.CLEAVE).gear()).isEqualTo(Gear.AXES);
+        assertThat(def(RainsEnchants.AUTOPILOT).maxLevel()).isEqualTo(3);
         assertThat(def(RainsEnchants.OVERPOWER).maxLevel()).isEqualTo(5);
         assertThat(def(RainsEnchants.UNDYING).gear()).isEqualTo(Gear.CHESTPLATE);
         assertThat(def(RainsEnchants.VOLLEY).gear()).as("tridents, and Thor's hammers").isEqualTo(Gear.THUNDER);

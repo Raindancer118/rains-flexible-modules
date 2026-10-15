@@ -126,10 +126,10 @@ public record EnchantsSettings(
         int crystalWardenPerMille,
 
         @In("enchants") @Title("Autopilot cooldown, seconds") @Range(min = 0, max = 3600)
-        @Describe("How long after landing an Autopilot elytra can fly again.")
+        @Describe("How long after landing an Autopilot I elytra can fly again; Autopilot II waits half as long, Autopilot III not at all.")
         @Key("autopilot-cooldown-seconds")
         int autopilotCooldownSeconds) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12, 2, 300);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12, 2, 60);
 }

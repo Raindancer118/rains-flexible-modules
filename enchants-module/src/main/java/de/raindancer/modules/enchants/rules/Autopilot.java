@@ -31,6 +31,15 @@ public final class Autopilot {
     private Autopilot() {
     }
 
+    /** Seconds before the elytra flies again: the server's setting at I, half at II, none at III. */
+    public static int cooldownSeconds(int level, int setting) {
+        return switch (Math.clamp(level, 1, 3)) {
+            case 1 -> setting;
+            case 2 -> setting / 2;
+            default -> 0;
+        };
+    }
+
     /** One whole flight. */
     public static final class Plan {
         private final List<Segment> segments;

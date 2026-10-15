@@ -72,7 +72,7 @@ public final class EnchantsDefinitions {
                         .gear(Gear.CHESTPLATE).anvilCost(8).build(),
                 EnchantDef.builder(RainsEnchants.FUSION).name("<aqua>Fusion").maxLevel(1)
                         .gear(Gear.CHESTPLATE).anvilCost(8).build(),
-                EnchantDef.builder(RainsEnchants.AUTOPILOT).name("<aqua>Autopilot").maxLevel(1)
+                EnchantDef.builder(RainsEnchants.AUTOPILOT).name("<aqua>Autopilot").maxLevel(3)
                         .gear(Gear.ELYTRA).anvilCost(8).build());
     }
 }
