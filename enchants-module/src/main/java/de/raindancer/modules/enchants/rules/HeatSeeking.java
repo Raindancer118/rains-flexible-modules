@@ -38,6 +38,16 @@ public final class HeatSeeking {
      * The candidate nearest the aim: the smallest angle off {@code look}, inside {@code coneDegrees} and {@code range};
      * of two at the same angle, the nearer.
      */
+    /**
+     * The same, for one of several shots at once: a creature in {@code taken} — another shot of the volley locked on
+     * it already — is only chosen when nothing else is in the cone.
+     */
+    public static Optional<UUID> pick(double[] eye, double[] look, List<Candidate> candidates, double coneDegrees,
+                                      double range, java.util.Set<UUID> taken) {
+        List<Candidate> free = candidates.stream().filter(candidate -> !taken.contains(candidate.id())).toList();
+        return pick(eye, look, free, coneDegrees, range).or(() -> pick(eye, look, candidates, coneDegrees, range));
+    }
+
     public static Optional<UUID> pick(double[] eye, double[] look, List<Candidate> candidates, double coneDegrees,
                                       double range) {
         double[] aim = unit(look);

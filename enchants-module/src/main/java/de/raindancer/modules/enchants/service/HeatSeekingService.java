@@ -67,7 +67,7 @@ public final class HeatSeekingService {
         if (level < 1) {
             return;
         }
-        Optional<LivingEntity> target = target(shooter, level);
+        Optional<LivingEntity> target = target(shooter, level, projectile.getVelocity());
         if (target.isEmpty()) {
             return;
         }
@@ -129,11 +129,20 @@ public final class HeatSeekingService {
         return null;
     }
 
-    /** The creature nearest the shooter's aim that they may hurt and can see. */
-    private Optional<LivingEntity> target(Player shooter, int level) {
+    /**
+     * The creature nearest the shot's own line that the shooter may hurt and can see — along where this one flies, so
+     * a volley's fanned shots each look their own way, and passing over what another of the shooter's shots has.
+     */
+    private Optional<LivingEntity> target(Player shooter, int level, Vector flying) {
         double range = HeatSeeking.range(level);
         Location eye = shooter.getEyeLocation();
-        Vector look = eye.getDirection();
+        Vector look = flying.lengthSquared() > 1.0E-6 ? flying : eye.getDirection();
+        java.util.Set<UUID> taken = new java.util.HashSet<>();
+        locks.values().forEach(lock -> {
+            if (lock[0].equals(shooter.getUniqueId())) {
+                taken.add(lock[1]);
+            }
+        });
         Map<UUID, LivingEntity> byId = new ConcurrentHashMap<>();
         List<HeatSeeking.Candidate> candidates = new ArrayList<>();
         for (LivingEntity each : shooter.getWorld().getNearbyLivingEntities(eye, range)) {
@@ -145,7 +154,7 @@ public final class HeatSeekingService {
             candidates.add(new HeatSeeking.Candidate(each.getUniqueId(), middle.getX(), middle.getY(), middle.getZ()));
         }
         return HeatSeeking.pick(new double[]{eye.getX(), eye.getY(), eye.getZ()},
-                new double[]{look.getX(), look.getY(), look.getZ()}, candidates, HeatSeeking.cone(level), range)
+                new double[]{look.getX(), look.getY(), look.getZ()}, candidates, HeatSeeking.cone(level), range, taken)
                 .map(byId::get);
     }
 

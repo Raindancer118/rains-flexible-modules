@@ -72,13 +72,29 @@ public final class ThorService {
         thrower.setCooldown(held.getType(), Thor.cooldownTicks(level));
         ItemStack likeness = held.clone();
         likeness.setAmount(1);
+        Vector aim = thrower.getEyeLocation().getDirection();
+        fly(thrower, likeness, level, aim);
+        // Volley: more hammers fanned out to the sides, each striking and coming back like the first.
+        int volley = CustomEnchantments.levelOn(held, RainsEnchants.VOLLEY);
+        if (volley > 0) {
+            for (double[] side : de.raindancer.modules.enchants.rules.Volley.directions(
+                    new double[]{aim.getX(), aim.getY(), aim.getZ()}, volley)) {
+                fly(thrower, likeness, level, new Vector(side[0], side[1], side[2]));
+            }
+            advancements.used(thrower.getUniqueId(), RainsEnchants.VOLLEY);
+        }
+        thrower.getWorld().playSound(thrower.getLocation(), Sound.ITEM_TRIDENT_THROW, 1f, 0.6f);
+        return true;
+    }
+
+    /** One hammer thrown along {@code direction}: it strikes the first creature in its way and flies back. */
+    private void fly(Player thrower, ItemStack likeness, int level, Vector direction) {
         // Dressed before its launch is announced, so Heat-seeking on the hammer finds it in flight.
-        Snowball flying = thrower.launchProjectile(Snowball.class,
-                thrower.getEyeLocation().getDirection().multiply(THROW_SPEED), made -> {
+        Snowball flying = thrower.launchProjectile(Snowball.class, direction.clone().normalize().multiply(THROW_SPEED),
+                made -> {
                     made.setItem(likeness);
                     made.getPersistentDataContainer().set(HAMMER, PersistentDataType.INTEGER, level);
                 });
-        thrower.getWorld().playSound(thrower.getLocation(), Sound.ITEM_TRIDENT_THROW, 1f, 0.6f);
         int[] ticks = {0};
         Scheduling.entityTimer(plugin, flying, 1L, 1L, task -> {
             if (!flying.isValid()) {
@@ -104,7 +120,6 @@ public final class ThorService {
                 comeBack(thrower, from, likeness);
             }
         });
-        return true;
     }
 
     /** The first creature (not the thrower) whose hitbox the hammer's path crosses before the next tick. */

@@ -51,7 +51,7 @@ public final class EnchantsDefinitions {
                 EnchantDef.builder(RainsEnchants.THOR).name("<yellow>Thor").maxLevel(3)
                         .gear(Gear.THUNDER).anvilCost(8).build(),
                 EnchantDef.builder(RainsEnchants.VOLLEY).name("<aqua>Volley").maxLevel(2)
-                        .gear(Gear.TRIDENT).anvilCost(6).build(),
+                        .gear(Gear.THUNDER).anvilCost(6).build(),
                 EnchantDef.builder(RainsEnchants.LIFESTEAL).name("<dark_red>Lifesteal").maxLevel(3)
                         .gear(Gear.MELEE).anvilCost(8).build(),
                 EnchantDef.builder(RainsEnchants.EXECUTIONER).name("<dark_red>Executioner").maxLevel(3)

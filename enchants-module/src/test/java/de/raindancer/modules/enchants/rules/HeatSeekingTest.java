@@ -88,4 +88,19 @@ class HeatSeekingTest {
         assertThat(HeatSeeking.turn(3)).isEqualTo(0.85);
         assertThat(HeatSeeking.cone(2)).isEqualTo(18);
     }
+
+    @Test
+    @DisplayName("several shots at once spread out: one already locked on is passed over while another is in the cone")
+    void spreadOut() {
+        HeatSeeking.Candidate ahead = new HeatSeeking.Candidate(java.util.UUID.randomUUID(), 0, 0, 10);
+        HeatSeeking.Candidate aside = new HeatSeeking.Candidate(java.util.UUID.randomUUID(), 3, 0, 10);
+        double[] eye = {0, 0, 0};
+        double[] look = {0, 0, 1};
+        assertThat(HeatSeeking.pick(eye, look, java.util.List.of(ahead, aside), 45, 50, java.util.Set.of()))
+                .hasValue(ahead.id());
+        assertThat(HeatSeeking.pick(eye, look, java.util.List.of(ahead, aside), 45, 50, java.util.Set.of(ahead.id())))
+                .as("the next one takes the other").hasValue(aside.id());
+        assertThat(HeatSeeking.pick(eye, look, java.util.List.of(ahead), 45, 50, java.util.Set.of(ahead.id())))
+                .as("nobody else there: the same one again").hasValue(ahead.id());
+    }
 }

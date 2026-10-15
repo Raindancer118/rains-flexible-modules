@@ -77,6 +77,37 @@ class ThorScenarioTest {
             assertThat(struck(server, "husk", "sought")).as("the seeking hammer found it").isTrue();
             server.console("kill @e[type=husk]");
 
+            // --- a Volley mace: two more hammers fanned out strike husks to either side of a straight throw ------
+            server.console("summon minecraft:husk 4.0 " + Y + " -9.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"fanleft\"]}");
+            server.console("summon minecraft:husk -3.0 " + Y + " -9.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"fanright\"]}");
+            server.console("clear Thrower");
+            server.console("give Thrower mace[enchantments={\"rainsenchants:thor\":1,\"rainsenchants:volley\":2}]");
+            server.console("tp Thrower 0.5 " + Y + " 0.5 180 0");
+            Await.ticks(20);
+            thrower.hold(thrower.hotbarSlotOf(item -> item.material().toLowerCase().contains("mace")));
+            thrower.look(180, 4).useHeld();
+            Await.ticks(60);
+            assertThat(struck(server, "husk", "fanleft")).as("a fanned hammer to one side").isTrue();
+            assertThat(struck(server, "husk", "fanright")).as("and to the other").isTrue();
+            server.console("kill @e[type=husk]");
+
+            // --- Volley and Heat-seeking together: each hammer finds its own husk, far wider than the fan -----------
+            server.console("tp Thrower 0.5 " + Y + " 0.5 180 0");
+            server.console("summon minecraft:husk -6.5 " + Y + " -9.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"one\"]}");
+            server.console("summon minecraft:husk 0.5 " + Y + " -11.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"two\"]}");
+            server.console("summon minecraft:husk 7.5 " + Y + " -9.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"three\"]}");
+            server.console("clear Thrower");
+            server.console("give Thrower mace[enchantments={\"rainsenchants:thor\":1,\"rainsenchants:volley\":2,"
+                    + "\"rainsenchants:heat_seeking\":3}]");
+            Await.ticks(70);
+            thrower.hold(thrower.hotbarSlotOf(item -> item.material().toLowerCase().contains("mace")));
+            thrower.look(180, 4).useHeld();
+            Await.ticks(60);
+            for (String husk : new String[]{"one", "two", "three"}) {
+                assertThat(struck(server, "husk", husk)).as("husk " + husk + " found by a hammer of its own").isTrue();
+            }
+            server.console("kill @e[type=husk]");
+
             // --- the trident strikes a wall between two husks; its storm hurts both --------------------------
             server.console("fill 0 " + Y + " -6 0 " + (Y + 3) + " -6 minecraft:stone");
             server.console("summon minecraft:husk -0.5 " + Y + " -4.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"left\"]}");

@@ -29,7 +29,7 @@ class EnchantsDefinitionsTest {
         assertThat(def(RainsEnchants.CLEAVE).gear()).isEqualTo(Gear.AXES);
         assertThat(def(RainsEnchants.OVERPOWER).maxLevel()).isEqualTo(5);
         assertThat(def(RainsEnchants.UNDYING).gear()).isEqualTo(Gear.CHESTPLATE);
-        assertThat(def(RainsEnchants.VOLLEY).gear()).isEqualTo(Gear.TRIDENT);
+        assertThat(def(RainsEnchants.VOLLEY).gear()).as("tridents, and Thor's hammers").isEqualTo(Gear.THUNDER);
         assertThat(def(RainsEnchants.THOR).gear()).isEqualTo(Gear.THUNDER);
         assertThat(def(RainsEnchants.HEAT_SEEKING).gear()).isEqualTo(Gear.SEEKING);
         assertThat(def(RainsEnchants.HEAT_SEEKING).maxLevel()).isEqualTo(3);
