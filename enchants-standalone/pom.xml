@@ -47,7 +47,8 @@
         <!-- 0.22.0: Volley on Thor's mace and axes — two or four more hammers fanned out, each striking and flying back; Heat-seeking shots of one volley each look along their own line and spread over different targets. -->
         <!-- 0.23.0: Autopilot's mannequin glides on its elytra instead of swimming, takes off like a rocket (no trident sound); three levels: the cooldown (now 60 s) at I, half at II, none at III. -->
         <!-- 0.24.0: Heat-seeking has two modes, switched per player with /heatseeking: precise (the default — locks only within 5 degrees of the crosshair) and wide (the level's cone, up to 45 degrees at III). -->
-        <plugin.version>0.24.0</plugin.version>
+        <!-- 0.25.0: Autopilot's cinematic cameras — chase, side, front, overhead, first person — switched in flight with A and D (a spectator's number keys never reach the server). -->
+        <plugin.version>0.25.0</plugin.version>
     </properties>
 
     <dependencies>

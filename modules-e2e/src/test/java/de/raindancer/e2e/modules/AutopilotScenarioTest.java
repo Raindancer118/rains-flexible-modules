@@ -59,6 +59,17 @@ class AutopilotScenarioTest {
             pilot.click("summit");
             Await.until("a spectator, watching", Duration.ofSeconds(10), () -> pilot.gameMode() == GameMode.SPECTATOR);
             Await.until("a mannequin of the pilot flies", Duration.ofSeconds(5), () -> mannequin(server));
+            // D for the next camera: from the chase camera to the side one.
+            pilot.keys(false, false, false, true, false, false, false);
+            Await.ticks(2);
+            pilot.keys(false, false, false, false, false, false, false);
+            Await.until("the side camera", Duration.ofSeconds(3),
+                    () -> pilot.actionBars().stream().anyMatch(line -> line.contains("Camera: Side")));
+            pilot.keys(false, false, true, false, false, false, false);
+            Await.ticks(2);
+            pilot.keys(false, false, false, false, false, false, false);
+            Await.until("A goes back to the chase camera", Duration.ofSeconds(3),
+                    () -> pilot.actionBars().stream().anyMatch(line -> line.contains("Camera: Chase")));
             Await.until("gliding on the elytra, not swimming", Duration.ofSeconds(5), () -> server.console(
                     "execute if entity @e[type=mannequin,nbt={FallFlying:1b}]").contains("passed"));
             assertThat(pilot.soundsHeard()).as("off like a rocket").contains("entity.firework_rocket.launch")

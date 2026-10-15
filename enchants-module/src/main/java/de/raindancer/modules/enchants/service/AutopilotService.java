@@ -64,6 +64,9 @@ public final class AutopilotService {
         final double[] heading;
         int tick;
         int landedFor = -1;
+        volatile Autopilot.Camera view = Autopilot.Camera.CHASE;
+        boolean left;
+        boolean right;
         long ticketChunk = Long.MIN_VALUE;
 
         Flight(Player pilot, GameMode mode, Mannequin flier, ItemDisplay camera, Autopilot.Plan plan, double[] heading) {
@@ -201,6 +204,7 @@ public final class AutopilotService {
         pilot.setGameMode(GameMode.SPECTATOR);
         pilot.setSpectatorTarget(camera);
         messages.send(pilot, "enchants.autopilot-off");
+        showCamera(pilot, flight.view);
         world.spawnParticle(Particle.SONIC_BOOM, from, 1);
         world.playSound(from, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.5f, 0.8f);
         world.playSound(from, Sound.ENTITY_BREEZE_WIND_BURST, 1f, 0.7f);
@@ -269,9 +273,11 @@ public final class AutopilotService {
         if (flight.flier.isGliding() != glide) {
             flight.flier.setGliding(glide);
         }
-        flight.camera.teleportAsync(at(world, Autopilot.camera(point, flight.heading)));
-        if (pilot.getSpectatorTarget() != flight.camera) {
-            pilot.setSpectatorTarget(flight.camera);
+        Optional<Autopilot.Point> view = Autopilot.camera(point, flight.heading, flight.view);
+        view.ifPresent(camera -> flight.camera.teleportAsync(at(world, camera)));
+        org.bukkit.entity.Entity watched = view.isPresent() ? flight.camera : flight.flier;
+        if (pilot.getSpectatorTarget() != watched) {
+            pilot.setSpectatorTarget(watched);
         }
         if (next % 3 == 0) {
             world.spawnParticle(Particle.CLOUD, at(world, point), 2, 0.1, 0.1, 0.1, 0.01);
@@ -336,6 +342,31 @@ public final class AutopilotService {
         flight.ticketChunk = Long.MIN_VALUE;
         flight.flier.remove();
         flight.camera.remove();
+    }
+
+    /** A key pressed in flight: left and right (A and D) switch between the cameras. */
+    public void input(Player pilot, org.bukkit.Input input) {
+        Flight flight = flights.get(pilot.getUniqueId());
+        if (flight == null) {
+            return;
+        }
+        boolean switched = false;
+        if (input.isRight() && !flight.right) {
+            flight.view = flight.view.next();
+            switched = true;
+        } else if (input.isLeft() && !flight.left) {
+            flight.view = flight.view.previous();
+            switched = true;
+        }
+        flight.left = input.isLeft();
+        flight.right = input.isRight();
+        if (switched) {
+            showCamera(pilot, flight.view);
+        }
+    }
+
+    private void showCamera(Player pilot, Autopilot.Camera view) {
+        pilot.sendActionBar(messages.get("enchants.autopilot-camera", "camera", view.title()));
     }
 
     /** Cut short: the player goes back to where they took off. */

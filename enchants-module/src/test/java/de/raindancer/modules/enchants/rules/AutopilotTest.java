@@ -71,4 +71,25 @@ class AutopilotTest {
         assertThat(Autopilot.cooldownSeconds(2, 60)).isEqualTo(30);
         assertThat(Autopilot.cooldownSeconds(3, 60)).isZero();
     }
+
+    @Test
+    @DisplayName("five cameras, cycled either way; each but the first-person one looks at the flier from its own side")
+    void cameras() {
+        assertThat(Autopilot.Camera.CHASE.next()).isEqualTo(Autopilot.Camera.SIDE);
+        assertThat(Autopilot.Camera.FIRST_PERSON.next()).isEqualTo(Autopilot.Camera.CHASE);
+        assertThat(Autopilot.Camera.CHASE.previous()).isEqualTo(Autopilot.Camera.FIRST_PERSON);
+        Autopilot.Point at = new Autopilot.Point(100, 100, 0, 0, 0, Autopilot.Phase.CRUISE);
+        double[] heading = {1, 0};
+        Autopilot.Point front = Autopilot.camera(at, heading, Autopilot.Camera.FRONT).orElseThrow();
+        assertThat(front.x()).as("ahead of it").isGreaterThan(100);
+        assertThat((double) front.yaw()).as("looking back along -x").isCloseTo(90, within(1e-3));
+        Autopilot.Point side = Autopilot.camera(at, heading, Autopilot.Camera.SIDE).orElseThrow();
+        assertThat(Math.abs(side.z())).as("off to its side").isGreaterThan(5);
+        Autopilot.Point overhead = Autopilot.camera(at, heading, Autopilot.Camera.OVERHEAD).orElseThrow();
+        assertThat(overhead.y()).isGreaterThan(110);
+        assertThat((double) overhead.pitch()).as("looking down").isGreaterThan(60);
+        assertThat(Autopilot.camera(at, heading, Autopilot.Camera.FIRST_PERSON)).as("through its own eyes").isEmpty();
+        assertThat(Autopilot.camera(at, heading, Autopilot.Camera.CHASE).orElseThrow())
+                .isEqualTo(Autopilot.camera(at, heading));
+    }
 }

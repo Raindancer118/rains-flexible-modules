@@ -11,6 +11,29 @@ public final class Autopilot {
 
     public enum Phase { LAUNCH, CRUISE, DIVE }
 
+    /** The cinematic cameras, switched in flight. */
+    public enum Camera {
+        CHASE("Chase"), SIDE("Side"), FRONT("Front"), OVERHEAD("Overhead"), FIRST_PERSON("First person");
+
+        private final String title;
+
+        Camera(String title) {
+            this.title = title;
+        }
+
+        public String title() {
+            return title;
+        }
+
+        public Camera next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+
+        public Camera previous() {
+            return values()[(ordinal() + values().length - 1) % values().length];
+        }
+    }
+
     /** Where the flier is in a tick, and which way it faces (the game's yaw and pitch). */
     public record Point(double x, double y, double z, float yaw, float pitch, Phase phase) {
     }
@@ -105,18 +128,39 @@ public final class Autopilot {
         return new Segment(from, to, speed, phase, Math.max(1, (int) Math.ceil(length / speed)));
     }
 
-    /** The camera: behind the flier along {@code heading} (x z), above it, looking at it. */
+    /** The chase camera: behind the flier along {@code heading} (x z), above it, looking at it. */
     public static Point camera(Point flier, double[] heading) {
+        return camera(flier, heading, Camera.CHASE).orElseThrow();
+    }
+
+    /**
+     * Where a camera hangs for the flier, looking at it; empty for the first-person one, which looks through the
+     * flier's own eyes.
+     */
+    public static java.util.Optional<Point> camera(Point flier, double[] heading, Camera camera) {
         double length = Math.sqrt(heading[0] * heading[0] + heading[1] * heading[1]);
         double hx = length < 1e-6 ? 0 : heading[0] / length;
         double hz = length < 1e-6 ? 1 : heading[1] / length;
-        double x = flier.x() - hx * CAMERA_BACK;
-        double y = flier.y() + CAMERA_UP;
-        double z = flier.z() - hz * CAMERA_BACK;
+        // Ahead, to the side (the flier's right hand when facing the heading), and up.
+        double[] offset = switch (camera) {
+            case CHASE -> new double[]{-CAMERA_BACK, 0, CAMERA_UP};
+            case SIDE -> new double[]{0, 7, 1};
+            case FRONT -> new double[]{9, 0, 1.5};
+            case OVERHEAD -> new double[]{-2, 0, 18};
+            case FIRST_PERSON -> null;
+        };
+        if (offset == null) {
+            return java.util.Optional.empty();
+        }
+        double sx = -hz;
+        double sz = hx;
+        double x = flier.x() + hx * offset[0] + sx * offset[1];
+        double y = flier.y() + offset[2];
+        double z = flier.z() + hz * offset[0] + sz * offset[1];
         double dx = flier.x() - x;
         double dy = flier.y() + 1 - y;
         double dz = flier.z() - z;
-        return new Point(x, y, z, yaw(dx, dz), pitch(dx, dy, dz), flier.phase());
+        return java.util.Optional.of(new Point(x, y, z, yaw(dx, dz), pitch(dx, dy, dz), flier.phase()));
     }
 
     private static float yaw(double dx, double dz) {

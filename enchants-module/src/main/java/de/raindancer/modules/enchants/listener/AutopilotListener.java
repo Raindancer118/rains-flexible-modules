@@ -57,6 +57,12 @@ public final class AutopilotListener implements IEnchantsListener {
         }
     }
 
+    /** A and D switch the camera in flight. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInput(org.bukkit.event.player.PlayerInputEvent event) {
+        autopilot.input(event.getPlayer(), event.getInput());
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onQuit(PlayerQuitEvent event) {
         autopilot.quit(event.getPlayer());
