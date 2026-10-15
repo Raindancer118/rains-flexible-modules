@@ -131,4 +131,31 @@ public final class SqlIslandStorage implements IslandStorage {
             }
         });
     }
+
+    @Override
+    public Optional<java.util.Map<UUID, String>> modesOf(java.util.Collection<UUID> players) {
+        if (players.isEmpty()) {
+            return Optional.of(java.util.Map.of());
+        }
+        String marks = String.join(",", java.util.Collections.nCopies(players.size(), "?"));
+        return database.read(connection -> {
+            java.util.Map<UUID, String> modes = new java.util.HashMap<>();
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT island_member.player, island.mode FROM island_member JOIN island "
+                            + "ON island.id = island_member.island WHERE island.state = ? AND island_member.player IN ("
+                            + marks + ")")) {
+                query.setString(1, ACTIVE);
+                int at = 2;
+                for (UUID player : players) {
+                    query.setString(at++, player.toString());
+                }
+                try (ResultSet rows = query.executeQuery()) {
+                    while (rows.next()) {
+                        modes.put(UUID.fromString(rows.getString(1)), rows.getString(2));
+                    }
+                }
+            }
+            return modes;
+        });
+    }
 }

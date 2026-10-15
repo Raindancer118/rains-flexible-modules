@@ -66,7 +66,7 @@ public final class E2e {
     }
 
     /** Only ever a folder this harness made under {@link #out()} — a test server of a previous run. */
-    private static void deleteTree(Path folder) {
+    static void deleteTree(Path folder) {
         if (!folder.toAbsolutePath().startsWith(out())) {
             throw new IllegalArgumentException("not an e2e folder: " + folder);
         }

@@ -54,6 +54,11 @@ class IslandServiceTest {
         public Optional<String> modeOf(UUID player) {
             return Optional.empty();
         }
+
+        @Override
+        public Optional<java.util.Map<UUID, String>> modesOf(java.util.Collection<UUID> players) {
+            return Optional.of(java.util.Map.of());
+        }
     };
 
     private static final Upgrade COAL = new Upgrade("coal", "Coal", Upgrade.Kind.BLOCK, Material.COAL_ORE, null,

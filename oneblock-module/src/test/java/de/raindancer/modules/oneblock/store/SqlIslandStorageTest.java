@@ -131,4 +131,18 @@ class SqlIslandStorageTest {
 
         assertThat(storage.loadAll()).hasValueSatisfying(all -> assertThat(all).hasSize(1));
     }
+
+    @Test
+    @DisplayName("everybody online's money in one query: islanders by their island, the rest left out")
+    void manyModes() {
+        storage.save(full());
+        UUID nobody = UUID.randomUUID();
+        UUID pure = UUID.randomUUID();
+        storage.save(Island.create(UUID.randomUUID(), pure, "P", EconomyMode.PURE, 0));
+
+        assertThat(storage.modesOf(java.util.List.of(OWNER, FRIEND, pure, nobody))).hasValueSatisfying(modes ->
+                assertThat(modes).containsOnly(java.util.Map.entry(OWNER, "smp"), java.util.Map.entry(FRIEND, "smp"),
+                        java.util.Map.entry(pure, "pure")));
+        assertThat(storage.modesOf(java.util.List.of())).contains(java.util.Map.of());
+    }
 }

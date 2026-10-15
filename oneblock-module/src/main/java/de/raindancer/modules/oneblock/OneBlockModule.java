@@ -31,6 +31,7 @@ import de.raindancer.modules.oneblock.service.IslandWorlds;
 import de.raindancer.modules.oneblock.service.IslandsGateway;
 import de.raindancer.modules.oneblock.service.LocalGateway;
 import de.raindancer.modules.oneblock.service.MigrationService;
+import de.raindancer.modules.oneblock.service.ModeBadges;
 import de.raindancer.modules.oneblock.service.NetworkDelivery;
 import de.raindancer.modules.oneblock.service.OneBlockService;
 import de.raindancer.modules.oneblock.service.OwnIslands;
@@ -74,12 +75,15 @@ public final class OneBlockModule implements FlexModule {
     private static final long LIFECYCLE_TICKS = 100L;
     private static final long AUTO_BREAK_TICKS = 20L;
     private static final long FLUSH_SECONDS = 2L;
+    /** How often the other servers ask which money the islands of their players play with, for the tablist. */
+    private static final long BADGE_TICKS = 300L;
 
     private LogChannel log;
     private IslandEndpoint endpoint;
     private IslandBook book;
     private IslandLand land;
     private ModuleContext context;
+    private ModeBadges badges;
 
     @Override
     public ModuleInfo info() {
@@ -155,6 +159,8 @@ public final class OneBlockModule implements FlexModule {
                         settings.current().proxyServer());
             }
         }
+
+        badges(context, server, islandServer);
 
         OneBlockServices services = new OneBlockServices(context.plugin(), server, log, context.core().messages(),
                 context.core(), settings::current, gateway, invites, sidebar, islandServer, migration);
@@ -234,6 +240,29 @@ public final class OneBlockModule implements FlexModule {
     }
 
     /**
+     * The tablist badge of a player's island money, on every server. The island server reads its book; every other
+     * server reads the shared table for whoever is online, now and then, off the server thread.
+     */
+    private void badges(ModuleContext context, Server server, Optional<IslandServer> islandServer) {
+        if (islandServer.isPresent()) {
+            IslandBook islands = islandServer.get().book();
+            badges = new ModeBadges(context.core().messages(),
+                    player -> islands.ofPlayer(player).map(de.raindancer.modules.oneblock.model.Island::mode));
+        } else {
+            var storage = new SqlIslandStorage(context.core().databases().shared(OneBlockDatabase.NAME,
+                    OneBlockDatabase.SCHEMA));
+            badges = new ModeBadges(context.core().messages(), null);
+            ModeBadges refreshing = badges;
+            timer(context, BADGE_TICKS, () -> {
+                List<java.util.UUID> online = server.getOnlinePlayers().stream()
+                        .map(org.bukkit.entity.Player::getUniqueId).toList();
+                Scheduling.async(context.plugin(), () -> refreshing.refresh(online, () -> storage.modesOf(online)));
+            });
+        }
+        badges.register();
+    }
+
+    /**
      * Runs {@code work} on a thread of its own and waits for it: what the island server needs before anybody may play
      * is read from the network's database, which Core will not have read from the thread running the world.
      */
@@ -268,6 +297,10 @@ public final class OneBlockModule implements FlexModule {
         if (endpoint != null) {
             endpoint.stop();
             endpoint = null;
+        }
+        if (badges != null) {
+            badges.unregister();
+            badges = null;
         }
         if (land != null && context != null) {
             context.core().land().withdraw(land);

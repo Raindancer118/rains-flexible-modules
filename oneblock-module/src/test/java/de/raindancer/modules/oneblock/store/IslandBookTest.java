@@ -64,6 +64,11 @@ class IslandBookTest {
         public Optional<String> modeOf(UUID player) {
             return Optional.empty();
         }
+
+        @Override
+        public Optional<java.util.Map<UUID, String>> modesOf(java.util.Collection<UUID> players) {
+            return Optional.of(java.util.Map.of());
+        }
     }
 
     private final MemoryStorage storage = new MemoryStorage();

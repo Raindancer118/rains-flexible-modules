@@ -90,7 +90,9 @@ public final class IslandTravel implements IOneBlockService {
         travel.go(player, arrival.get(), Trip.to("island").exactly(), new TravelWatcher() {
             @Override
             public void refused(Player traveller, TravelReason why, Trip trip) {
-                messages.send(traveller, "oneblock.go.failed");
+                // A teleport under way cannot be called off, so a second command right after the first is refused.
+                messages.send(traveller, why == TravelReason.ALREADY_TRAVELLING ? "oneblock.go.already"
+                        : "oneblock.go.failed");
             }
         });
         return true;

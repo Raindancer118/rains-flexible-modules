@@ -213,14 +213,8 @@ class StandaloneJarTest {
     }
 
     @Test
-    @DisplayName("BentoBox is wanted on the island server only: optional, and never touched at bootstrap")
-    void bentoBoxIsOptional() {
-        String yaml = read("paper-plugin.yml");
-        int server = yaml.indexOf("server:\n");
-        String serverPart = yaml.substring(server);
-        assertThat(serverPart).contains("BentoBox:");
-        String bento = serverPart.substring(serverPart.indexOf("BentoBox:"));
-        assertThat(bento).contains("required: false").contains("join-classpath: true");
-        assertThat(yaml.substring(0, server)).doesNotContain("BentoBox:");
+    @DisplayName("BentoBox is gone: the islands are this plugin's own, and BentoBox's files are only read to move them over")
+    void noBentoBox() {
+        assertThat(read("paper-plugin.yml")).doesNotContain("BentoBox");
     }
 }

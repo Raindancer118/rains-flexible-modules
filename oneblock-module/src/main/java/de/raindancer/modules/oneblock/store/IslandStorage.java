@@ -24,4 +24,11 @@ public interface IslandStorage {
 
     /** For servers other than the island server: the money the island of this player plays with, if any. */
     Optional<String> modeOf(UUID player);
+
+    /**
+     * The same for many players in one query — the tablist asks for everybody online at once.
+     *
+     * @return empty when the store could not be read; players without an island are left out of the map
+     */
+    Optional<java.util.Map<UUID, String>> modesOf(java.util.Collection<UUID> players);
 }

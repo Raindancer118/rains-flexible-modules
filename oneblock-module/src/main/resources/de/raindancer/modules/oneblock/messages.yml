@@ -73,14 +73,15 @@ oneblock:
     not-here: "<red>Stand on your own island to set its spawn."
 
   go:
-    locked: "<red>That island has no <white><dimension></white> yet."
-    locked-buy: "<red>Your island has no <white><dimension></white> yet. <click:run_command:'/island unlock <id>'><yellow>[Unlock it for <price> shards]</yellow></click>"
+    locked: "<red><white><dimension></white> is still locked on that island."
+    locked-buy: "<red><white><dimension></white> is still locked on your island. <click:run_command:'/island unlock <id>'><yellow>[Unlock it for <price> shards]</yellow></click>"
     held-down: "<red>That island is closed for now — staff are looking after it. Try again later."
     not-invited: "<red>That island is not yours. Ask its team for a <white>/island guest</white> invite."
     failed: "<red>Something stopped you getting there. Try again in a moment."
+    already: "<gray>You are on the way already — one trip at a time."
 
   portal:
-    locked: "<gray>The portal hums, but your island has no <white><dimension></white> yet. <click:run_command:'/island menu'><yellow>[Unlock it]</yellow></click>"
+    locked: "<gray>The portal hums, but <white><dimension></white> is still locked on this island. <click:run_command:'/island menu'><yellow>[Unlock it]</yellow></click>"
 
   money:
     no-island: "<red>No money here without an island. <click:run_command:'/island'><yellow>[Start one]</yellow></click> — and choose whether it plays with the SMP economy."
@@ -90,6 +91,11 @@ oneblock:
   lifecycle:
     taken-down: "<yellow>Staff closed this island for now. Off you go to safety."
     unloaded: "<gray>This island is going to sleep."
+
+  # In front of a name in the tablist, on every server: which money that player's island plays with.
+  tab:
+    pure: "<aqua>⛏</aqua> "
+    smp: "<gold>⛃</gold> "
 
   shards:
     earned: "<light_purple>+<amount> shard</light_purple> <dark_gray>· <gray>the island has <light_purple><shards></light_purple>"
