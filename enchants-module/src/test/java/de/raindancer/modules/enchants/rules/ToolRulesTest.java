@@ -61,7 +61,7 @@ class ToolRulesTest {
     void cooldownsAndLevels() {
         assertThat(ToolRules.launchCooldownMillis(1, 300)).isEqualTo(300_000);
         assertThat(ToolRules.launchCooldownMillis(2, 300)).isEqualTo(200_000);
-        assertThat(ToolRules.launchCooldownMillis(3, 300)).isEqualTo(100_000);
+        assertThat(ToolRules.launchCooldownMillis(3, 300)).as("III: none at all").isZero();
         assertThat(ToolRules.soulboundAfterDeath(3)).isEqualTo(2);
         assertThat(ToolRules.soulboundAfterDeath(1)).isZero();
     }

@@ -111,7 +111,9 @@ public final class ElytraService {
         }
         long now = System.currentTimeMillis();
         long ready = store.launchReady(player);
-        if (now < ready) {
+        // Launch III never waits — not even out the cooldown another elytra's launch left behind.
+        boolean waits = ToolRules.launchCooldownMillis(level, settings.get().launchCooldownSeconds()) > 0;
+        if (waits && now < ready) {
             player.sendActionBar(messages.get("enchants.launch-cooldown", "time", seconds(ready - now)));
             effects.play(player.getUniqueId(), Cues.NO);
             return false;

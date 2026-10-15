@@ -58,7 +58,7 @@ public record EnchantsSettings(
         int launchSpeed,
 
         @In("enchants") @Title("Launch cooldown, seconds") @Range(min = 10, max = 86400)
-        @Describe("How long Launch I waits between launches; level II waits two thirds of it, III a third.")
+        @Describe("How long Launch I waits between launches; level II waits two thirds of it, III not at all.")
         @Key("launch-cooldown-seconds")
         int launchCooldownSeconds,
 

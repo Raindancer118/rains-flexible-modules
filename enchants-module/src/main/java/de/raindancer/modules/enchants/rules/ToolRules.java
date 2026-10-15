@@ -74,10 +74,10 @@ public final class ToolRules {
         return whole + (random.nextDouble() < total - whole ? 1 : 0);
     }
 
-    /** Level I waits the full cooldown, II two thirds of it, III a third. */
+    /** Level I waits the full cooldown, II two thirds of it, III not at all. */
     public static long launchCooldownMillis(int level, int baseSeconds) {
         int clamped = Math.max(1, Math.min(3, level));
-        return baseSeconds * 1000L * (4 - clamped) / 3;
+        return clamped == 3 ? 0 : baseSeconds * 1000L * (4 - clamped) / 3;
     }
 
     public static int soulboundAfterDeath(int level) {

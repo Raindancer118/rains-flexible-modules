@@ -245,6 +245,23 @@ class EnchantsToolsScenarioTest {
             Await.until("its advancement", WAIT, () -> done(server, "launch"));
             tester.sneak(false);
 
+            // --- Launch III: no cooldown, so it launches again straight away ---------------------------------------
+            server.console("item replace entity Tester armor.chest with minecraft:elytra"
+                    + "[minecraft:enchantments={\"rainsenchants:launch\":3}]");
+            for (int launch = 1; launch <= 2; launch++) {
+                server.console("tp Tester 0.5 " + Y + " 0.5");
+                tester.moveTo(0.5, Y, 0.5, true);
+                Await.ticks(20);
+                int pushesBefore = tester.pushes().size();
+                tester.sneak(true);
+                tester.moveTo(0.5, Y + 0.42, 0.5, false);
+                int which = launch;
+                Await.until("launch " + which + " of Launch III", WAIT,
+                        () -> tester.pushes().stream().skip(pushesBefore).anyMatch(p -> p[1] > 2));
+                tester.sneak(false);
+                Await.ticks(10);
+            }
+
             // Known and not this scenario's: Essentials 1.27.0's network welcome reads and writes its document on
             // the server thread at join (EssentialsScenarioTest fails on it). Only those two lines are let through.
             assertThat(server.paper.errorsFrom("RainsCore", "RainsEnchants", "RainsEconomy", "RainsEssentials").stream()
