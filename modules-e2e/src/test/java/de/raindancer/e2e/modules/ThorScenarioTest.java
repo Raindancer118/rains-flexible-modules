@@ -65,7 +65,8 @@ class ThorScenarioTest {
             assertThat(count(server, "netherite_axe")).as("the axe stayed in the inventory").isEqualTo(1);
             server.console("kill @e[type=husk]");
 
-            // --- a Heat-seeking mace: thrown straight ahead, it finds the husk well off to the side -------------------
+            // --- a Heat-seeking mace, set to wide: thrown straight ahead, it finds the husk well off to the side --------
+            thrower.run("heatseeking");
             server.console("summon minecraft:husk 6.5 " + Y + " -10.5 {NoAI:1b,PersistenceRequired:1b,Tags:[\"sought\"]}");
             server.console("clear Thrower");
             server.console("give Thrower mace[enchantments={\"rainsenchants:thor\":3,\"rainsenchants:heat_seeking\":3}]");

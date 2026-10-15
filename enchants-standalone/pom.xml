@@ -46,7 +46,8 @@
         <!-- 0.21.1: Autopilot asks before take-off whether the pilot may be teleported there (claims can refuse) and goes back to the start if the landing is refused; no distances to players in its menu; a pilot in flight cannot teleport, interact or open anything as a spectator (security review). -->
         <!-- 0.22.0: Volley on Thor's mace and axes — two or four more hammers fanned out, each striking and flying back; Heat-seeking shots of one volley each look along their own line and spread over different targets. -->
         <!-- 0.23.0: Autopilot's mannequin glides on its elytra instead of swimming, takes off like a rocket (no trident sound); three levels: the cooldown (now 60 s) at I, half at II, none at III. -->
-        <plugin.version>0.23.0</plugin.version>
+        <!-- 0.24.0: Heat-seeking has two modes, switched per player with /heatseeking: precise (the default — locks only within 5 degrees of the crosshair) and wide (the level's cone, up to 45 degrees at III). -->
+        <plugin.version>0.24.0</plugin.version>
     </properties>
 
     <dependencies>

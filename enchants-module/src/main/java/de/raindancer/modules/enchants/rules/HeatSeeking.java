@@ -18,6 +18,14 @@ public final class HeatSeeking {
     }
 
     /** Half the cone's opening around the aim, in degrees. */
+    /** How far off the crosshair a precise shot still locks on, in degrees: a near miss, not something else. */
+    public static final double PRECISE_CONE = 5;
+
+    /** The cone for a shooter's mode: precise takes what the crosshair is on, wide the level's own cone. */
+    public static double cone(int level, boolean precise) {
+        return precise ? PRECISE_CONE : cone(level);
+    }
+
     public static double cone(int level) {
         int clamped = Math.max(1, Math.min(3, level));
         return clamped == 3 ? 45 : 2 + 8 * clamped;

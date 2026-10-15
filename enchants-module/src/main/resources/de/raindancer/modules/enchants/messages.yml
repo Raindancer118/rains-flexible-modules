@@ -41,3 +41,5 @@ enchants:
   autopilot-off: "<aqua>Autopilot engaged. <gray>Sit back and enjoy the flight."
   autopilot-landed: "<aqua>Touchdown. <gray>You have the controls."
   autopilot-not-allowed: "<red>You may not land there."
+  heat-seeking-precise: "<red>Heat-seeking: <white>Precise</white> <gray>— it takes what your crosshair is on. <dark_gray>/heatseeking for wide"
+  heat-seeking-wide: "<red>Heat-seeking: <white>Wide</white> <gray>— it finds something to hit near where you aim. <dark_gray>/heatseeking for precise"

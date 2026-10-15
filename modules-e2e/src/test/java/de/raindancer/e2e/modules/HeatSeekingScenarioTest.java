@@ -42,7 +42,7 @@ class HeatSeekingScenarioTest {
     }
 
     @Test
-    @DisplayName("a plain arrow aimed past the zombie misses; a heat-seeking one locks on and hits it")
+    @DisplayName("a plain arrow aimed past the husk misses, so does a precise heat-seeking one; a wide one locks on and hits it")
     void missileLock() {
         try (Server server = Server.start("heat-seeking", List.of("enchants-standalone:RainsEnchants-.*"),
                 List.of("Enchants are up"))) {
@@ -60,8 +60,18 @@ class HeatSeekingScenarioTest {
             server.console("kill @e[type=husk]");
             server.console("kill @e[type=arrow]");
 
+            // Precise, as everybody starts: it takes what the crosshair is on, and the husk is well off it.
+            shoot(server, archer, "bow[enchantments={\"rainsenchants:heat_seeking\":3}]", "precise");
+            assertThat(health(server, "precise")).as("precise: nothing near the crosshair, no lock").isEqualTo(20.0);
+            server.console("kill @e[type=husk]");
+            server.console("kill @e[type=arrow]");
+
+            archer.forgetChat();
+            archer.run("heatseeking");
+            Await.until("now wide", java.time.Duration.ofSeconds(5),
+                    () -> archer.chatText().stream().anyMatch(line -> line.contains("Wide")));
             shoot(server, archer, "bow[enchantments={\"rainsenchants:heat_seeking\":3}]", "locked");
-            assertThat(health(server, "locked")).as("the heat-seeking arrow hit").isBetween(0.0, 19.9);
+            assertThat(health(server, "locked")).as("wide: the heat-seeking arrow found it and hit").isBetween(0.0, 19.9);
         }
     }
 }

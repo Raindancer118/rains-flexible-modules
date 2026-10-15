@@ -61,6 +61,23 @@ public final class HeatSeekingService {
         this.advancements = advancements;
     }
 
+    private static final org.bukkit.NamespacedKey WIDE = new org.bukkit.NamespacedKey("rainsenchants", "heat_seeking_wide");
+
+    /** Whether the player's shots take only what the crosshair is on — how everybody starts. */
+    public static boolean precise(Player player) {
+        return !player.getPersistentDataContainer().has(WIDE);
+    }
+
+    /** Switches between precise and wide. @return whether it is precise now */
+    public static boolean toggle(Player player) {
+        if (precise(player)) {
+            player.getPersistentDataContainer().set(WIDE, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+            return false;
+        }
+        player.getPersistentDataContainer().remove(WIDE);
+        return true;
+    }
+
     /** A projectile left a player's hands. */
     public void launched(Player shooter, Projectile projectile) {
         int level = CustomEnchantments.levelOn(weaponOf(shooter, projectile), RainsEnchants.HEAT_SEEKING);
@@ -154,7 +171,8 @@ public final class HeatSeekingService {
             candidates.add(new HeatSeeking.Candidate(each.getUniqueId(), middle.getX(), middle.getY(), middle.getZ()));
         }
         return HeatSeeking.pick(new double[]{eye.getX(), eye.getY(), eye.getZ()},
-                new double[]{look.getX(), look.getY(), look.getZ()}, candidates, HeatSeeking.cone(level), range, taken)
+                new double[]{look.getX(), look.getY(), look.getZ()}, candidates, HeatSeeking.cone(level, precise(shooter)),
+                range, taken)
                 .map(byId::get);
     }
 

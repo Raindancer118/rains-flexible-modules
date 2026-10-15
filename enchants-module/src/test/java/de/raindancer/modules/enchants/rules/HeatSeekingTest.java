@@ -103,4 +103,14 @@ class HeatSeekingTest {
         assertThat(HeatSeeking.pick(eye, look, java.util.List.of(ahead), 45, 50, java.util.Set.of(ahead.id())))
                 .as("nobody else there: the same one again").hasValue(ahead.id());
     }
+
+    @Test
+    @DisplayName("precise takes only what the crosshair is on, at every level; wide is the level's own cone")
+    void modes() {
+        for (int level = 1; level <= 3; level++) {
+            assertThat(HeatSeeking.cone(level, true)).isEqualTo(HeatSeeking.PRECISE_CONE);
+            assertThat(HeatSeeking.cone(level, false)).isEqualTo(HeatSeeking.cone(level));
+        }
+        assertThat(HeatSeeking.PRECISE_CONE).isLessThan(HeatSeeking.cone(1));
+    }
 }
