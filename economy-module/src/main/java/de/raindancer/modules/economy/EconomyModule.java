@@ -87,7 +87,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.41.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.42.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -208,7 +208,7 @@ public final class EconomyModule implements FlexModule {
         InterestService interest = new InterestService(economy, messages, System::currentTimeMillis, now);
         DailyService daily = new DailyService(economy, messages, effects, Clock.systemDefaultZone(), now);
         LeaderboardService leaderboard = new LeaderboardService(book, System::currentTimeMillis);
-        serveTheNetwork(context, bankClient, leaderboard, payments, settings);
+        serveTheNetwork(context, bankClient, leaderboard, payments, settings, shop);
         var sidebar = new de.raindancer.modules.economy.service.SidebarService(economy, leaderboard,
                 context.core().scoreboards(), now);
         var displays = new de.raindancer.modules.economy.service.LeaderboardDisplayService(context.plugin(), server,
@@ -432,11 +432,20 @@ public final class EconomyModule implements FlexModule {
      * is {@code /balance}, {@code /pay} and {@code /baltop}, each a question to the bank.
      */
     private void enableClient(ModuleContext context, BankClient bank) {
+        SettingsStore<ClientShopSettings> clientSettings = context.settings(ClientShopSettings.class,
+                ClientShopSettings.DEFAULTS);
+        java.util.Optional<de.raindancer.modules.economy.service.ClientShop> shop = java.util.Optional.empty();
+        if (clientSettings.current().shopHere() && context.core().networkCalls().isPresent()) {
+            var wire = new de.raindancer.modules.economy.service.ShopWire.Client(context.core().networkCalls().get(),
+                    bank::bankServer, java.time.Duration.ofSeconds(6));
+            shop = java.util.Optional.of(new de.raindancer.modules.economy.service.ClientShop(context.plugin(),
+                    context.core().messages(), context.core().effects(), wire, bank::bankName));
+        }
         EconomyCommands.readyClient(new EconomyClient(context.plugin(), context.plugin().getServer(), context.core().messages(),
-                context.core(), bank, true));
+                context.core(), bank, true, shop, context.chat().brand()));
         watchBank(context, bank, true);
-        log.info("The economy runs here as a client: {} keeps the network's money. /balance, /pay and /baltop go to it; "
-                + "everything else is on that server.", bank.bankName());
+        log.info("The economy runs here as a client: {} keeps the network's money. /balance, /pay and /baltop go to it{}; "
+                + "everything else is on that server.", bank.bankName(), shop.isPresent() ? ", and so do /shop and /sell" : "");
     }
 
     /** The bank can be moved with {@code /network bank here confirm}: look again every few seconds. */
@@ -456,7 +465,7 @@ public final class EconomyModule implements FlexModule {
 
     /** On a network the bank answers for everybody: the richest list, and payees told wherever they are. */
     private void serveTheNetwork(ModuleContext context, BankClient bank, LeaderboardService leaderboard,
-                                 PaymentService payments, SettingsStore<EconomySettings> settings) {
+                                 PaymentService payments, SettingsStore<EconomySettings> settings, ShopService shop) {
         payments.remote((player, key, values) -> context.core().networkPlayers().ifPresent(players ->
                 Scheduling.async(context.plugin(), () -> players.tell(player, key, values))));
         if (bank == null) {
@@ -468,8 +477,13 @@ public final class EconomyModule implements FlexModule {
                         de.raindancer.core.social.economy.NetworkEconomy.ROLE)).filter(self::equals).isPresent(),
                 () -> settings.current().baltopEnabled(),
                 task -> Scheduling.global(context.plugin(), task))::close));
+        // The shop for servers that show it without being the bank: priced and booked here, on the server thread.
+        context.core().networkCalls().ifPresent(calls -> de.raindancer.modules.economy.service.ShopWire.serve(calls, shop,
+                () -> context.core().networkRoles().flatMap(roles -> roles.holder(
+                        de.raindancer.core.social.economy.NetworkEconomy.ROLE)).filter(self::equals).isPresent(),
+                task -> Scheduling.global(context.plugin(), task)).forEach(subscription -> context.closeWith(subscription::close)));
         EconomyCommands.readyClient(new EconomyClient(context.plugin(), context.plugin().getServer(), context.core().messages(),
-                context.core(), bank, false));
+                context.core(), bank, false, java.util.Optional.empty(), context.chat().brand()));
         watchBank(context, bank, false);
     }
 
@@ -699,7 +713,8 @@ public final class EconomyModule implements FlexModule {
 
         @Override
         public void shopSearch(Player viewer, String text) {
-            ShopItemsMenu.search(services, viewer, new ShopMenu(services, viewer, null), text).open();
+            new de.raindancer.modules.economy.screen.ShopSearchMenu(services, viewer, new ShopMenu(services, viewer, null),
+                    text).open();
         }
 
         @Override

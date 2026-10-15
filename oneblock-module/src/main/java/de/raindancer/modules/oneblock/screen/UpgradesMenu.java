@@ -45,8 +45,9 @@ public final class UpgradesMenu extends PaginatedMenu<Upgrade> implements IOneBl
 
     @Override
     protected Component title() {
-        return Component.text("Upgrades · " + services.messages().raw(dimension.nameKey()).replaceAll("<[^>]+>", ""),
-                NamedTextColor.DARK_GRAY);
+        // Just "Upgrades": with the brand in front, any dimension's name runs past the title's 146 pixels. Which one this
+        // is, the toolbar says in green.
+        return Component.text("Upgrades", NamedTextColor.DARK_GRAY);
     }
 
     @Override
@@ -87,10 +88,11 @@ public final class UpgradesMenu extends PaginatedMenu<Upgrade> implements IOneBl
         PurchaseRule.Verdict verdict = purchases.upgrade(islands.currentContent(), island.get(), viewer.getUniqueId(),
                 dimension, upgrade.id());
         if (!verdict.allowed()) {
-            return Icons.locked(icon, reason(verdict.refusal().orElse(""), island.get(), next));
+            ItemStack locked = Icons.locked(icon, reason(verdict.refusal().orElse(""), island.get(), next));
+            return level > 0 ? levelled(locked, level) : locked;
         }
         lore.add("<yellow>Click to buy level " + (level + 1) + ".");
-        return Icons.of(upgrade.icon(), (level > 0 ? "<green>" : "<white>") + upgrade.name(), lore);
+        return levelled(Icons.of(upgrade.icon(), (level > 0 ? "<green>" : "<white>") + upgrade.name(), lore), level);
     }
 
     @Override
@@ -125,6 +127,16 @@ public final class UpgradesMenu extends PaginatedMenu<Upgrade> implements IOneBl
                     + " shards", "<gray>Earned by breaking: one every", "<gray>"
                     + islands.currentContent().shardEvery() + " blocks, the team's together."), click -> { });
         }
+    }
+
+    /** The level on the stack's count and a glint once bought: which upgrades the island has reads at a glance. */
+    private static ItemStack levelled(ItemStack icon, int level) {
+        if (level <= 0) {
+            return icon;
+        }
+        icon.setAmount(Math.min(level, icon.getMaxStackSize()));
+        icon.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
+        return icon;
     }
 
     private String what(Upgrade upgrade) {

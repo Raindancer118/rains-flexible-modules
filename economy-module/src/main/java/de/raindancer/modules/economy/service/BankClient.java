@@ -79,6 +79,14 @@ public final class BankClient {
         return reachable;
     }
 
+    /**
+     * The bank's server id while it is another server — who a question for the bank goes to. From what {@link #refresh}
+     * last read, so it costs nothing on the server thread.
+     */
+    public Optional<String> bankServer() {
+        return keeper.filter(server -> !server.equals(self));
+    }
+
     /** What players know the bank's server as. */
     public String bankName() {
         return keeper.map(serverName).orElse("the bank server");

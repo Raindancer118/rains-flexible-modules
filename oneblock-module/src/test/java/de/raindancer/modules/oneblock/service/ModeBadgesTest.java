@@ -42,8 +42,8 @@ class ModeBadgesTest {
         ModeBadges badges = new ModeBadges(messages, null);
         badges.refresh(List.of(ada, bo, cy), () -> Optional.of(Map.of(ada, "smp", bo, "pure", cy, "undecided")));
 
-        assertThat(plain(badges, ada)).contains("⛃");
-        assertThat(plain(badges, bo)).contains("⛏");
+        assertThat(plain(badges, ada)).contains("◆");
+        assertThat(plain(badges, bo)).contains("✦");
         assertThat(plain(badges, cy)).isEmpty();
         assertThat(plain(badges, UUID.randomUUID())).isEmpty();
     }
@@ -54,7 +54,7 @@ class ModeBadgesTest {
         ModeBadges badges = new ModeBadges(messages, null);
         badges.refresh(List.of(ada, bo), () -> Optional.of(Map.of(ada, "smp", bo, "pure")));
         badges.refresh(List.of(ada, bo), Optional::empty);
-        assertThat(plain(badges, ada)).contains("⛃");
+        assertThat(plain(badges, ada)).contains("◆");
 
         badges.refresh(List.of(ada), () -> Optional.of(Map.of(ada, "smp")));
         assertThat(plain(badges, bo)).isEmpty();
@@ -67,7 +67,7 @@ class ModeBadgesTest {
                 : Optional.empty());
         badges.refresh(List.of(ada), () -> Optional.of(Map.of(ada, "smp")));
 
-        assertThat(plain(badges, ada)).contains("⛏");
+        assertThat(plain(badges, ada)).contains("✦");
         assertThat(plain(badges, bo)).isEmpty();
     }
 }

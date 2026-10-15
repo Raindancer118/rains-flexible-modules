@@ -73,7 +73,7 @@ public final class RainsEnchantMenu extends PaginatedMenu<ShopService.RainsOffer
         refresh();
     }
 
-    private static String roman(int level) {
+    static String roman(int level) {
         return switch (level) {
             case 1 -> "I";
             case 2 -> "II";

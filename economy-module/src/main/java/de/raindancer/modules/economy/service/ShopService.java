@@ -1,5 +1,7 @@
 package de.raindancer.modules.economy.service;
 
+import de.raindancer.modules.economy.util.Mini;
+
 import de.raindancer.core.content.items.NotForSpawners;
 import de.raindancer.core.data.settings.SettingsStore;
 import de.raindancer.core.social.economy.Currency;
@@ -51,7 +53,7 @@ import java.util.function.Supplier;
  * if the payment cannot land. Only plain items sell — no names, no enchantments, no damage — so a renamed
  * or worn item is never valued as a new one, and cash is never sold as its material.
  */
-public final class ShopService implements IEconomyService {
+public final class ShopService implements IEconomyService, ShopDesk {
 
     private final Server server;
     private final RainEconomy economy;
@@ -394,11 +396,15 @@ public final class ShopService implements IEconomyService {
 
     /** Why the shop will not pay {@code total} more to this player today, if it will not: a message key and what is left. */
     Optional<Map.Entry<String, Money>> overBudget(Player player, Money total) {
-        return overBudget(player, total, Money.ZERO);
+        return overBudget(player.getUniqueId(), total, Money.ZERO);
+    }
+
+    private Optional<Map.Entry<String, Money>> overBudget(Player player, Money total, Money pendingByAll) {
+        return overBudget(player.getUniqueId(), total, pendingByAll);
     }
 
     /** @param pendingByAll sold but not yet paid, by everybody — it counts against the server's budget as if paid */
-    private Optional<Map.Entry<String, Money>> overBudget(Player player, Money total, Money pendingByAll) {
+    private Optional<Map.Entry<String, Money>> overBudget(UUID player, Money total, Money pendingByAll) {
         de.raindancer.modules.economy.SupplySettings live = supplied();
         if (!live.sellBudgets()) {
             return Optional.empty();
@@ -406,7 +412,7 @@ public final class ShopService implements IEconomyService {
         Currency currency = settings.currency();
         Money mine = de.raindancer.modules.economy.SupplySettings.money(live.sellBudgetPerPlayer(), currency);
         if (mine.isPositive()) {
-            Money left = mine.minus(economy.book().today(player.getUniqueId(), SELL_SOURCE)).max(Money.ZERO);
+            Money left = mine.minus(economy.book().today(player, SELL_SOURCE)).max(Money.ZERO);
             if (total.isMoreThan(left)) {
                 return Optional.of(Map.entry("economy.shop.budget-yours", left));
             }
@@ -810,7 +816,8 @@ public final class ShopService implements IEconomyService {
     }
 
     /** What the shop hands over: a spawn egg it sold hatches a mob but never sets a spawner. */
-    private static List<ItemStack> sold(List<ItemStack> stacks) {
+    /** Marks what the shop hands out — a spawn egg bought is no spawner egg. Also for a shop shown on another server. */
+    public static List<ItemStack> sold(List<ItemStack> stacks) {
         stacks.forEach(stack -> {
             if (stack.getType().name().endsWith("_SPAWN_EGG")) {
                 NotForSpawners.mark(stack);
@@ -819,7 +826,7 @@ public final class ShopService implements IEconomyService {
         return stacks;
     }
 
-    private static List<ItemStack> stacksOf(Material material, int amount) {
+    public static List<ItemStack> stacksOf(Material material, int amount) {
         List<ItemStack> stacks = new ArrayList<>();
         int max = Math.max(1, material.getMaxStackSize());
         int left = amount;
@@ -849,6 +856,11 @@ public final class ShopService implements IEconomyService {
 
     /** How many plain items of this kind a player carries. */
     public int carrying(Player player, Material material) {
+        return carryingIn(player, material);
+    }
+
+    /** Plain stacks of it the player carries — what the shop would buy. */
+    public static int carryingIn(Player player, Material material) {
         int count = 0;
         for (ItemStack stack : player.getInventory().getStorageContents()) {
             if (sellableStack(stack, material)) {
@@ -858,7 +870,7 @@ public final class ShopService implements IEconomyService {
         return count;
     }
 
-    static boolean sellableStack(ItemStack stack, Material material) {
+    public static boolean sellableStack(ItemStack stack, Material material) {
         return stack != null && stack.getType() == material && !CashTags.isCash(stack)
                 && (stack.isSimilar(new ItemStack(material))
                 || stack.isSimilar(NotForSpawners.mark(new ItemStack(material))));
@@ -1297,7 +1309,8 @@ public final class ShopService implements IEconomyService {
     }
 
     /** Takes up to this many plain items, last slots first, so the hotbar is emptied last. */
-    private static int take(PlayerInventory inventory, Material material, int wanted) {
+    /** Takes up to {@code wanted} plain stacks of it; how many it took. */
+    public static int take(PlayerInventory inventory, Material material, int wanted) {
         ItemStack[] contents = inventory.getStorageContents();
         int left = wanted;
         for (int i = contents.length - 1; i >= 0 && left > 0; i--) {
@@ -1317,7 +1330,7 @@ public final class ShopService implements IEconomyService {
         return wanted - left;
     }
 
-    private static void giveBack(Player player, Material material, int count) {
+    public static void giveBack(Player player, Material material, int count) {
         player.getInventory().addItem(stacksOf(material, count).toArray(ItemStack[]::new)).values()
                 .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
     }
@@ -1387,5 +1400,140 @@ public final class ShopService implements IEconomyService {
         return registry.getTag(io.papermc.paper.registry.keys.tags.EnchantmentTagKeys.TREASURE)
                 .contains(io.papermc.paper.registry.TypedKey.create(
                         io.papermc.paper.registry.RegistryKey.ENCHANTMENT, enchantment.getKey()));
+    }
+
+    // ---------------------------------------------------------------------------- for other servers
+
+    /**
+     * The shop's items with this player's prices for one, for a server that shows the shop without being the bank.
+     * Plain items and spawn eggs; books, potions, packs and the rest stay on the bank's own {@code /shop}.
+     */
+    @Override
+    public List<ShopDesk.Line> catalogue(UUID player) {
+        EconomySettings live = settings;
+        List<ShopDesk.Line> lines = new ArrayList<>();
+        for (de.raindancer.core.ui.choose.Category category : de.raindancer.core.ui.choose.Category.values()) {
+            if (!live.categoryOpen(category)) {
+                continue;
+            }
+            for (String name : prices.tradableIn(category)) {
+                line(player, name, category.name().toLowerCase(java.util.Locale.ROOT)).ifPresent(lines::add);
+            }
+        }
+        if (live.spawnEggs()) {
+            for (String name : prices.tradableEggs()) {
+                line(player, name, "eggs").ifPresent(lines::add);
+            }
+        }
+        return lines;
+    }
+
+    private Optional<ShopDesk.Line> line(UUID player, String name, String drawer) {
+        Material material = Material.matchMaterial(name);
+        if (material == null || !material.isItem()) {
+            return Optional.empty();
+        }
+        Currency currency = settings.currency();
+        YourPrice yours = priceFor(player, material);
+        PriceTag tag = yours.shop();
+        return Optional.of(new ShopDesk.Line(material.name(), drawer, tag.buyable(), tag.sellable(),
+                tag.buyable() ? de.raindancer.modules.economy.util.PriceLines.amount(currency, tag.buy(), yours.buy()) : "",
+                tag.sellable() ? de.raindancer.modules.economy.util.PriceLines.amount(currency, tag.sell(), yours.sell()) : "",
+                (int) Math.round((prices.multiplier(material.name()) - 1) * 100)));
+    }
+
+    @Override
+    public ShopDesk.Quote quote(UUID player, String name, List<Integer> buyCounts, List<Integer> sellCounts) {
+        Material material = Material.matchMaterial(name == null ? "" : name);
+        if (material == null || !material.isItem()) {
+            return new ShopDesk.Quote(false, false, List.of(), List.of(), List.of());
+        }
+        Currency currency = settings.currency();
+        YourPrice yours = priceFor(player, material);
+        PriceTag tag = yours.shop();
+        List<ShopDesk.Price> buys = new ArrayList<>();
+        for (int count : buyCounts) {
+            yours.buyFor(count).ifPresent(money -> buys.add(new ShopDesk.Price(count,
+                    de.raindancer.modules.economy.util.PriceLines.amount(currency, tag.buy().times(count), money),
+                    money.minor())));
+        }
+        List<ShopDesk.Price> sells = new ArrayList<>();
+        for (int count : sellCounts) {
+            yours.sellFor(count).ifPresent(money -> sells.add(new ShopDesk.Price(count,
+                    de.raindancer.modules.economy.util.PriceLines.amount(currency, tag.sell().times(count), money),
+                    money.minor())));
+        }
+        List<String> notes = new ArrayList<>(de.raindancer.modules.economy.util.PriceLines.buyNotes(yours));
+        notes.addAll(de.raindancer.modules.economy.util.PriceLines.sellNotes(currency, sellBreakdown(player, material)));
+        return new ShopDesk.Quote(tag.buyable(), tag.sellable(), buys, sells, notes);
+    }
+
+    /** A purchase for a player on another server: priced and booked here; that server hands the items over. */
+    @Override
+    public ShopDesk.Settled buy(UUID player, String name, int quantity, long most) {
+        EconomySettings live = settings;
+        Currency currency = live.currency();
+        Material material = Material.matchMaterial(name == null ? "" : name);
+        if (material == null || !material.isItem()) {
+            return ShopDesk.Settled.refused("economy.shop.not-for-sale", "item", String.valueOf(name));
+        }
+        String item = Catalogue.readable(material.name());
+        PriceTag tag = tag(material);
+        if (!tag.buyable()) {
+            return saleStopped(material).map(why -> ShopDesk.Settled.refused("economy.shop.sale-stopped", "item", item,
+                    "reason", why)).orElseGet(() -> ShopDesk.Settled.refused("economy.shop.not-for-sale", "item", item));
+        }
+        int amount = Math.max(1, quantity);
+        Optional<Money> total = priceFor(player, material).buyFor(amount);
+        if (total.isEmpty()) {
+            return ShopDesk.Settled.refused("economy.not-an-amount");
+        }
+        if (total.get().minor() > most) {
+            return ShopDesk.Settled.refused("economy.shop.price-moved", "price", Mini.of(currency.render(total.get())));
+        }
+        EconomyResult result = economy.move(player, total.get().negate(), TransactionKind.BUY, amount + " × " + item);
+        if (!result.succeeded()) {
+            return ShopDesk.Settled.refused(Outcomes.keyOf(result), "amount", Mini.of(currency.render(total.get())),
+                    "balance", Mini.of(currency.render(result.balance())), "player", "");
+        }
+        if (live.dynamicPrices() && tag.source() != PriceTag.Source.CUSTOM) {
+            market.traded(material.name(), amount, prices.stackSizeOf(material.name()),
+                    live.pressurePerStackClamped(), true, live.recoveryHoursClamped());
+        }
+        return new ShopDesk.Settled(true, "economy.shop.bought", List.of("count", String.valueOf(amount), "item", item,
+                "amount", Mini.of(currency.render(total.get()))));
+    }
+
+    /** A sale for a player on another server, who already handed the items over there; booked here. */
+    @Override
+    public ShopDesk.Settled sell(UUID player, String name, int quantity) {
+        EconomySettings live = settings;
+        Currency currency = live.currency();
+        Material material = Material.matchMaterial(name == null ? "" : name);
+        if (material == null || !material.isItem() || !tag(material).sellable()) {
+            return ShopDesk.Settled.refused("economy.shop.not-bought", "item",
+                    material == null ? String.valueOf(name) : Catalogue.readable(material.name()));
+        }
+        if (!live.sellingEnabled()) {
+            return ShopDesk.Settled.refused("economy.shop.selling-off");
+        }
+        int amount = Math.max(1, quantity);
+        Optional<Money> worth = priceFor(player, material).sellFor(amount);
+        if (worth.isEmpty() || !worth.get().isPositive()) {
+            return ShopDesk.Settled.refused("economy.not-an-amount");
+        }
+        Optional<Map.Entry<String, Money>> budget = overBudget(player, worth.get(), Money.ZERO);
+        if (budget.isPresent()) {
+            return ShopDesk.Settled.refused(budget.get().getKey(), "left", Mini.of(currency.render(budget.get().getValue())));
+        }
+        String what = amount + " × " + Catalogue.readable(material.name());
+        EconomyResult result = economy.move(player, worth.get(), TransactionKind.SELL, what, SELL_SOURCE);
+        if (!result.succeeded()) {
+            return ShopDesk.Settled.refused(Outcomes.keyOf(result), "amount", Mini.of(currency.render(worth.get())),
+                    "balance", Mini.of(currency.render(result.balance())), "player", "");
+        }
+        recordSold(player, Map.of(material, amount));
+        return new ShopDesk.Settled(true, "economy.shop.sold", List.of("count", String.valueOf(amount), "what", what,
+                "amount", Mini.of(currency.render(worth.get()))));
     }
 }

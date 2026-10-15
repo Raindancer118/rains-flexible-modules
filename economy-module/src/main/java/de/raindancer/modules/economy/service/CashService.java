@@ -253,7 +253,7 @@ public final class CashService implements IEconomyService {
     }
 
     /** Whether all of these would go into the inventory, merging into partial stacks as the game does. */
-    static boolean fits(PlayerInventory inventory, List<ItemStack> items) {
+    public static boolean fits(PlayerInventory inventory, List<ItemStack> items) {
         ItemStack[] slots = inventory.getStorageContents();
         ItemStack[] simulated = new ItemStack[slots.length];
         for (int i = 0; i < slots.length; i++) {

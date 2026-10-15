@@ -56,7 +56,7 @@
         <!-- 0.38.0: on a network — the cash key is the network's secret (old cash.key carried over, money stays good), /pay from other servers through the bank. -->
         <!-- 0.39.0: a server that is not the network's bank runs /balance, /pay and /baltop against it (no ledger of its own); the bank answers /baltop and tells payees on other servers; pay/gamble waits follow the player; the ledger loads and saves on PostgreSQL. -->
         <!-- 0.39.1: PostgreSQL fixes: no INSERT OR IGNORE (auction claims, notes, gamble insurance), the flows report reads its boolean column as one; every store test runs on both dialects. -->
-        <plugin.version>0.41.0</plugin.version>
+        <plugin.version>0.42.0</plugin.version>
     </properties>
 
     <dependencies>

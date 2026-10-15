@@ -32,10 +32,10 @@ import java.util.Optional;
 public final class PotionMenu extends PaginatedMenu<ShopService.PotionOffer> implements IEconomyScreen {
 
     /** What shift click buys: a handful, since a potion does not stack. */
-    private static final int HANDFUL = 5;
+    static final int HANDFUL = 5;
     /** Arrows come by the eight a crafting makes, and by the stack. */
-    private static final int ARROWS = 8;
-    private static final int ARROW_STACK = 64;
+    static final int ARROWS = 8;
+    static final int ARROW_STACK = 64;
 
     private final EconomyServices services;
     private final List<ShopService.PotionOffer> offers;

@@ -47,7 +47,7 @@ class SidebarServiceTest {
     void own() {
         List<String> lines = plain(sidebar.draw(Optional.of(mine(true)), room -> List.of()));
 
-        assertThat(lines).contains("Your island", "You: Owner", "⛃ SMP economy", "Shards 1,234", "In the nether",
+        assertThat(lines).contains("Your island", "You: Owner", "◆ SMP economy", "Shards 1,234", "In the nether",
                 "5,678 blocks broken", "Team 2/6 · 1 online");
         assertThat(lines.size()).isLessThanOrEqualTo(Sidebar.MAX_LINES);
     }
@@ -58,7 +58,7 @@ class SidebarServiceTest {
         IslandView view = new IslandView(true, false, "Ada", 0, 1, 6, 1, EconomyMode.PURE, 9,
                 Optional.of(IslandDimension.OVERWORLD), 3);
         assertThat(plain(sidebar.draw(Optional.of(view), room -> List.of())))
-                .contains("Ada's island", "You: Visitor", "⛏ Pure");
+                .contains("Ada's island", "You: Visitor", "✦ Pure");
     }
 
     @Test

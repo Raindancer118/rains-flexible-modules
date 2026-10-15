@@ -11,10 +11,10 @@ oneblock:
 
   mode:
     pure:
-      badge: "<aqua>⛏ Pure</aqua>"
+      badge: "<aqua>✦ Pure</aqua>"
       name: "<aqua>Pure OneBlock</aqua>"
     smp:
-      badge: "<gold>⛃ SMP economy</gold>"
+      badge: "<gold>◆ SMP economy</gold>"
       name: "<gold>the SMP economy</gold>"
     undecided:
       badge: "<gray>? not chosen yet</gray>"
@@ -94,8 +94,8 @@ oneblock:
 
   # In front of a name in the tablist, on every server: which money that player's island plays with.
   tab:
-    pure: "<aqua>⛏</aqua> "
-    smp: "<gold>⛃</gold> "
+    pure: "<aqua>✦</aqua> "
+    smp: "<gold>◆</gold> "
 
   shards:
     earned: "<light_purple>+<amount> shard</light_purple> <dark_gray>· <gray>the island has <light_purple><shards></light_purple>"
@@ -120,12 +120,12 @@ oneblock:
     sent-team: "<green>Invited <white><player></white> to your team. They have <white><minutes></white> minute(s) to say yes."
     sent-guest: "<green>Invited <white><player></white> to visit your island. They have <white><minutes></white> minute(s)."
     received-team:
-      pure: "<white><player></white> wants you on their OneBlock team <dark_gray>(<aqua>⛏ Pure</aqua><dark_gray>: no SMP money there)</dark_gray>. <click:run_command:'/island accept <player>'><green>[Join]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s), from any server."
-      smp: "<white><player></white> wants you on their OneBlock team <dark_gray>(<gold>⛃ SMP economy</gold><dark_gray>)</dark_gray>. <click:run_command:'/island accept <player>'><green>[Join]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s), from any server."
+      pure: "<white><player></white> wants you on their OneBlock team <dark_gray>(<aqua>✦ Pure</aqua><dark_gray>: no SMP money there)</dark_gray>. <click:run_command:'/island accept <player>'><green>[Join]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s), from any server."
+      smp: "<white><player></white> wants you on their OneBlock team <dark_gray>(<gold>◆ SMP economy</gold><dark_gray>)</dark_gray>. <click:run_command:'/island accept <player>'><green>[Join]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s), from any server."
       undecided: "<white><player></white> wants you on their OneBlock team <dark_gray>(money not chosen yet)</dark_gray>. <click:run_command:'/island accept <player>'><green>[Join]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s), from any server."
     received-guest:
-      pure: "<white><player></white> invites you to look round their <aqua>⛏ Pure</aqua> OneBlock island. <click:run_command:'/island accept <player>'><green>[Visit]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s)."
-      smp: "<white><player></white> invites you to look round their <gold>⛃ SMP economy</gold> OneBlock island. <click:run_command:'/island accept <player>'><green>[Visit]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s)."
+      pure: "<white><player></white> invites you to look round their <aqua>✦ Pure</aqua> OneBlock island. <click:run_command:'/island accept <player>'><green>[Visit]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s)."
+      smp: "<white><player></white> invites you to look round their <gold>◆ SMP economy</gold> OneBlock island. <click:run_command:'/island accept <player>'><green>[Visit]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s)."
       undecided: "<white><player></white> invites you to look round their OneBlock island. <click:run_command:'/island accept <player>'><green>[Visit]</green></click> <click:run_command:'/island deny <player>'><red>[No thanks]</red></click> <gray>Open for <minutes> minute(s)."
     accepted: "<green><white><player></white> said yes and is on the way."
     declined: "<yellow><white><player></white> turned your invite down. The block still likes you."
@@ -171,9 +171,9 @@ oneblock:
     not-here: "<red>The islands live on the island server — run this there."
     no-such-island: "<red>No island by that name or id. A member's name works, or the start of its id from /islandadmin list."
     bad-time: "<red>'<white><time></white>' is no length of time. Try 30m, 2h, 1d or forever."
-    held-up: "<green><white><player></white>'s island stays up for <white><time></white>, whoever plays."
+    held-up: "<green><white><player></white>'s island stays up <white><time></white>, whoever plays."
     held-up-forever: "<green><white><player></white>'s island stays up for good, whoever plays. <white>/islandadmin release</white> lets it go."
-    held-down: "<yellow><white><player></white>'s island stays down for <white><time></white>; only staff get on."
+    held-down: "<yellow><white><player></white>'s island stays down <white><time></white>; only staff get on."
     held-down-forever: "<yellow><white><player></white>'s island stays down for good; only staff get on. <white>/islandadmin release</white> opens it again."
     released: "<green><white><player></white>'s island is back to normal: up while played, asleep after."
     not-held: "<gray>Nothing holds <white><player></white>'s island."

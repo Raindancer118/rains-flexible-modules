@@ -105,7 +105,8 @@ public final class IslandMenu extends Menu implements IOneBlockScreen {
         } else {
             consequences.add("<gray>You leave " + island.ownerName() + "'s team.");
         }
-        danger(Icons.of(Material.BARRIER, owner ? "<red>Give up the island" : "<red>Leave the island",
+        // Not a barrier: that is the close button two slots away, and the two must not look alike.
+        danger(Icons.of(owner ? Material.TNT : Material.OAK_DOOR, owner ? "<red>Give up the island" : "<red>Leave the island",
                         consequences.toArray(String[]::new)),
                 click -> new ConfirmScreen(islands.brand(), viewer, this,
                         owner ? "Give up your island?" : "Leave the island?", consequences, () -> {
