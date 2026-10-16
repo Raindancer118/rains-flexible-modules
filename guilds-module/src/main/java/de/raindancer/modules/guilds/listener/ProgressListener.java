@@ -26,7 +26,6 @@ import org.bukkit.event.raid.RaidFinishEvent;
 
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * What members do that earns their guild experience and counts towards its contracts. Each event becomes one
@@ -42,11 +41,6 @@ public final class ProgressListener implements IGuildsListener {
 
     public ProgressListener(GuildsServices services) {
         this.services = services;
-    }
-
-    @Override
-    public void forget(UUID player) {
-        services.xp().forget(player);
     }
 
     private void did(Player player, Activity activity) {

@@ -92,10 +92,6 @@ public record GuildsSettings(
         @In("guilds/levels") @Title("Guild home from level") @Range(min = 1, max = 100)
         @Key("levels.home-from") int homeFromLevel,
 
-        @In("guilds/levels") @Title("Most experience a member earns an hour") @Range(min = 0, max = 1_000_000)
-        @Describe("So one player in a mob farm cannot carry a guild alone. 0 for no limit.")
-        @Key("xp.hourly-cap") long hourlyCap,
-
         @In("guilds/levels") @Title("Size damping") @Range(min = 0, max = 1)
         @Describe("How much less each member of a big guild earns it. 0 is none.")
         @Key("xp.size-damping") double sizeDamping,
@@ -157,7 +153,7 @@ public record GuildsSettings(
 
     public static final GuildsSettings DEFAULTS = new GuildsSettings(
             "0", 3, 24, 2, 5, List.of(), 8, 48, 7, 30, true, true,
-            1000, 1.6, 25, 8, 2, 50, 1, 5, 3, 600, 0.35, 2, 250, 25, 1,
+            1000, 1.6, 25, 8, 2, 50, 1, 5, 3, 0.35, 2, 250, 25, 1,
             true, "", ShareRule.Mode.CONTRIBUTION, "10000", "1000",
             5, 60, 2, true, 100);
 }

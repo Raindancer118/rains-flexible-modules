@@ -23,7 +23,6 @@ import de.raindancer.modules.guilds.store.GuildBook;
 import de.raindancer.modules.guilds.store.ProgressBook;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,12 +33,11 @@ import java.util.function.ToIntBiFunction;
 
 /**
  * Everything that earns a guild experience goes through {@link #activity}: what it is worth ({@link ActivityRule}),
- * the server's boost and the bonus for guildmates nearby ({@link TogetherRule}), the member's hourly cap and the
+ * the server's boost and the bonus for guildmates nearby ({@link TogetherRule}), the
  * guild's size ({@link XpRule}), the tally by source, and the week's contracts — whose rewards are paid here, once.
  */
 public final class XpService implements IGuildsService {
 
-    private static final long HOUR = 3_600_000L;
 
     private final GuildBook book;
     private final ProgressBook progress;
@@ -50,7 +48,6 @@ public final class XpService implements IGuildsService {
     private final ActivityRule worth = new ActivityRule();
     private final ContractRule contracts = new ContractRule();
     /** Per member: the hour (epoch hour) and what they earned in it. Forgotten when they leave the server. */
-    private final Map<UUID, long[]> thisHour = new HashMap<>();
     /** Killer and victim: a rival counts once an hour, so two friends in rival guilds cannot farm each other. */
     private final Cooldowns<String> rivalKills;
     private volatile GuildsSettings settings;
@@ -97,7 +94,7 @@ public final class XpService implements IGuildsService {
     @Override
     public void settings(GuildsSettings settings) {
         this.settings = settings;
-        this.rule = new XpRule(settings.hourlyCap(), settings.sizeDamping());
+        this.rule = new XpRule(settings.sizeDamping());
         this.levels = GuildService.levelsFrom(settings);
     }
 
@@ -164,16 +161,7 @@ public final class XpService implements IGuildsService {
         long counted;
         if (source.isCapped()) {
             long scaled = TogetherRule.withBonus(base, bonusPercent(player, guild));
-            long hour = Math.floorDiv(now(), HOUR);
-            synchronized (thisHour) {
-                long[] tally = thisHour.computeIfAbsent(player, who -> new long[]{hour, 0});
-                if (tally[0] != hour) {
-                    tally[0] = hour;
-                    tally[1] = 0;
-                }
-                counted = rule.award(scaled, tally[1], guild.size());
-                tally[1] += counted;
-            }
+            counted = rule.award(scaled, guild.size());
         } else {
             counted = base;
         }
@@ -287,12 +275,6 @@ public final class XpService implements IGuildsService {
             notify.everybody("guilds.boost.started", "percent", percent, "time", Times.describe(lasting));
         } else {
             notify.everybody("guilds.boost.ended");
-        }
-    }
-
-    public void forget(UUID player) {
-        synchronized (thisHour) {
-            thisHour.remove(player);
         }
     }
 }

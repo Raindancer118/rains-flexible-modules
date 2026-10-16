@@ -96,7 +96,7 @@ class ServicesTest {
         });
         GuildNotifier notify = new GuildNotifier(server, new Messages(folder.resolve("messages.yml")));
         settings = new GuildsSettings("0", 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
-                1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
+                1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 2, 250, 25, 1,
                 true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, true, 100);
         guilds = new GuildService(book, notify, Log.of("guilds-test"), clock::get,
                 who -> seen.containsKey(who) ? OptionalLong.of(seen.get(who)) : OptionalLong.empty(), settings);
@@ -165,7 +165,7 @@ class ServicesTest {
 
         private GuildsSettings withPrice(String price) {
             return new GuildsSettings(price, 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
-                    1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
+                    1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 2, 250, 25, 1,
                     true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, true, 100);
         }
     }
@@ -742,7 +742,7 @@ class ServicesTest {
         void off() {
             found(ALICE, "Elves", "ELF");
             GuildsSettings off = new GuildsSettings("0", 3, 24, 2, 5, List.of(), 6, 48, 7, 30, true, false,
-                    1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 0, 2, 250, 25, 1,
+                    1000, 1.5, 10, 3, 1, 10, 1, 2, 2, 0, 2, 250, 25, 1,
                     true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100", 0, 0, 2, false, 100);
             assertThat(new GuildSidebar(book, guilds, bank::format, () -> off).lines(ALICE)).isEmpty();
         }

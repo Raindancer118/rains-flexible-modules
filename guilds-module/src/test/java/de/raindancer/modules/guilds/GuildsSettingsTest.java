@@ -32,6 +32,14 @@ class GuildsSettingsTest {
     }
 
     @Test
+    @DisplayName("no setting caps what a member earns their guild an hour")
+    void noHourlyCap() {
+        assertThat(GuildsSettings.class.getRecordComponents())
+                .extracting(each -> each.getAnnotation(de.raindancer.core.data.settings.Key.class).value())
+                .doesNotContain("xp.hourly-cap");
+    }
+
+    @Test
     void names() {
         assertThat(defaults.shortestName()).isEqualTo(3);
         assertThat(defaults.longestName()).isEqualTo(24);
@@ -63,7 +71,6 @@ class GuildsSettingsTest {
         assertThat(defaults.alliesAtFirst()).isEqualTo(1);
         assertThat(defaults.levelsPerAlly()).isEqualTo(5);
         assertThat(defaults.homeFromLevel()).isEqualTo(3);
-        assertThat(defaults.hourlyCap()).isEqualTo(600);
         assertThat(defaults.sizeDamping()).isEqualTo(0.35);
         assertThat(defaults.xpPerMonster()).isEqualTo(2);
         assertThat(defaults.xpPerBoss()).isEqualTo(250);

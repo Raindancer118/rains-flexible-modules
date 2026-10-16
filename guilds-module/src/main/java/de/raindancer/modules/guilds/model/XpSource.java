@@ -52,7 +52,7 @@ public enum XpSource {
     }
 
     /**
-     * Whether a member's hourly cap, size damping and multipliers apply. A contract's reward is a lump the guild
+     * Whether size damping and multipliers apply. A contract's reward is a lump the guild
      * earned together, and staff mean exactly the number they typed.
      */
     public boolean isCapped() {

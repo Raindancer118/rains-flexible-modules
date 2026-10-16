@@ -378,16 +378,16 @@ class RulesTest {
     class Experience {
 
         @Test
-        void capAndDamping() {
-            XpRule rule = new XpRule(100, 0);
-            assertThat(rule.award(30, 0, 1)).isEqualTo(30);
-            assertThat(rule.award(30, 90, 1)).isEqualTo(10);
-            assertThat(rule.award(30, 100, 1)).isZero();
-            assertThat(rule.award(0, 0, 1)).isZero();
-            XpRule damped = new XpRule(0, 0.5);
-            assertThat(damped.award(100, 0, 1)).isEqualTo(100);
-            assertThat(damped.award(100, 0, 20)).isLessThan(100).isGreaterThan(30);
-            assertThat(damped.award(1, 0, 50)).as("never rounded down to nothing").isEqualTo(1);
+        @DisplayName("no hourly cap: everything earned counts, only a big guild's size damps it")
+        void damping() {
+            XpRule rule = new XpRule(0);
+            assertThat(rule.award(30, 1)).isEqualTo(30);
+            assertThat(rule.award(1_000_000, 1)).isEqualTo(1_000_000);
+            assertThat(rule.award(0, 1)).isZero();
+            XpRule damped = new XpRule(0.5);
+            assertThat(damped.award(100, 1)).isEqualTo(100);
+            assertThat(damped.award(100, 20)).isLessThan(100).isGreaterThan(30);
+            assertThat(damped.award(1, 50)).as("never rounded down to nothing").isEqualTo(1);
         }
     }
 }

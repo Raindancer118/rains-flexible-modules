@@ -113,8 +113,6 @@ public final class LevelMenu extends Menu implements IGuildsScreen {
         earns.add(line("A rival defeated", more.perRivalKill()));
         earns.add(line("1000 paid into the bank", more.perThousandDeposited()));
         earns.add("");
-        earns.add("<dark_gray>Each member counts for at most " + (base.hourlyCap() <= 0 ? "any amount" : base.hourlyCap())
-                + " an hour.");
         earns.add("<dark_gray>+" + more.togetherPercent() + "% per guildmate within " + more.togetherRadius()
                 + " blocks, at most +" + more.togetherMost() + "%.");
         band(MenuLayout.RULES, 4, Icons.of(Material.KNOWLEDGE_BOOK, "<white>What earns experience", earns));
