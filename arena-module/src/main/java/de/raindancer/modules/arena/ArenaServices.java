@@ -40,7 +40,7 @@ public record ArenaServices(
         ArenaLink link,
         IntentBook intents,
         IArenaScreensOpener screens,
-        de.raindancer.modules.arena.service.BoardService boards,
+        de.raindancer.core.ui.hologram.FloatingBoards boards,
         de.raindancer.modules.arena.service.RematchService rematches,
         de.raindancer.modules.arena.service.FloodService floods) {
 

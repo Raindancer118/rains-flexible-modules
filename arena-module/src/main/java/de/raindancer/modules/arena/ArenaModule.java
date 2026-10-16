@@ -66,7 +66,7 @@ import java.util.List;
  */
 public final class ArenaModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.14.2")
+    private static final ModuleInfo INFO = ModuleInfo.of("arena", "Arena", "0.14.3")
             .describedAs("A PvP arena server: duels, teams, free for all, sumo and mob waves, with kits or own gear.")
             .by("Raindancer118");
 
@@ -74,7 +74,7 @@ public final class ArenaModule implements FlexModule {
     private MatchService matches;
     private QueueService queue;
     private WaveService waves;
-    private de.raindancer.modules.arena.service.BoardService boards;
+    private de.raindancer.core.ui.hologram.FloatingBoards boards;
     private ArenaLink link;
     private ArenaWorldService worlds;
 
@@ -117,8 +117,10 @@ public final class ArenaModule implements FlexModule {
 
         var database = context.core().databases().of(StatsDatabase.NAME, StatsDatabase.SCHEMA);
         StatsStore stats = new StatsStore(database);
-        boards = new de.raindancer.modules.arena.service.BoardService(context.plugin(), server, stats,
-                context.dataFolder().resolve("boards.yml"));
+        de.raindancer.modules.arena.rules.BoardRule boardText = new de.raindancer.modules.arena.rules.BoardRule();
+        boards = new de.raindancer.core.ui.hologram.FloatingBoards(context.plugin(), server,
+                context.dataFolder().resolve("boards.yml"), "board", () -> net.kyori.adventure.text.minimessage.MiniMessage
+                .miniMessage().deserialize(boardText.text(stats.top(false, 5), stats.top(true, 5))), 30);
 
         NpcService npcs = new NpcService(context.plugin(), role -> settings.current().npcSkin());
         de.raindancer.modules.arena.api.wire.Wire wire = de.raindancer.modules.arena.api.wire.Wires.of(context.core(),

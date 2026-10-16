@@ -52,7 +52,7 @@ import java.util.UUID;
  */
 public final class VoiceBridgeModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("voicebridge", "Voice Bridge", "0.4.0")
+    private static final ModuleInfo INFO = ModuleInfo.of("voicebridge", "Voice Bridge", "0.5.0")
             .describedAs("A Discord voice channel joined to a Simple Voice Chat group.")
             .by("Raindancer118");
 
@@ -65,6 +65,7 @@ public final class VoiceBridgeModule implements FlexModule {
     private LogChannel log;
     private VoiceBridgeServices services;
     private VoicechatGateway gateway;
+    private String voiceOwner;
     private BridgeService bridge;
 
     @Override
@@ -112,6 +113,10 @@ public final class VoiceBridgeModule implements FlexModule {
 
         bridge.wire(gateway, discord, pool, lobby);
         gateway.register(server);
+        // A game asking RainsCore for team voice (Capture the Flag) gets Simple Voice Chat groups through this.
+        de.raindancer.core.social.voice.VoiceGroups.register(context.plugin().getName() + ":voicebridge",
+                new de.raindancer.modules.voicebridge.service.TeamVoice(gateway::api));
+        voiceOwner = context.plugin().getName() + ":voicebridge";
 
         settings.onChange(toDiscord::settings);
         settings.onChange(discord::settings);
@@ -203,6 +208,9 @@ public final class VoiceBridgeModule implements FlexModule {
     @Override
     public void disable() {
         VoiceBridgeCommands.stopped();
+        if (voiceOwner != null) {
+            de.raindancer.core.social.voice.VoiceGroups.unregister(voiceOwner);
+        }
         if (bridge != null) {
             bridge.stop();
         }

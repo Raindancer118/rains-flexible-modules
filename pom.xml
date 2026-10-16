@@ -69,7 +69,7 @@
         <twitch-module.version>0.4.1</twitch-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.6.0</arena-api.version>
-        <arena-module.version>0.14.1</arena-module.version>
+        <arena-module.version>0.14.3</arena-module.version>
         <arenagate-module.version>0.8.1</arenagate-module.version>
         <veintoggle-module.version>0.5.0</veintoggle-module.version>
         <healthbars-module.version>0.1.1</healthbars-module.version>
@@ -85,7 +85,7 @@
         <wallsroads-module.version>1.4.0</wallsroads-module.version>
         <hungergames-module.version>2.10.0</hungergames-module.version>
         <!-- 0.x until it has been heard working on a live server with real players. -->
-        <voicebridge-module.version>0.4.0</voicebridge-module.version>
+        <voicebridge-module.version>0.5.0</voicebridge-module.version>
         <voicechat-api.version>2.6.0</voicechat-api.version>
         <jda.version>6.7.0</jda.version>
         <jdave.version>0.1.8</jdave.version>

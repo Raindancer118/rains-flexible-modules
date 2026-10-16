@@ -75,7 +75,8 @@
         <!-- 0.14.0: runs on a RainsCore 2.0 network — questions to the survival servers go over the network's calls, any number of survival servers share the one arena (invites, summons, gear, guilds and each fight's stakes go to the server the player belongs to, a winner from another server is paid out of the pots as shared), a player is sent back to the server that sent them; the flood ledger is a document of the server's database. The server link still works on a server that is not on a network. Needs arena-api 0.6.0. -->
         <!-- 0.14.1: PostgreSQL: the stats upsert qualifies its columns and takes the larger wave without SQLite's two-argument MAX; stats tests run on both dialects. -->
         <!-- 0.14.2: a pit left flooded is read while the plugin enables, not on the first tick (no database work on the server thread). -->
-        <plugin.version>0.14.2</plugin.version>
+        <!-- 0.14.3: the map pasting, the void generator and the floating leaderboards are RainsCore's now (PasteJob, VoidGenerator, FloatingBoards), shared with Capture the Flag. -->
+        <plugin.version>0.14.3</plugin.version>
     </properties>
 
     <dependencies>
