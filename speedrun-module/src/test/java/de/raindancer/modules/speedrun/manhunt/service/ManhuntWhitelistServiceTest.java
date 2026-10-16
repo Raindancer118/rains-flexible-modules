@@ -109,6 +109,20 @@ class ManhuntWhitelistServiceTest {
         }
 
         @Test
+        @DisplayName("writes still waiting when the module stops are made by flush: the door's state is never lost")
+        void flushedOnStop() {
+            java.util.List<Runnable> lost = new java.util.ArrayList<>();
+            ManhuntWhitelistService stopping = new ManhuntWhitelistService(gateway, vips,
+                    directory.resolve("whitelist-state.yml"), lost::add);
+
+            stopping.closeForHunt();
+            stopping.flush();
+
+            assertThat(new ManhuntWhitelistService(gateway, vips, directory.resolve("whitelist-state.yml"))
+                    .reopenAfterHunt()).as("the restart knows a hunt shut it").isTrue();
+        }
+
+        @Test
         @DisplayName("a door that was already shut is never opened by a hunt ending")
         void neverSomebodyElsesDoor() {
             gateway.enabled = true;

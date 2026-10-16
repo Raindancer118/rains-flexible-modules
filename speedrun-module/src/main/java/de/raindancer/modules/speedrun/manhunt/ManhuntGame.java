@@ -83,6 +83,7 @@ import java.util.function.Supplier;
 public final class ManhuntGame {
 
     private ManhuntMode mode;
+    private ManhuntWhitelistService whitelist;
     private RainsCore core;
     private HuntersFistsOnly fistsOnly;
     private PositionShare navigation;
@@ -117,7 +118,7 @@ public final class ManhuntGame {
         // The few people a clear never sweeps up and a close always lets in — kept on disk beside the
         // module's own settings, because a list of players is not a settings field. See WhitelistVips.
         java.util.concurrent.Executor disk = task -> de.raindancer.core.platform.util.Scheduling.async(context.plugin(), task);
-        ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server,
+        whitelist = new ManhuntWhitelistService(server,
                 new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml"), disk),
                 context.dataFolder().resolve("whitelist-state.yml"), disk);
         // No hunt survives a restart, so a door a hunt shut — and never got to open, because the
@@ -326,6 +327,11 @@ public final class ManhuntGame {
             // A hunt that outlives its plugin leaves its Runners spectating for good. The compasses
             // and the whitelist go back the same way they would at any other ending.
             mode.forget();
+        }
+        if (whitelist != null) {
+            // After the hunt's own ending above, which may have opened the door: written now, not behind.
+            whitelist.flush();
+            whitelist.vips().flush();
         }
     }
 }

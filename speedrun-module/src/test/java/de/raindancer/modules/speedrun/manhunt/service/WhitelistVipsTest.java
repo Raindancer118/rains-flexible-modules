@@ -114,4 +114,16 @@ class WhitelistVipsTest {
         pending.forEach(Runnable::run);
         assertThat(vips().isVip(ada)).isTrue();
     }
+
+    @Test
+    @DisplayName("a VIP added just before the module stops is on disk after flush, though the write behind never ran")
+    void flushedOnStop() {
+        WhitelistVips vips = new WhitelistVips(directory.resolve("whitelist-vips.yml"), task -> { });
+        UUID ada = UUID.randomUUID();
+        vips.add(ada, "Ada");
+
+        vips.flush();
+
+        assertThat(vips().isVip(ada)).isTrue();
+    }
 }

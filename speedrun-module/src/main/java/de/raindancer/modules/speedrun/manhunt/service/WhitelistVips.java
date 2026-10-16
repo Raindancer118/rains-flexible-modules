@@ -76,8 +76,17 @@ public final class WhitelistVips {
     }
 
     private void save() {
-        // The list as it is when the write runs, so writes that overtake each other still end on the last.
-        writer.execute(() -> write(new LinkedHashMap<>(vips)));
+        writer.execute(this::flush);
+    }
+
+    /**
+     * Writes the list as it is now, copied and written under one lock: of two writes racing on different
+     * threads the one finishing last holds the newest list. Called by the module when it stops too.
+     */
+    public void flush() {
+        synchronized (store) {
+            write(new LinkedHashMap<>(vips));
+        }
     }
 
     private void write(Map<UUID, String> snapshot) {

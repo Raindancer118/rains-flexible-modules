@@ -135,8 +135,19 @@ public final class ManhuntWhitelistService {
             return;
         }
         closedByHunt = closed;
-        // The value at the time of writing, not of asking: writes that overtake each other still end on the last.
-        writer.execute(() -> state.write(yaml -> yaml.set(CLOSED_BY_HUNT, closedByHunt)));
+        writer.execute(this::flush);
+    }
+
+    /**
+     * Writes the flag as it is now. Read and written under one lock, so of two writes racing on different
+     * threads the one finishing last always holds the newest value. Called by the module when it stops too,
+     * since a write still waiting then would be lost — and with it a door a hunt shut, or one shut by hand.
+     */
+    public void flush() {
+        synchronized (state) {
+            boolean now = closedByHunt;
+            state.write(yaml -> yaml.set(CLOSED_BY_HUNT, now));
+        }
     }
 
     private int shut() {
