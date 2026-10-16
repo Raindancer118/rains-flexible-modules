@@ -39,7 +39,8 @@
         <!-- 0.10.0: the bank is Core's treasury for the guild: it pays a claim's upkeep its officers agreed to (/claim guild pays), logged and told. -->
         <!-- 0.12.0: /guild shards opens the enchantments page (shift-click a stack of shards in your inventory to pay it in), /guild shards add pays in every shard you carry, each up to what the guild still needs. -->
         <!-- 0.13.0: /guild pay <player> <amount> — the guild pays anybody from its bank, any sum it holds, no daily limit; a new rank permission (Pay from the bank), the leader's alone by default. -->
-        <plugin.version>0.13.0</plugin.version>
+        <!-- 0.14.0: daily bank limits per member on top of the rank's (/guild bank limit, member page); /guild bank available|pay in|pay out; the bank page takes out any amount up to the limit (shares, all, typed in an anvil). -->
+        <plugin.version>0.14.0</plugin.version>
     </properties>
 
     <dependencies>

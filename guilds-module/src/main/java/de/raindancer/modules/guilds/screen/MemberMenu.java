@@ -99,6 +99,21 @@ public final class MemberMenu extends Menu implements IGuildsScreen {
                         List.of("<gray>Only they can give it back."),
                         () -> IGuildsScreen.tell(services, viewer, this, services.guilds().handOver(me, member))).open());
 
+        GuildOutcome limits = services.guilds().ranks().mayActOn(guild, me, member, GuildPermission.MANAGE_RANKS);
+        var allowance = services.bank().allowance(guild, member);
+        boolean own = guild.member(member).map(each -> each.hasOwnLimit()).orElse(false);
+        band(MenuLayout.RULES, 2, limits.isSuccess(), Icons.of(Material.GOLD_NUGGET, "<white>Daily bank limit",
+                        own ? "<gray>Their own: <white>" + services.bank().formatLimit(allowance.limit())
+                                : "<gray>Their rank's: <white>" + services.bank().formatLimit(allowance.limit()),
+                        "<gray>Their own replaces the rank's, higher or lower.",
+                        "", "<gray>Click, then type an amount.", "<gray>Type <white>none<gray> for no limit,",
+                        "<white>rank<gray> for the rank's again."),
+                limits == GuildOutcome.NOT_ALLOWED ? "Your rank cannot manage ranks." : why(limits),
+                click -> IGuildsScreen.ask(services, viewer, this, "guilds.ask.member-limit", typed ->
+                        services.messages().send(viewer, services.bank().parseLimit(typed, true)
+                                .map(minor -> services.guilds().limitMember(me, member, minor))
+                                .orElse(GuildOutcome.INVALID_AMOUNT).messageKey()), "player", name));
+
         GuildOutcome kick = services.guilds().ranks().mayActOn(guild, me, member, GuildPermission.KICK);
         if (kick.isSuccess()) {
             danger(Icons.of(Material.IRON_BOOTS, "<red>Remove from the guild", "", "<gray>You will be asked first."),

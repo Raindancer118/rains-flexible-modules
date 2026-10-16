@@ -40,7 +40,7 @@ public final class GuildCommand implements IGuildsCommand {
 
     static final List<String> SUBCOMMANDS = List.of("create", "info", "list", "invite", "accept", "decline", "join",
             "leave", "kick", "promote", "demote", "rank", "leader", "chat", "c", "officer", "oc", "ally-chat", "ac",
-            "home", "sethome", "deposit", "withdraw", "pay", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
+            "home", "sethome", "bank", "deposit", "withdraw", "pay", "ally", "unally", "rival", "unrival", "rename", "tag", "style",
             "motd", "joining", "disband", "level", "contracts", "perks", "vault", "prestige", "crown", "shards");
     static final List<String> STAFF = List.of("admin");
 
@@ -167,10 +167,9 @@ public final class GuildCommand implements IGuildsCommand {
             case "ally-chat", "ac" -> chat(live, player, GuildChatService.Kind.ALLY, rest);
             case "home" -> say(live, player, live.homes().go(player));
             case "sethome" -> say(live, player, live.homes().set(player));
-            case "deposit" -> say(live, player, live.bank().parse(rest).map(amount -> live.bank().deposit(me, amount))
-                    .orElse(GuildOutcome.INVALID_AMOUNT));
-            case "withdraw" -> say(live, player, live.bank().parse(rest).map(amount -> live.bank().withdraw(me, amount))
-                    .orElse(GuildOutcome.INVALID_AMOUNT));
+            case "bank" -> bank(live, player, Arrays.copyOfRange(args, 1, args.length));
+            case "deposit" -> payIn(live, player, rest);
+            case "withdraw" -> payOut(live, player, rest);
             case "pay" -> pay(live, player, rest);
             case "ally" -> withGuild(live, player, rest, guild -> say(live, player,
                     live.guilds().guildOf(me).filter(own -> live.relations().alliancesAskedOf(own).stream()
@@ -229,6 +228,109 @@ public final class GuildCommand implements IGuildsCommand {
             return;
         }
         say(live, player, outcome);
+    }
+
+    /**
+     * {@code /guild bank} — the bank page; {@code available}, {@code payin|pay in <amount>},
+     * {@code payout|pay out <amount|all>}, {@code limit rank <rank> <amount|none>},
+     * {@code limit player <player> <amount|none|rank>}.
+     */
+    private static void bank(GuildsServices live, Player player, String[] args) {
+        UUID me = player.getUniqueId();
+        Optional<Guild> own = live.guilds().guildOf(me);
+        if (own.isEmpty()) {
+            say(live, player, GuildOutcome.NO_GUILD);
+            return;
+        }
+        String what = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
+        String[] after = args.length == 0 ? args : Arrays.copyOfRange(args, 1, args.length);
+        if (what.equals("pay") && after.length > 0 && (after[0].equalsIgnoreCase("in") || after[0].equalsIgnoreCase("out"))) {
+            what = "pay" + after[0].toLowerCase(Locale.ROOT);
+            after = Arrays.copyOfRange(after, 1, after.length);
+        }
+        String rest = String.join(" ", after);
+        switch (what) {
+            case "" -> new de.raindancer.modules.guilds.screen.BankMenu(live, player, null).open();
+            case "available", "balance", "info" -> available(live, player, own.get());
+            case "payin", "deposit" -> payIn(live, player, rest);
+            case "payout", "withdraw" -> payOut(live, player, rest);
+            case "limit" -> limit(live, player, after);
+            default -> live.messages().send(player, "guilds.usage.bank");
+        }
+    }
+
+    private static void available(GuildsServices live, Player player, Guild guild) {
+        var bank = live.bank();
+        var allowance = bank.allowance(guild, player.getUniqueId());
+        live.messages().send(player, "guilds.bank.holds", "amount", bank.format(Math.max(0, guild.bank())));
+        if (!guild.may(player.getUniqueId(), de.raindancer.modules.guilds.model.GuildPermission.WITHDRAW)) {
+            live.messages().send(player, "guilds.bank.cannot-take");
+        } else if (allowance.isUnlimited()) {
+            live.messages().send(player, "guilds.bank.available-unlimited", "left", bank.format(allowance.left()));
+        } else {
+            live.messages().send(player, allowance.own() ? "guilds.bank.available-own" : "guilds.bank.available",
+                    "left", bank.format(allowance.left()), "limit", bank.format(allowance.limit()),
+                    "taken", bank.format(allowance.taken()));
+        }
+    }
+
+    private static void payIn(GuildsServices live, Player player, String typed) {
+        if (typed.isBlank()) {
+            live.messages().send(player, "guilds.usage.bank");
+            return;
+        }
+        Optional<de.raindancer.core.social.economy.Money> amount = live.bank().parse(typed);
+        GuildOutcome outcome = amount.map(sum -> live.bank().deposit(player.getUniqueId(), sum)).orElse(GuildOutcome.INVALID_AMOUNT);
+        if (outcome.isSuccess()) {
+            live.messages().send(player, "guilds.bank.deposited", "amount", live.bank().format(amount.orElseThrow().minor()));
+        } else {
+            say(live, player, outcome);
+        }
+    }
+
+    /** Takes out what was typed — or, for {@code all}, everything the limit and the bank allow today. */
+    private static void payOut(GuildsServices live, Player player, String typed) {
+        if (typed.isBlank()) {
+            live.messages().send(player, "guilds.usage.bank");
+            return;
+        }
+        UUID me = player.getUniqueId();
+        Optional<de.raindancer.core.social.economy.Money> amount = typed.equalsIgnoreCase("all") || typed.equalsIgnoreCase("max")
+                ? live.guilds().guildOf(me).map(guild -> live.bank().mayTake(guild, me))
+                        .filter(left -> left > 0).map(de.raindancer.core.social.economy.Money::of)
+                : live.bank().parse(typed);
+        if (amount.isEmpty() && (typed.equalsIgnoreCase("all") || typed.equalsIgnoreCase("max"))) {
+            live.messages().send(player, "guilds.bank.nothing-left");
+            return;
+        }
+        GuildOutcome outcome = amount.map(sum -> live.bank().withdraw(me, sum)).orElse(GuildOutcome.INVALID_AMOUNT);
+        if (outcome.isSuccess()) {
+            live.messages().send(player, "guilds.bank.withdrawn", "amount", live.bank().format(amount.orElseThrow().minor()));
+        } else {
+            say(live, player, outcome);
+        }
+    }
+
+    private static void limit(GuildsServices live, Player player, String[] args) {
+        if (args.length < 3 || !(args[0].equalsIgnoreCase("rank") || args[0].equalsIgnoreCase("player"))) {
+            live.messages().send(player, "guilds.usage.bank-limit");
+            return;
+        }
+        UUID me = player.getUniqueId();
+        boolean rank = args[0].equalsIgnoreCase("rank");
+        String typedLimit = args[args.length - 1];
+        Optional<Long> minor = live.bank().parseLimit(typedLimit, !rank);
+        if (minor.isEmpty()) {
+            say(live, player, GuildOutcome.INVALID_AMOUNT);
+            return;
+        }
+        if (rank) {
+            String typedRank = String.join(" ", Arrays.copyOfRange(args, 1, args.length - 1));
+            say(live, player, live.guilds().guildOf(me).flatMap(guild -> rankNamed(guild, typedRank))
+                    .map(found -> live.guilds().limitRank(me, found.id(), minor.get())).orElse(GuildOutcome.NO_SUCH_RANK));
+        } else {
+            withPlayer(live, player, args[1], target -> say(live, player, live.guilds().limitMember(me, target, minor.get())));
+        }
     }
 
     /** {@code /guild pay <player> <amount>} — the guild pays them from its bank. */
@@ -430,6 +532,8 @@ public final class GuildCommand implements IGuildsCommand {
         } else if (args.length == 2) {
             switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "shards", "enchants" -> options.add("add");
+                case "bank" -> options.addAll(List.of("available", "payin", "payout", "limit"));
+                case "withdraw" -> options.add("all");
                 case "invite", "kick", "promote", "demote", "rank", "leader", "pay" ->
                         live.server().getOnlinePlayers().forEach(player -> options.add(player.getName()));
                 case "join", "apply", "info", "ally", "unally", "rival", "unrival", "accept", "decline" ->
@@ -445,10 +549,39 @@ public final class GuildCommand implements IGuildsCommand {
             options.addAll(List.of("1h", "2h", "1d", "3d"));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("admin")) {
             live.book().all().forEach(guild -> options.add(guild.tag()));
+        } else if (args.length >= 3 && args[0].equalsIgnoreCase("bank")) {
+            bankSuggestions(live, sender, args, options);
         } else if (args.length == 3 && args[0].equalsIgnoreCase("rank") && sender instanceof Player player) {
             live.guilds().guildOf(player.getUniqueId()).ifPresent(guild -> guild.ranks().forEach(rank -> options.add(rank.id())));
         }
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(typed)).toList();
+    }
+
+    private static void bankSuggestions(GuildsServices live, CommandSender sender, String[] args, List<String> options) {
+        String what = args[1].toLowerCase(Locale.ROOT);
+        if (args.length == 3) {
+            switch (what) {
+                case "pay" -> options.addAll(List.of("in", "out"));
+                case "payout", "withdraw" -> options.add("all");
+                case "limit" -> options.addAll(List.of("rank", "player"));
+                default -> {
+                }
+            }
+        } else if (args.length == 4 && what.equals("pay") && args[2].equalsIgnoreCase("out")) {
+            options.add("all");
+        } else if (args.length == 4 && what.equals("limit")) {
+            if (args[2].equalsIgnoreCase("player")) {
+                live.server().getOnlinePlayers().forEach(online -> options.add(online.getName()));
+            } else if (args[2].equalsIgnoreCase("rank") && sender instanceof Player player) {
+                live.guilds().guildOf(player.getUniqueId()).ifPresent(guild -> guild.ranks().stream()
+                        .filter(rank -> !rank.isLeader()).forEach(rank -> options.add(rank.id())));
+            }
+        } else if (args.length == 5 && what.equals("limit")) {
+            options.add("none");
+            if (args[2].equalsIgnoreCase("player")) {
+                options.add("rank");
+            }
+        }
     }
 
     @Override

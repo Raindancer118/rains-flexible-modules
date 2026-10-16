@@ -205,6 +205,10 @@ public final class GuildsDatabase {
                 unlocked INTEGER NOT NULL,
                 PRIMARY KEY (guild, enchantment)
             )
+            """,
+            // A member's own daily bank limit, replacing the rank's; NULL for the rank's, negative for none.
+            """
+            ALTER TABLE member ADD COLUMN own_limit INTEGER
             """);
 
     private GuildsDatabase() {

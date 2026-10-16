@@ -88,10 +88,10 @@ class GuildsScenarioTest {
             Await.ticks(10);
             ada.forgetChat();
             ada.run("guild deposit 200");
-            Await.until("paid in", WAIT, () -> told(ada, "Done."));
+            Await.until("paid in", WAIT, () -> told(ada, "into the guild bank"));
             ada.forgetChat();
             ada.run("guild withdraw 50");
-            Await.until("taken out", WAIT, () -> told(ada, "Done."));
+            Await.until("taken out", WAIT, () -> told(ada, "out of the guild bank"));
             bo.forgetChat();
             bo.run("guild withdraw 1");
             Await.until("a recruit is refused", WAIT, () -> told(bo, "Your rank cannot do that"));
@@ -115,6 +115,39 @@ class GuildsScenarioTest {
             bo.forgetChat();
             bo.run("guild kick Ada");
             Await.until("refused", WAIT, () -> told(bo, "Your rank cannot do that"));
+
+            // ---- daily limits: the rank's, then Bo's own above it; /guild bank available, pay in, pay out, the take-out page
+            server.console("eco give Ada 3000");
+            Await.ticks(10);
+            ada.forgetChat();
+            ada.run("guild bank pay in 2500");
+            Await.until("paid in by /guild bank pay in", WAIT, () -> told(ada, "into the guild bank"));
+            bo.forgetChat();
+            bo.run("guild bank available");
+            Await.until("the bank and the rank's limit", WAIT, () -> told(bo, "The bank holds") && told(bo, "your rank's limit"));
+            bo.forgetChat();
+            bo.run("guild bank pay out 1500");
+            Await.until("over the members' limit", WAIT, () -> told(bo, "more than you may take out today"));
+            ada.forgetChat();
+            ada.run("guild bank limit player Bo 2000");
+            Await.until("Bo's own limit set", WAIT, () -> told(ada, "Done."));
+            bo.forgetChat();
+            bo.run("guild bank available");
+            Await.until("Bo's own limit shown", WAIT, () -> told(bo, "your own limit"));
+            bo.forgetChat();
+            bo.run("guild bank pay out 1500");
+            Await.until("1500 out, past the old 1k wall", WAIT, () -> told(bo, "Took"));
+            bo.forgetChat();
+            bo.run("guild bank");
+            bo.awaitWindow("Bank");
+            bo.click("Take out");
+            bo.awaitWindow("Take out");
+            bo.click("All you may");
+            Await.until("the rest of the day's limit, from the menu", WAIT, () -> told(bo, "Took"));
+            bo.closeWindow();
+            bo.forgetChat();
+            bo.run("guild bank pay out all");
+            Await.until("nothing left today", WAIT, () -> told(bo, "nothing you may take out"));
 
             // ---- the menu opens on the guild's page and goes to members
             ada.run("guild");

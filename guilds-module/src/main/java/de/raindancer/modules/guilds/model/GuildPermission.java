@@ -13,7 +13,7 @@ public enum GuildPermission {
     INVITE("Invite players", Material.WRITABLE_BOOK, "Invite players and accept applications."),
     KICK("Kick members", Material.IRON_BOOTS, "Remove members of a lower rank."),
     PROMOTE("Promote and demote", Material.GOLDEN_HELMET, "Move members of a lower rank up or down, below their own."),
-    WITHDRAW("Take from the bank", Material.GOLD_INGOT, "Take money out of the guild bank, up to the rank's daily limit."),
+    WITHDRAW("Take from the bank", Material.GOLD_INGOT, "Take money out of the guild bank, up to their daily limit — their own, else the rank's."),
     PAY("Pay from the bank", Material.EMERALD, "Pay anybody from the guild bank, any sum it holds — no daily limit."),
     SET_HOME("Set the guild home", Material.RED_BED, "Move the guild home to where they stand."),
     USE_HOME("Use the guild home", Material.ENDER_PEARL, "Travel to the guild home."),

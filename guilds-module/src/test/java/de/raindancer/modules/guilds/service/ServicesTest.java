@@ -15,6 +15,7 @@ import de.raindancer.modules.guilds.model.GuildEvent;
 import de.raindancer.modules.guilds.model.GuildOutcome;
 import de.raindancer.modules.guilds.model.GuildPermission;
 import de.raindancer.modules.guilds.model.JoinMode;
+import de.raindancer.modules.guilds.model.Member;
 import de.raindancer.modules.guilds.model.Rank;
 import de.raindancer.modules.guilds.model.Relation;
 import de.raindancer.modules.guilds.rules.ShareRule;
@@ -330,6 +331,75 @@ class ServicesTest {
             assertThat(guilds.limitRank(BOB, Rank.MEMBER, officerLimit)).isEqualTo(GuildOutcome.SUCCESS);
             assertThat(guilds.limitRank(ALICE, Rank.MEMBER, -1)).as("the leader has no limit to stay under")
                     .isEqualTo(GuildOutcome.SUCCESS);
+        }
+
+        @Test
+        @DisplayName("a member's own limit replaces the rank's — higher or lower — set only by someone who outranks them, never above the setter's own, and it survives a restart")
+        void ownLimits() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            join(elves, CAROL);
+            guilds.setRank(ALICE, BOB, Rank.OFFICER);
+            guilds.setRank(ALICE, CAROL, Rank.MEMBER);
+            guilds.toggle(ALICE, Rank.OFFICER, GuildPermission.MANAGE_RANKS);
+            long officerLimit = guild(ALICE).rank(Rank.OFFICER).orElseThrow().dailyLimit();
+            long memberLimit = guild(ALICE).rank(Rank.MEMBER).orElseThrow().dailyLimit();
+            economy.give(ALICE, 100 * officerLimit);
+            assertThat(bank.deposit(ALICE, Money.of(100 * officerLimit))).isEqualTo(GuildOutcome.SUCCESS);
+
+            assertThat(guilds.limitMember(ALICE, BOB, 20 * officerLimit)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.withdraw(BOB, Money.of(15 * officerLimit))).as("far above the officers' 1k")
+                    .isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.allowance(guild(ALICE), BOB))
+                    .isEqualTo(new BankService.Allowance(20 * officerLimit, 15 * officerLimit, 5 * officerLimit, true));
+
+            assertThat(guilds.limitMember(BOB, CAROL, 21 * officerLimit)).as("above the setter's own")
+                    .isEqualTo(GuildOutcome.OUTRANKED);
+            assertThat(guilds.limitMember(BOB, CAROL, -1)).as("none, above the setter's own").isEqualTo(GuildOutcome.OUTRANKED);
+            assertThat(guilds.limitMember(BOB, ALICE, 0)).isEqualTo(GuildOutcome.OUTRANKED);
+            assertThat(guilds.limitMember(BOB, BOB, -1)).isEqualTo(GuildOutcome.YOURSELF);
+            assertThat(guilds.limitMember(CAROL, BOB, 1)).as("no rank permission").isEqualTo(GuildOutcome.NOT_ALLOWED);
+            assertThat(guilds.limitMember(ALICE, ERIN, 1)).isEqualTo(GuildOutcome.NOT_A_MEMBER);
+
+            assertThat(guilds.limitMember(BOB, CAROL, memberLimit / 2)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.withdraw(CAROL, Money.of(memberLimit))).as("below the rank's").isEqualTo(GuildOutcome.OVER_DAILY_LIMIT);
+            assertThat(guilds.limitMember(BOB, CAROL, 3 * memberLimit)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.withdraw(CAROL, Money.of(2 * memberLimit))).isEqualTo(GuildOutcome.SUCCESS);
+
+            assertThat(book.flush()).isTrue();
+            GuildBook again = new GuildBook(database, problem -> { });
+            again.load();
+            Guild reloaded = again.guildOf(BOB).orElseThrow();
+            assertThat(reloaded.member(BOB).orElseThrow().ownLimit()).isEqualTo(20 * officerLimit);
+            assertThat(reloaded.member(CAROL).orElseThrow().ownLimit()).isEqualTo(3 * memberLimit);
+            assertThat(reloaded.member(ALICE).orElseThrow().hasOwnLimit()).isFalse();
+            assertThat(reloaded.member(BOB).orElseThrow().takenOn(clock.get() / DAY)).isEqualTo(15 * officerLimit);
+
+            assertThat(guilds.limitMember(BOB, CAROL, Member.RANK_LIMIT)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(bank.allowance(guild(ALICE), CAROL).limit()).isEqualTo(memberLimit);
+            assertThat(bank.allowance(guild(ALICE), CAROL).own()).isFalse();
+            assertThat(book.flush()).isTrue();
+            GuildBook third = new GuildBook(database, problem -> { });
+            third.load();
+            assertThat(third.guildOf(CAROL).orElseThrow().member(CAROL).orElseThrow().hasOwnLimit())
+                    .as("back to the rank's, written as such").isFalse();
+        }
+
+        @Test
+        @DisplayName("what a member may take: limit, taken today, left — never more than the bank holds; nothing without the permission")
+        void allowance() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            long memberLimit = guild(ALICE).rank(Rank.MEMBER).orElseThrow().dailyLimit();
+            assertThat(bank.allowance(guild(ALICE), BOB))
+                    .as("a recruit cannot take out at all").isEqualTo(new BankService.Allowance(0, 0, 0, false));
+            guilds.setRank(ALICE, BOB, Rank.MEMBER);
+            economy.give(ALICE, memberLimit / 2);
+            bank.deposit(ALICE, Money.of(memberLimit / 2));
+            assertThat(bank.allowance(guild(ALICE), BOB))
+                    .isEqualTo(new BankService.Allowance(memberLimit, 0, memberLimit / 2, false));
+            assertThat(bank.allowance(guild(ALICE), ALICE))
+                    .isEqualTo(new BankService.Allowance(-1, 0, memberLimit / 2, false));
         }
 
         @Test

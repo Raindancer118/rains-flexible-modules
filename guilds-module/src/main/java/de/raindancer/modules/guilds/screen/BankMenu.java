@@ -8,6 +8,7 @@ import de.raindancer.modules.guilds.model.Guild;
 import de.raindancer.modules.guilds.model.GuildOutcome;
 import de.raindancer.modules.guilds.model.GuildPermission;
 import de.raindancer.modules.guilds.model.Member;
+import de.raindancer.modules.guilds.service.BankService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -52,16 +53,25 @@ public final class BankMenu extends Menu implements IGuildsScreen {
                         "<gray>You have paid in <white>" + services.bank().format(mine.deposited()) + "<gray> in all.",
                         "", "<gray>Click, then type an amount."),
                 "There is no bank on this server right now.",
-                click -> IGuildsScreen.ask(services, viewer, this, "guilds.ask.deposit", typed -> answer(
-                        services.bank().parse(typed).map(amount -> services.bank().deposit(me, amount)).orElse(GuildOutcome.INVALID_AMOUNT))));
-        long mayTake = services.bank().mayTake(guild, me);
+                click -> AmountPrompt.ask(services, viewer, "Pay in how much?", () -> -1, "", amount -> {
+                    GuildOutcome outcome = services.bank().deposit(me, amount);
+                    if (outcome.isSuccess()) {
+                        services.messages().send(viewer, "guilds.bank.deposited", "amount", services.bank().format(amount.minor()));
+                    } else {
+                        answer(outcome);
+                    }
+                    open();
+                }, this::open));
+        BankService.Allowance allowance = services.bank().allowance(guild, me);
         boolean mayWithdraw = open && guild.may(me, GuildPermission.WITHDRAW);
         band(MenuLayout.WHO, 4, mayWithdraw, Icons.of(Material.GOLD_INGOT, "<white>Take out",
-                        "<gray>You may take <white>" + services.bank().format(mayTake) + "<gray> today.",
-                        "", "<gray>Click, then type an amount."),
+                        "<gray>You may take <white>" + services.bank().format(allowance.left()) + "<gray> today.",
+                        allowance.isUnlimited() ? "<gray>No daily limit for you."
+                                : "<gray>" + (allowance.own() ? "Your own" : "Your rank's") + " limit: <white>"
+                                + services.bank().format(allowance.limit()) + "<gray> a day.",
+                        "", "<gray>Click to choose how much."),
                 open ? "Your rank cannot take money out." : "There is no bank on this server right now.",
-                click -> IGuildsScreen.ask(services, viewer, this, "guilds.ask.withdraw", typed -> answer(
-                        services.bank().parse(typed).map(amount -> services.bank().withdraw(me, amount)).orElse(GuildOutcome.INVALID_AMOUNT))));
+                click -> new TakeOutMenu(services, viewer, this).open());
         boolean mayRead = guild.may(me, GuildPermission.VIEW_LOG);
         band(MenuLayout.WHO, 7, mayRead, Icons.of(Material.PAPER, "<white>Statement",
                         "<gray>Every payment in and out.", "", "<gray>Click to read it."),

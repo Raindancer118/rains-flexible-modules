@@ -86,10 +86,9 @@ public final class RankMenu extends Menu implements IGuildsScreen {
                         rank.isUnlimited() ? "<gray>None." : "<gray>" + services.bank().format(rank.dailyLimit()),
                         "", "<gray>Click, then type an amount.", "<gray>Type <white>none<gray> for no limit."),
                 why(edit), click -> IGuildsScreen.ask(services, viewer, this, "guilds.ask.limit", typed -> {
-                    long minor = typed.equalsIgnoreCase("none") ? -1
-                            : services.bank().parse(typed).map(money -> money.minor()).orElse(typed.equals("0") ? 0L : Long.MIN_VALUE);
-                    services.messages().send(viewer, minor == Long.MIN_VALUE ? GuildOutcome.INVALID_AMOUNT.messageKey()
-                            : services.guilds().limitRank(me, rankId, minor).messageKey());
+                    services.messages().send(viewer, services.bank().parseLimit(typed, false)
+                            .map(minor -> services.guilds().limitRank(me, rankId, minor))
+                            .orElse(GuildOutcome.INVALID_AMOUNT).messageKey());
                 }));
         toolbar(3, edit.isSuccess(), Icons.of(Material.LIME_DYE, "<white>Move up the ladder", "", "<gray>Click to swap with the rank above."),
                 why(edit), click -> IGuildsScreen.tell(services, viewer, this, services.guilds().moveRank(me, rankId, true)));

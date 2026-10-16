@@ -86,18 +86,62 @@ public final class BankService implements IGuildsService {
         return amount.isPositive() ? Optional.of(amount) : Optional.empty();
     }
 
+    /**
+     * A typed daily limit: an amount, {@code 0}, {@code none} for no limit (-1) — and, where {@code rankWord}, {@code rank}
+     * for {@link de.raindancer.modules.guilds.model.Member#RANK_LIMIT}. Empty for anything else.
+     */
+    public Optional<Long> parseLimit(String typed, boolean rankWord) {
+        String word = typed == null ? "" : typed.strip().toLowerCase(java.util.Locale.ROOT);
+        if (word.equals("none") || word.equals("unlimited")) {
+            return Optional.of(-1L);
+        }
+        if (rankWord && (word.equals("rank") || word.equals("reset"))) {
+            return Optional.of(de.raindancer.modules.guilds.model.Member.RANK_LIMIT);
+        }
+        if (word.equals("0")) {
+            return Optional.of(0L);
+        }
+        return parse(word).map(Money::minor);
+    }
+
+    /** A daily limit for people: "none" or the amount. */
+    public String formatLimit(long minor) {
+        return minor < 0 ? "none" : format(minor);
+    }
+
     private long day() {
         return Math.floorDiv(clock.getAsLong(), 86_400_000L);
     }
 
-    /** What this member may take out right now. */
-    public long mayTake(Guild guild, UUID member) {
+    /**
+     * Where a member stands with the bank today.
+     *
+     * @param limit their daily limit in minor units, negative for none; 0 when their rank cannot take out
+     * @param taken what they took out today
+     * @param left  what they may still take right now — never more than the bank holds
+     * @param own   whether the limit is their own rather than their rank's
+     */
+    public record Allowance(long limit, long taken, long left, boolean own) {
+
+        public boolean isUnlimited() {
+            return limit < 0;
+        }
+    }
+
+    public Allowance allowance(Guild guild, UUID member) {
         Optional<Rank> rank = guild.rankOf(member);
         Optional<Member> who = guild.member(member);
         if (rank.isEmpty() || who.isEmpty() || !rank.get().may(GuildPermission.WITHDRAW)) {
-            return 0;
+            return new Allowance(0, 0, 0, false);
         }
-        return limits.mayTake(rank.get(), who.get(), day(), guild.bank());
+        long day = day();
+        return new Allowance(limits.limit(rank.get(), who.get()), who.get().takenOn(day),
+                limits.mayTake(rank.get(), who.get(), day, guild.bank()), !rank.get().isLeader() && who.get().hasOwnLimit());
+    }
+
+    /** What this member may take out right now. */
+    public long mayTake(Guild guild, UUID member) {
+        return allowance(guild, member).left();
     }
 
     /** Most the bank may still take, in minor units. */
@@ -201,9 +245,7 @@ public final class BankService implements IGuildsService {
             book.update(guild.id(), now -> {
                 Guild back = now.withBank(now.bank() + amount.minor());
                 return now.member(player)
-                        .map(member -> back.withMember(new Member(member.player(), member.rank(), member.joined(),
-                                member.deposited(), member.withdrawn() - amount.minor(), member.xp(),
-                                Math.max(0, member.takenOn(day) - amount.minor()), day)))
+                        .map(member -> back.withMember(member.unwithdrawing(amount.minor(), day)))
                         .orElse(back);
             });
             return GuildOutcome.ECONOMY_DOWN;

@@ -347,6 +347,30 @@ class RulesTest {
             assertThat(rule.mayTake(member, fresh, 10, 30)).as("only what is there").isEqualTo(30);
             assertThat(rule.mayTake(new Rank(Rank.LEADER, "L", 0, null, 0), fresh, 10, 5000)).isEqualTo(5000);
         }
+
+        @Test
+        @DisplayName("a member's own limit wins over the rank's, either way; without one the rank's applies")
+        void ownLimit() {
+            Rank member = new Rank(Rank.MEMBER, "Member", 200, GuildPermission.none(), 100);
+            Member fresh = Member.joining(MEMBER, Rank.MEMBER, 0);
+            assertThat(rule.limit(member, fresh)).isEqualTo(100);
+            assertThat(rule.limit(member, fresh.withOwnLimit(5000))).isEqualTo(5000);
+            assertThat(rule.mayTake(member, fresh.withOwnLimit(5000), 10, 9000)).as("above the rank's").isEqualTo(5000);
+            assertThat(rule.mayTake(member, fresh.withOwnLimit(20), 10, 9000)).as("below the rank's").isEqualTo(20);
+            assertThat(rule.mayTake(member, fresh.withOwnLimit(-1), 10, 9000)).as("none at all").isEqualTo(9000);
+            assertThat(rule.mayTake(member, fresh.withOwnLimit(Member.RANK_LIMIT), 10, 9000)).as("back to the rank's")
+                    .isEqualTo(100);
+            Rank leader = new Rank(Rank.LEADER, "L", 0, null, 0);
+            assertThat(rule.limit(leader, fresh.withOwnLimit(10))).as("nobody limits the leader").isEqualTo(-1);
+        }
+
+        @Test
+        @DisplayName("experience earned keeps when the member was last seen")
+        void earningKeepsSeen() {
+            Member seen = Member.joining(MEMBER, Rank.MEMBER, 500);
+            assertThat(seen.earning(3).seen()).isEqualTo(500);
+            assertThat(seen.withOwnLimit(7).earning(3).ownLimit()).isEqualTo(7);
+        }
     }
 
     @Nested

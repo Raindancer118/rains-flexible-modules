@@ -20,6 +20,7 @@ import de.raindancer.modules.guilds.rules.GuildNameRule;
 import de.raindancer.modules.guilds.rules.LevelRule;
 import de.raindancer.modules.guilds.rules.RankRule;
 import de.raindancer.modules.guilds.rules.SuccessionRule;
+import de.raindancer.modules.guilds.rules.WithdrawRule;
 import de.raindancer.modules.guilds.store.GuildBook;
 
 import java.time.Duration;
@@ -52,6 +53,7 @@ public final class GuildService implements IGuildsService {
     private final Function<UUID, OptionalLong> lastSeen;
     private final RankRule ranks = new RankRule();
     private final SuccessionRule succession = new SuccessionRule();
+    private final WithdrawRule withdrawals = new WithdrawRule();
     private final AtomicReference<GuildsSettings> settings = new AtomicReference<>();
     private volatile GuildNameRule names;
     private volatile LevelRule levels;
@@ -675,11 +677,56 @@ public final class GuildService implements IGuildsService {
      * ranks could open the bank to a friend by raising the rank below and promoting them into it.
      */
     public GuildOutcome limitRank(UUID actor, String rankId, long minor) {
-        Optional<Rank> mine = own(actor).flatMap(guild -> guild.rankOf(actor));
-        if (mine.isPresent() && !mine.get().isUnlimited() && (minor < 0 || minor > mine.get().dailyLimit())) {
+        if (own(actor).filter(guild -> above(guild, actor, minor)).isPresent()) {
             return GuildOutcome.OUTRANKED;
         }
         return editRank(actor, rankId, each -> each.withDailyLimit(minor), "daily limit " + minor);
+    }
+
+    /** Whether {@code minor} (negative for none) is more than {@code actor}'s own daily limit allows them to hand out. */
+    private boolean above(Guild guild, UUID actor, long minor) {
+        Optional<Rank> rank = guild.rankOf(actor);
+        Optional<Member> member = guild.member(actor);
+        if (rank.isEmpty() || member.isEmpty()) {
+            return true;
+        }
+        long mine = withdrawals.limit(rank.get(), member.get());
+        return mine >= 0 && (minor < 0 || minor > mine);
+    }
+
+    /**
+     * Gives a member a daily bank limit of their own, replacing their rank's — or, with {@link Member#RANK_LIMIT},
+     * takes it away again. Same rules as a rank's limit: someone allowed to manage ranks, acting on a member below
+     * them, never above their own limit.
+     */
+    public GuildOutcome limitMember(UUID actor, UUID target, long minor) {
+        Optional<Guild> found = own(actor);
+        if (found.isEmpty()) {
+            return GuildOutcome.NO_GUILD;
+        }
+        Guild guild = found.get();
+        GuildOutcome may = ranks.mayActOn(guild, actor, target, GuildPermission.MANAGE_RANKS);
+        if (!may.isSuccess()) {
+            return may;
+        }
+        if (minor != Member.RANK_LIMIT && above(guild, actor, minor)) {
+            return GuildOutcome.OUTRANKED;
+        }
+        AtomicReference<GuildOutcome> refused = new AtomicReference<>();
+        GuildOutcome changed = book.update(guild.id(), now -> {
+            GuildOutcome still = ranks.mayActOn(now, actor, target, GuildPermission.MANAGE_RANKS);
+            if (!still.isSuccess()) {
+                refused.set(still);
+                return now;
+            }
+            return now.withMember(now.member(target).orElseThrow().withOwnLimit(minor));
+        });
+        GuildOutcome outcome = refused.get() != null ? refused.get() : changed;
+        if (outcome.isSuccess()) {
+            log(guild, GuildEvent.Kind.RANK_CHANGED, actor, target, minor == Member.RANK_LIMIT ? 0 : Math.max(0, minor),
+                    minor == Member.RANK_LIMIT ? "daily limit: the rank's" : minor < 0 ? "daily limit: none" : "daily limit");
+        }
+        return outcome;
     }
 
     /** Swaps a rank with its neighbour above or below — both must be ranks the actor outranks. */

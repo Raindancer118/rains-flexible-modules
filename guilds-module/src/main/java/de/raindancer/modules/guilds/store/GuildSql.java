@@ -198,10 +198,23 @@ public final class GuildSql {
         try {
             return Optional.of(new Member(UUID.fromString(rows.getString("player")), rows.getString("rank"),
                     rows.getLong("joined"), rows.getLong("deposited"), rows.getLong("withdrawn"), rows.getLong("xp"),
-                    rows.getLong("taken_today"), rows.getLong("taken_on"), rows.getLong("seen")));
+                    rows.getLong("taken_today"), rows.getLong("taken_on"), rows.getLong("seen"), ownLimit(rows)));
         } catch (IllegalArgumentException unreadable) {
             problems.accept("a member row with an unreadable player id was left out: " + rows.getString("player"));
             return Optional.empty();
+        }
+    }
+
+    private static long ownLimit(ResultSet rows) throws SQLException {
+        long limit = rows.getLong("own_limit");
+        return rows.wasNull() ? Member.RANK_LIMIT : limit;
+    }
+
+    private static void ownLimit(PreparedStatement statement, int index, Member member) throws SQLException {
+        if (member.hasOwnLimit()) {
+            statement.setLong(index, member.ownLimit());
+        } else {
+            statement.setNull(index, java.sql.Types.INTEGER);
         }
     }
 
@@ -555,8 +568,9 @@ public final class GuildSql {
             Member was = before.get(member.player());
             if (was == null) {
                 try (PreparedStatement insert = connection.prepareStatement("""
-                        INSERT INTO member (player, guild, rank, joined, deposited, withdrawn, xp, taken_today, taken_on, seen)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")) {
+                        INSERT INTO member (player, guild, rank, joined, deposited, withdrawn, xp, taken_today, taken_on, seen,
+                            own_limit)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")) {
                     insert.setString(1, member.player().toString());
                     insert.setString(2, id);
                     insert.setString(3, member.rank());
@@ -567,20 +581,22 @@ public final class GuildSql {
                     insert.setLong(8, member.takenToday());
                     insert.setLong(9, member.takenOn());
                     insert.setLong(10, member.seen());
+                    ownLimit(insert, 11, member);
                     insert.executeUpdate();
                 }
             } else if (!was.withSeen(member.seen()).equals(member.withSeen(was.seen()))) {
                 try (PreparedStatement update = connection.prepareStatement("""
                         UPDATE member SET rank = ?, deposited = deposited + ?, withdrawn = withdrawn + ?, xp = xp + ?,
-                            taken_today = ?, taken_on = ? WHERE player = ? AND guild = ?""")) {
+                            taken_today = ?, taken_on = ?, own_limit = ? WHERE player = ? AND guild = ?""")) {
                     update.setString(1, member.rank());
                     update.setLong(2, member.deposited() - was.deposited());
                     update.setLong(3, member.withdrawn() - was.withdrawn());
                     update.setLong(4, member.xp() - was.xp());
                     update.setLong(5, member.takenToday());
                     update.setLong(6, member.takenOn());
-                    update.setString(7, member.player().toString());
-                    update.setString(8, id);
+                    ownLimit(update, 7, member);
+                    update.setString(8, member.player().toString());
+                    update.setString(9, id);
                     update.executeUpdate();
                 }
             }
