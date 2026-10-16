@@ -1,0 +1,25 @@
+# Same shape as every other standalone here — see rtp-standalone's copy for why each line matters.
+name: ${plugin.name}
+version: '${plugin.version}'
+main: de.raindancer.modules.wrapper.ModulePlugin
+bootstrapper: de.raindancer.modules.wrapper.ModuleBootstrap
+api-version: '26.3'
+description: 'Capture the Flag: classes, power-ups, twists, votes, awards, levels and daily challenges.'
+author: Raindancer118
+website: https://github.com/Raindancer118/RainsCore
+
+# Every player is touched on their own scheduler and every block on its region's. Making the maps' world at runtime
+# needs Paper: Folia has no runtime worlds, so there the world has to exist before the plugin starts.
+folia-supported: true
+
+dependencies:
+  bootstrap:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+  server:
+    RainsCore:
+      load: BEFORE
+      required: true
+      join-classpath: true

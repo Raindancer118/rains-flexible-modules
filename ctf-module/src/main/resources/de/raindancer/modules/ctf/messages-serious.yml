@@ -1,0 +1,21 @@
+# The serious tone of Capture the Flag's wording: the same keys and placeholders, plainly said.
+ctf:
+  join:
+    welcome: "<gray>You joined Capture the Flag. Use the banner or /ctf for the menu."
+  announce:
+    first-blood: "<dark_red>First kill"
+    double-kill: "<gold>Two kills"
+    triple-kill: "<gold>Three kills"
+    multi-kill: "<red>Several kills"
+    killing-spree: "<yellow>Three in a row"
+    rampage: "<gold>Five in a row"
+    unstoppable: "<red>Seven in a row"
+    godlike: "<dark_purple>Ten in a row"
+    shutdown: "<aqua>Streak ended"
+    comeback: "<aqua>Level again"
+    denied: "<red>Stopped just in time"
+    captured: "<gold>Capture"
+  round:
+    started: "<gray>Capture the Flag on <white><map></white><author>, <white><type></white>.<newline><gray>Your side: <side><gray>. <white><goal></white> captures win."
+  lobby:
+    vote-open: "<gray>The vote is open: <white>/ctf vote"

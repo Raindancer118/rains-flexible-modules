@@ -1,0 +1,185 @@
+# Capture the Flag's wording. Every line can be rewritten in plugins/RainsCore/messages.yml.
+ctf:
+  only-a-player: "<red>That is for players."
+  no-permission: "<red>You may not do that."
+  no-such-player: "<red>Nobody called <white><player></white> is around."
+  usage: "<gray>/ctf <dark_gray>— the menu · <gray>/ctf join|leave|vote|class|side|watch|stats|top|looks|challenges|party"
+
+  join:
+    welcome: "<green>Welcome to Capture the Flag! <gray>Right click the banner for the menu."
+    already: "<yellow>You are in Capture the Flag already."
+    left: "<gray>You left Capture the Flag — your things are back."
+    not-in: "<gray>You are not in Capture the Flag. <white>/ctf join"
+    restored: "<green>Your things from before Capture the Flag are back."
+
+  lobby:
+    vote-open: "<yellow>Enough players! <gray>Vote for the map, the kind of round and the twist: <white>/ctf vote"
+    not-enough: "<gray>Not enough players any more — the countdown waits."
+    no-maps: "<red>There is no playable map yet. <gray>Staff: <white>/ctf admin map setup <file>"
+    building: "<yellow>Building <white><map></white>… <gray>the first round on a map takes a moment."
+    build-failed: "<red>The map <white><map></white> could not be built; no round this time."
+    cannot-pay: "<red>You cannot pay the entry fee of <white><fee></white>, so you watch this round."
+    no-guild-war: "<yellow>Not two guilds here — it is a classic round instead."
+    throw-from-line: "<gray>Throw from the throwing line, in the lobby."
+    throw-distance: "<gray>Your throw: <white><blocks></white> blocks <dark_gray>(#<rank>)"
+    throw-record: "<gold><bold>New record!</bold> <white><blocks></white> blocks!"
+    throw-lost: "<gray>Gone over the edge — no distance for that one."
+
+  vote:
+    closed: "<gray>The vote is closed."
+
+  round:
+    started: "<gold><bold>Capture the Flag!</bold> <gray>Map <white><map></white><author> · <white><type></white><newline><gray>You play for <side><gray>. First to <white><goal></white> captures wins."
+    twist: "<light_purple><bold>Twist:</bold> <white><twist></white> <gray>— <how>"
+    joined-late: "<gray>You join the round for <side><gray>."
+    watching: "<gray>You are watching. <white>/ctf follow</white> follows the flag; sneak to look round yourself."
+    won-captures: "<gold><bold><side> wins!</bold> <gray><score>"
+    won-time: "<gold><bold><side> wins on time!</bold> <gray><score>"
+    won-forfeit: "<gold><side> wins — there is nobody left to play against."
+    draw: "<yellow><bold>A draw.</bold> <gray><score>"
+    stopped: "<yellow>Staff stopped the round. <gray><score>"
+
+  flag:
+    taken: "<player> <gray>took the <flag><gray>!"
+    dropped: "<player> <gray>dropped the <flag><gray>!"
+    lost-to-the-void: "<player> <gray>fell off with the <flag> <gray>— it is back home."
+    returned: "<player> <gray>brought the <flag> <gray>home."
+    returned-alone: "<gray>The <flag> <gray>went back home."
+    captured: "<player> <gray>captured for <side><gray>! <score>"
+    may-not-carry: "<red>Tanks escort the flag — they cannot carry it."
+    own-flag-away: "<yellow>Your own flag is away — get it back to score!"
+    no-rockets: "<red>No rockets while you carry the flag!"
+
+  death:
+    killed: "<player> <gray>was taken down by <killer><gray>."
+    fell: "<player> <gray>fell off the map."
+    died: "<player> <gray>is out."
+    back-in: "<gray>Back in <white><seconds></white>…"
+
+  announce:
+    countdown: "<yellow><bold><seconds>"
+    go: "<green><bold>GO!"
+    go-how: "<gray>Steal their flag!"
+    you-have-it: "<gold><bold>You have the flag!"
+    bring-it-home: "<gray>Bring it home!"
+    our-flag-taken: "<red><bold>Your flag was taken!"
+    captured: "<gold><bold>CAPTURE!"
+    captured-by: "<side> <gray>· <white><player>"
+    comeback: "<aqua><bold>COMEBACK!"
+    denied: "<red><bold>DENIED!"
+    by: "<gray><player>"
+    first-blood: "<dark_red><bold>FIRST BLOOD!"
+    double-kill: "<gold><bold>DOUBLE KILL!"
+    triple-kill: "<gold><bold>TRIPLE KILL!"
+    multi-kill: "<red><bold>MULTI KILL!"
+    killing-spree: "<yellow><bold>KILLING SPREE!"
+    rampage: "<gold><bold>RAMPAGE!"
+    unstoppable: "<red><bold>UNSTOPPABLE!"
+    godlike: "<dark_purple><bold>GODLIKE!"
+    shutdown: "<aqua><bold>SHUTDOWN!"
+    overtime: "<red><bold>OVERTIME!"
+    next-capture: "<gray>The next capture wins."
+    sudden-death: "<dark_red><bold>SUDDEN DEATH!"
+    sudden-death-how: "<gray>Both flags are in the middle — bring theirs to your base!"
+    half-time: "<yellow><bold>HALF TIME!"
+    swap-sides: "<side> <gray>defends now."
+    swap: "<light_purple><bold>SWAP!"
+    swap-how: "<gray>Every side has moved to another base."
+    supply: "<gold><bold>SUPPLY DROP!"
+    control-taken: "<side> <gray>holds the control point!"
+
+  control:
+    lost: "<side> <gray>lost the control point."
+
+  awards:
+    header: "<gold><bold>— Awards —"
+    line: "<yellow><award></yellow> <dark_gray>·</dark_gray> <player> <dark_gray>(<for>)"
+
+  class:
+    picked: "<gray>From your next life you play <white><class></white>."
+    unknown: "<red>There is no class called <white><class></white>."
+    classes-off: "Classes are switched off here."
+    needs-building: "Needs building to be switched on."
+    vanish-wait: "<gray>You can vanish again in <white><seconds></white>s."
+    no-vanish-carrying: "<red>Not with the flag in hand!"
+    mended: "<light_purple>You mended <white><player></white>."
+    mended-by: "<light_purple><white><player></white> mended you!"
+    cannot-mend: "<gray>Only once a life, and only a teammate."
+    turret-up: "<green>Turret up — it shoots the other side for forty seconds."
+
+  trap:
+    alarm: "<yellow>⚠ Alarm! <player> <gray>is sneaking past."
+    alarm-set: "<gray>Alarm set — your side hears when somebody passes."
+    not-here: "<red>Not here."
+
+  side:
+    switched: "<gray>You play for <side> <gray>now."
+    cannot-switch: "<red>Only to a smaller side, and not while carrying the flag."
+
+  watch:
+    following: "<gray>You follow the flag."
+    not-following: "<gray>You look round for yourself."
+
+  parkour:
+    started: "<green>Go! <gray>The clock is running."
+    checkpoint: "<aqua>Checkpoint <white><number></white>!"
+    finished: "<green>Finished in <white><time></white>! <dark_gray>(#<rank>)"
+    record: "<gold><bold>New record!</bold> <white><time></white>!"
+
+  party:
+    how: "<gray>/ctf party invite <player> <dark_gray>·</dark_gray> accept <dark_gray>·</dark_gray> leave <dark_gray>·</dark_gray> kick <dark_gray>·</dark_gray> list"
+    invited: "<gray>You invited <white><player></white> to your party."
+    invite-received: "<white><player></white> <gray>wants you in their party: <white>/ctf party accept"
+    already-in: "<gray><player> is in your party already."
+    full: "<red>The party is full."
+    not-leader: "<red>Only the party's leader invites."
+    joined: "<green>You are in <white><player></white>'s party now."
+    someone-joined: "<green><white><player></white> joined your party."
+    no-invite: "<gray>You have no invite."
+    left: "<gray>You left your party."
+    not-in-one: "<gray>You are not in a party."
+    kicked: "<gray><player> is out of your party."
+    cannot-kick: "<red>You cannot send <white><player></white> out."
+    members: "<gray>Your party: <white><members>"
+    self: "<gray>You are always on your own side."
+
+  progress:
+    xp: "<green>+<xp> experience <dark_gray>· level <level>"
+    level-up: "<gold><bold>Level up!</bold> <gray>You are level <white><level></white>."
+    unlocked: "<light_purple>Unlocked: <white><what></white> <gray>— <white>/ctf looks"
+    challenge-done: "<green><bold>Challenge done!</bold> <white><challenge></white> <gray>(+<xp> experience)"
+
+  admin:
+    usage: "<gray>/ctf admin start|stop|info · map list|setup <file>|menu|title <name> [by <author>]|rebuild <map>|bases <map> · board place|remove"
+    starting: "<green>Starting a round."
+    already-running: "<gray>A round is on already."
+    stopped: "<yellow>The round is stopped."
+    nothing-running: "<gray>No round is on."
+    no-such-schematic: "<red>There is no schematic <white><file></white> in the maps folder."
+    schematic-unreadable: "<red>That schematic cannot be read. <gray>Sponge .schem, version 2 or 3."
+    world-refused: "<red>The server would not make the Capture the Flag world."
+    already-building: "<gray>That map is being built already."
+    building: "<yellow>Building <white><map></white>…"
+    setup-begun: "<green>Setting up <white><map></white>. <gray>Open the tools with <white>/ctf admin map menu</white>. Missing: <white><missing>"
+    setup-done: "<green>Done with <white><map></white>."
+    not-in-map: "<red>Stand in the map you are setting up."
+    marked: "<green>Marked."
+    no-maps: "<gray>No maps yet. Put .schem files in <white><folder></white>, then <white>/ctf admin map setup <file>"
+    map-line: "<green>✔ <white><map></white> <gray>— <title>, <bases> bases"
+    map-line-missing: "<yellow>✖ <white><map></white> <gray>— missing: <missing>"
+    schematic-line: "<gray>• <white><file></white> <dark_gray>— not set up yet"
+    no-such-map: "<red>There is no map <white><map></white>."
+    will-rebuild: "<gray><white><map></white> is built anew for its next round."
+    base-line: "<white><colour></white> <gray>flag <white><flag></white>, <white><spawns></white> spawn(s)"
+    lobby-set: "<green>The lobby is here now."
+    parkour-set: "<green>Parkour <white><what></white> set."
+    parkour-cleared: "<gray>Checkpoints removed."
+    throw-line-set: "<green>The throwing line is here now."
+    board-placed: "<green>A leaderboard stands here now."
+    board-removed: "<gray>The nearest leaderboard is gone."
+    no-board-near: "<gray>No leaderboard within five blocks."
+    info-round: "<gray>Round on <white><map></white>: <white><phase></white>, <type>, twist <twist>, score <white><score>"
+    info-flag: "<gray>  flag of side <white><side></white>: <white><state></white> at <white><where></white>, carried by <white><carrier>"
+    info-fighter: "<gray>  <white><player></white> side <white><side></white>, <alive>, <class>, at <white><where>"
+    info-none: "<gray>No round: <white><phase></white>, <white><maps></white> map(s)."
+

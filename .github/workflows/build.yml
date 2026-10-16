@@ -59,6 +59,7 @@ on:
       - 'veintoggle-module-v*'
       - 'enchants-module-v*'
       - 'economy-module-v*'
+      - 'ctf-module-v*'
     branches:
       - '**'
   pull_request:
@@ -202,6 +203,7 @@ jobs:
             worldutils-bundle/target/RainsWorldUtils-*.jar
             veintoggle-standalone/target/RainsVeinToggle-*.jar
             healthbars-standalone/target/RainsHealthBars-*.jar
+            ctf-standalone/target/RainsCaptureTheFlag-*.jar
             enchants-standalone/target/RainsEnchants-*.jar
             economy-standalone/target/RainsEconomy-*.jar
             ranks-standalone/target/RainsRanks-*.jar

@@ -72,6 +72,8 @@
         <arena-module.version>0.14.3</arena-module.version>
         <arenagate-module.version>0.8.1</arenagate-module.version>
         <veintoggle-module.version>0.5.0</veintoggle-module.version>
+        <!-- 0.x until every feature of the plan (base game, classes, power-ups, mutators, modes, progression) is in. -->
+        <ctf-module.version>0.1.0</ctf-module.version>
         <healthbars-module.version>0.1.1</healthbars-module.version>
         <enchants-module.version>0.6.0</enchants-module.version>
         <performance-module.version>0.2.0</performance-module.version>
@@ -151,6 +153,8 @@
         <module>veintoggle-standalone</module>
         <module>healthbars-module</module>
         <module>healthbars-standalone</module>
+        <module>ctf-module</module>
+        <module>ctf-standalone</module>
         <module>enchants-module</module>
         <module>enchants-standalone</module>
         <module>performance-module</module>
@@ -392,6 +396,11 @@
                 <groupId>de.raindancer.modules</groupId>
                 <artifactId>healthbars-module</artifactId>
                 <version>${healthbars-module.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>de.raindancer.modules</groupId>
+                <artifactId>ctf-module</artifactId>
+                <version>${ctf-module.version}</version>
             </dependency>
             <dependency>
                 <groupId>de.raindancer.modules</groupId>
