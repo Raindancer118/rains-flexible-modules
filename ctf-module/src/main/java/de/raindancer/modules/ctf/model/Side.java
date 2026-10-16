@@ -12,8 +12,13 @@ public record Side(int index, TeamColour colour, String name, int base, String g
         return new Side(index, colour, name, newBase, group);
     }
 
-    /** The name in MiniMessage, in the side's colour. */
+    /**
+     * The name in MiniMessage, in the side's colour. The name is escaped: in a guild war it is the guild's, which its
+     * members typed, and a guild called {@code <click:run_command:/op me>} must stay just a name.
+     */
     public String tagged() {
-        return "<" + colour.textColour().asHexString() + ">" + name + "</" + colour.textColour().asHexString() + ">";
+        String hex = colour.textColour().asHexString();
+        return "<" + hex + ">" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(name)
+                + "</" + hex + ">";
     }
 }

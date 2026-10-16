@@ -237,6 +237,24 @@ public final class RoundListener implements ICtfListener {
         }
     }
 
+    /**
+     * Nobody in a round opens anything but their own inventory and the plugin's menus: with building on, an ender
+     * chest or a placed chest would carry kit items out of the game.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onOpen(org.bukkit.event.inventory.InventoryOpenEvent event) {
+        if (!(event.getPlayer() instanceof Player player) || !inRound(player)) {
+            return;
+        }
+        org.bukkit.event.inventory.InventoryType type = event.getInventory().getType();
+        boolean own = type == org.bukkit.event.inventory.InventoryType.PLAYER
+                || type == org.bukkit.event.inventory.InventoryType.CRAFTING
+                || event.getInventory().getHolder() instanceof de.raindancer.core.ui.menu.Menu;
+        if (!own) {
+            event.setCancelled(true);
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onSwap(PlayerSwapHandItemsEvent event) {
         if (services.flags().isFlagItem(event.getMainHandItem()) || services.flags().isFlagItem(event.getOffHandItem())

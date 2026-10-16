@@ -92,6 +92,8 @@ public final class RoundService implements ICtfService {
     public static final double TOUCH = 1.6;
     /** Seconds everybody stands still at the start. */
     public static final int FREEZE_SECONDS = 5;
+    /** A round won because the others left pays a winner's rewards only after this long — no farming by walking off. */
+    public static final long FORFEIT_PAYS_AFTER_MILLIS = 180_000;
     /** Seconds the results stay up before everybody goes back to the lobby. */
     public static final int RESULTS_SECONDS = 10;
     /** Seconds between swapped bases. */
@@ -167,6 +169,7 @@ public final class RoundService implements ICtfService {
     private volatile long overAt;
     private volatile String lastMap;
     private volatile boolean startRequested;
+    private volatile String forcedMap;
     private volatile CtfSettings settings;
 
     public RoundService(Plugin plugin, LogChannel log, Messages messages, Effects effects, Scoreboards scoreboards,
@@ -359,9 +362,15 @@ public final class RoundService implements ICtfService {
 
     /** Staff: start now, whoever is there (two at least). */
     public boolean startNow() {
+        return startNow(null);
+    }
+
+    /** Staff: start now on this map (null: as the vote or chance says). */
+    public boolean startNow(String mapId) {
         if (round != null) {
             return false;
         }
+        forcedMap = mapId;
         startRequested = true;
         if (gathering != Phase.COUNTDOWN) {
             openBallot();
@@ -1379,7 +1388,10 @@ public final class RoundService implements ICtfService {
             tellLobby("ctf.lobby.no-maps");
             return;
         }
-        CtfMap map = votes.winner(VoteService.Question.MAP).flatMap(maps::load).filter(CtfMap::isPlayable)
+        String forced = forcedMap;
+        forcedMap = null;
+        CtfMap map = Optional.ofNullable(forced).flatMap(maps::load).filter(CtfMap::isPlayable)
+                .or(() -> votes.winner(VoteService.Question.MAP).flatMap(maps::load).filter(CtfMap::isPlayable))
                 .orElseGet(() -> playable.get(random.nextInt(playable.size())));
         GameType type = votes.winner(VoteService.Question.TYPE).flatMap(GameType::parse).orElse(settings.defaultType());
         if (!map.supports(type)) {
@@ -1641,16 +1653,22 @@ public final class RoundService implements ICtfService {
         }
     }
 
-    /** Watches the round from above. Their own thread or the global one. */
-    public void watch(Player player) {
+    /**
+     * Watches the round from above — only somebody in the lobby, whose things are kept. Their own thread or the global
+     * one.
+     *
+     * @return false when there is no round, or they are not in Capture the Flag
+     */
+    public boolean watch(Player player) {
         Round now = round;
-        if (now == null) {
-            return;
+        if (now == null || !lobby.isInside(player.getUniqueId()) || isIn(player.getUniqueId())) {
+            return false;
         }
         Scheduling.entity(plugin, player, () -> {
             spectators.watch(player, spectateSpot(now));
             messages.send(player, "ctf.round.watching");
         });
+        return true;
     }
 
     private void removeFromRound(UUID player, boolean online) {
@@ -1724,8 +1742,10 @@ public final class RoundService implements ICtfService {
             Optional.ofNullable(awards.get(Award.MVP)).ifPresent(mvp -> progress.award(mvp, ProgressService.MVP));
         }
         List<UUID> winners = new ArrayList<>();
+        boolean forfeit = "ctf.round.won-forfeit".equals(reasonKey);
+        boolean rewarded = !forfeit || clock.getAsLong() - now.startedAt() >= FORFEIT_PAYS_AFTER_MILLIS;
         for (Fighter fighter : fighters) {
-            boolean won = winner.map(side -> side == fighter.side()).orElse(false);
+            boolean won = winner.map(side -> side == fighter.side()).orElse(false) && rewarded;
             boolean lost = winner.isPresent() && !won;
             if (won) {
                 winners.add(fighter.id());

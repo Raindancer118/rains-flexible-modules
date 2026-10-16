@@ -52,9 +52,9 @@ public final class CtfMenu extends Menu implements ICtfScreen {
                     click -> services.screens().classes(viewer));
             band(1, 4, Icons.of(Material.WHITE_BANNER, "<white>Side", "<gray>Which side you would like.",
                     "<gray>Kept as long as the sides stay even."), click -> services.screens().sides(viewer));
-            band(1, 5, inRound || phase.isPlaying(), Icons.of(Material.ENDER_EYE, "<light_purple>Watch",
+            band(1, 5, !inRound && phase.isPlaying(), Icons.of(Material.ENDER_EYE, "<light_purple>Watch",
                     "<gray>Watch the round from above.", "<gray>A carrier is followed; sneak to look round."),
-                    "No round is on.", click -> {
+                    inRound ? "You are playing in it." : "No round is on.", click -> {
                         viewer.closeInventory();
                         services.rounds().watch(viewer);
                     });

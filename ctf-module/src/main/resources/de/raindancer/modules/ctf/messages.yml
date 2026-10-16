@@ -119,12 +119,15 @@ ctf:
   watch:
     following: "<gray>You follow the flag."
     not-following: "<gray>You look round for yourself."
+    nothing: "<gray>There is no round to watch, or you are playing in it."
+    not-watching: "<gray>You are not watching a round. <white>/ctf watch"
 
   parkour:
     started: "<green>Go! <gray>The clock is running."
     checkpoint: "<aqua>Checkpoint <white><number></white>!"
     finished: "<green>Finished in <white><time></white>! <dark_gray>(#<rank>)"
     record: "<gold><bold>New record!</bold> <white><time></white>!"
+    missed-checkpoint: "<yellow>You missed a checkpoint — that run does not count."
 
   party:
     how: "<gray>/ctf party invite <player> <dark_gray>·</dark_gray> accept <dark_gray>·</dark_gray> leave <dark_gray>·</dark_gray> kick <dark_gray>·</dark_gray> list"
@@ -150,7 +153,7 @@ ctf:
     challenge-done: "<green><bold>Challenge done!</bold> <white><challenge></white> <gray>(+<xp> experience)"
 
   admin:
-    usage: "<gray>/ctf admin start|stop|info · map list|setup <file>|menu|title <name> [by <author>]|rebuild <map>|bases <map> · board place|remove"
+    usage: "<gray>/ctf admin start [map]|stop|info · map list|setup <file>|menu|reload|title <name> [by <author>]|rebuild <map>|bases <map> · board place|remove"
     starting: "<green>Starting a round."
     already-running: "<gray>A round is on already."
     stopped: "<yellow>The round is stopped."
@@ -178,6 +181,7 @@ ctf:
     board-placed: "<green>A leaderboard stands here now."
     board-removed: "<gray>The nearest leaderboard is gone."
     no-board-near: "<gray>No leaderboard within five blocks."
+    reloaded: "<green>Maps read again: <white><maps></white>, <white><playable></white> playable."
     info-round: "<gray>Round on <white><map></white>: <white><phase></white>, <type>, twist <twist>, score <white><score>"
     info-flag: "<gray>  flag of side <white><side></white>: <white><state></white> at <white><where></white>, carried by <white><carrier>"
     info-fighter: "<gray>  <white><player></white> side <white><side></white>, <alive>, <class>, at <white><where>"

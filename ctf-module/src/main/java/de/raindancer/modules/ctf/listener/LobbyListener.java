@@ -95,6 +95,12 @@ public final class LobbyListener implements ICtfListener {
         if (!services.lobby().isInside(id) || services.rounds().isIn(id)) {
             return;
         }
+        if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR || player.getGameMode() == org.bukkit.GameMode.CREATIVE
+                || player.isFlying() || player.isGliding()) {
+            // Not a run anybody made on foot.
+            services.lobby().stopParkour(id);
+            return;
+        }
         LobbyStore.Lobby lobby = services.lobby().lobby();
         if (!lobby.hasParkour()) {
             return;
@@ -120,6 +126,10 @@ public final class LobbyListener implements ICtfListener {
             }
         }
         if (near(to, lobby.parkourFinish())) {
+            if (!LobbyService.mayFinish(services.lobby().parkourOf(id).get(), checkpoints.size())) {
+                services.messages().send(player, "ctf.parkour.missed-checkpoint");
+                return;
+            }
             long startedAt = services.lobby().parkourOf(id).get().startedAt();
             long took = System.currentTimeMillis() - startedAt;
             services.lobby().stopParkour(id);

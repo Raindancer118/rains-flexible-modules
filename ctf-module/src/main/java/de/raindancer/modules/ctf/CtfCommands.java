@@ -22,7 +22,7 @@ public final class CtfCommands {
                 .aliased("capturetheflag")
                 .taking("(nothing) — the menu", "join | leave", "vote | class [name] | side", "watch | follow",
                         "stats [player] | top | looks | challenges", "party invite|accept|leave|kick|list [player]",
-                        "admin start | stop | info", "admin map list | setup <file|map> | menu | title <name> [by <author>]",
+                        "admin start [map] | stop | info", "admin map list | setup <file|map> | menu | reload | title <name> [by <author>]",
                         "admin map rebuild <map> | bases <map>", "admin board place|remove"));
     }
 

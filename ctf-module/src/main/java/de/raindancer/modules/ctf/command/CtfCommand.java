@@ -76,9 +76,23 @@ public final class CtfCommand implements ICtfCommand {
                 }
             }
             case "side" -> live.screens().sides(player);
-            case "watch" -> live.rounds().watch(player);
-            case "follow" -> live.messages().send(player, live.spectators().toggleFollow(player.getUniqueId())
-                    ? "ctf.watch.following" : "ctf.watch.not-following");
+            case "watch" -> {
+                // Only from the lobby: watching is spectator mode and an emptied hand, which outside the lobby would
+                // be a way to fly through walls and to lose what one carries.
+                if (!live.lobby().isInside(player.getUniqueId())) {
+                    live.messages().send(player, "ctf.join.not-in");
+                } else if (!live.rounds().watch(player)) {
+                    live.messages().send(player, "ctf.watch.nothing");
+                }
+            }
+            case "follow" -> {
+                if (!live.spectators().isWatching(player.getUniqueId())) {
+                    live.messages().send(player, "ctf.watch.not-watching");
+                } else {
+                    live.messages().send(player, live.spectators().toggleFollow(player.getUniqueId())
+                            ? "ctf.watch.following" : "ctf.watch.not-following");
+                }
+            }
             case "stats" -> {
                 if (args.length > 1) {
                     var other = Bukkit.getOfflinePlayerIfCached(args[1]);
@@ -158,8 +172,19 @@ public final class CtfCommand implements ICtfCommand {
                     live.messages().send(sender, "ctf.admin.usage");
                 }
             }
-            case "start" -> live.messages().send(sender, live.rounds().startNow() ? "ctf.admin.starting"
-                    : "ctf.admin.already-running");
+            case "start" -> {
+                String map = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : null;
+                if (map != null && live.maps().load(map).isEmpty()) {
+                    // Dropped into the folder since the last look: a staff command can afford reading it again.
+                    live.maps().refresh();
+                }
+                if (map != null && live.maps().load(map).filter(found -> found.isPlayable()).isEmpty()) {
+                    live.messages().send(sender, "ctf.admin.no-such-map", "map", map);
+                    return;
+                }
+                live.messages().send(sender, live.rounds().startNow(map) ? "ctf.admin.starting"
+                        : "ctf.admin.already-running");
+            }
             case "stop" -> live.messages().send(sender, live.rounds().stopNow() ? "ctf.admin.stopped"
                     : "ctf.admin.nothing-running");
             case "map" -> map(live, sender, Arrays.copyOfRange(args, 1, args.length));
@@ -248,6 +273,11 @@ public final class CtfCommand implements ICtfCommand {
                     live.screens().setup(player);
                 }
             }
+            case "reload" -> de.raindancer.core.platform.util.Scheduling.async(live.plugin(), () -> {
+                live.maps().refresh();
+                live.messages().send(sender, "ctf.admin.reloaded", "maps", live.maps().all().size(),
+                        "playable", live.maps().all().stream().filter(map -> map.isPlayable()).count());
+            });
             case "rebuild" -> {
                 if (args.length < 2 || live.maps().load(args[1]).isEmpty()) {
                     live.messages().send(sender, "ctf.admin.no-such-map", "map", args.length > 1 ? args[1] : "");
@@ -303,7 +333,7 @@ public final class CtfCommand implements ICtfCommand {
                 return ADMIN.stream().filter(option -> option.startsWith(typed)).toList();
             }
             if (args[1].equalsIgnoreCase("map") && args.length == 3) {
-                return List.of("list", "setup", "menu", "title", "rebuild", "bases").stream()
+                return List.of("list", "setup", "menu", "title", "reload", "rebuild", "bases").stream()
                         .filter(option -> option.startsWith(typed)).toList();
             }
             if (args[1].equalsIgnoreCase("map") && args.length == 4) {
@@ -311,6 +341,10 @@ public final class CtfCommand implements ICtfCommand {
                 List<String> names = new ArrayList<>(live.maps().schematics());
                 live.maps().all().forEach(map -> names.add(map.id()));
                 return names.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(typed)).toList();
+            }
+            if (args[1].equalsIgnoreCase("start") && args.length == 3) {
+                return services.get().maps().all().stream().filter(map -> map.isPlayable()).map(map -> map.id())
+                        .filter(id -> id.startsWith(typed)).toList();
             }
             if (args[1].equalsIgnoreCase("board") && args.length == 3) {
                 return List.of("place", "remove").stream().filter(option -> option.startsWith(typed)).toList();

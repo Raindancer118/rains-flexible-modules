@@ -257,6 +257,11 @@ public final class LobbyService implements ICtfService {
         return Optional.ofNullable(parkour.get(player));
     }
 
+    /** A run counts at the finish only with every checkpoint reached on the way. */
+    public static boolean mayFinish(Running run, int checkpoints) {
+        return run != null && run.checkpoint() >= checkpoints;
+    }
+
     public void startParkour(UUID player) {
         parkour.put(player, new Running(clock.getAsLong(), 0));
     }
