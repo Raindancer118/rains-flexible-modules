@@ -29,31 +29,40 @@ public final class IslandEndpoint {
     private final Collection<ServerLink> links;
     private final Optional<NetworkCalls> calls;
     private final java.util.function.BiPredicate<UUID, String> isOn;
+    private final java.util.function.BiConsumer<UUID, String> then;
     private final List<NetworkBus.Subscription> answering = new ArrayList<>();
 
     public IslandEndpoint(InviteService invites, Collection<ServerLink> links) {
-        this(invites, links, Optional.empty(), (player, server) -> false);
+        this(invites, links, Optional.empty(), (player, server) -> false, (player, arguments) -> { });
     }
 
-    /** @param isOn whether a player is on a server of the network now (presence) */
+    /**
+     * @param isOn whether a player is on a server of the network now (presence)
+     * @param then keeps an {@code /island} for a player's arrival
+     */
     public IslandEndpoint(InviteService invites, Collection<ServerLink> links, Optional<NetworkCalls> calls,
-                          java.util.function.BiPredicate<UUID, String> isOn) {
+                          java.util.function.BiPredicate<UUID, String> isOn,
+                          java.util.function.BiConsumer<UUID, String> then) {
         this.invites = invites;
         this.links = links;
         this.calls = calls;
         this.isOn = isOn;
+        this.then = then;
     }
 
     public void listen() {
         for (ServerLink link : links) {
             link.on(IslandProtocol.INVITE, this::invite);
             link.on(IslandProtocol.ANSWER, this::answer);
+            link.on(IslandProtocol.THEN, this::keep);
         }
         calls.ifPresent(network -> {
             answering.add(network.answerFrom(IslandProtocol.INVITE, (from, data) -> forOwn(from, data.get("from"))
                     ? inviteLater(data) : asleep()));
             answering.add(network.answerFrom(IslandProtocol.ANSWER, (from, data) -> forOwn(from, data.get("player"))
                     ? answerLater(data) : asleep()));
+            answering.add(network.answerFrom(IslandProtocol.THEN, (from, data) -> forOwn(from, data.get("player"))
+                    ? java.util.concurrent.CompletableFuture.completedFuture(keep(data)) : asleep()));
         });
     }
 
@@ -119,10 +128,20 @@ public final class IslandEndpoint {
         }
     }
 
+    private Map<String, String> keep(Map<String, String> data) {
+        try {
+            then.accept(UUID.fromString(data.get("player")), data.getOrDefault("arguments", ""));
+            return Reply.silent().toWire();
+        } catch (RuntimeException garbled) {
+            return ASLEEP.toWire();
+        }
+    }
+
     public void stop() {
         for (ServerLink link : links) {
             link.off(IslandProtocol.INVITE);
             link.off(IslandProtocol.ANSWER);
+            link.off(IslandProtocol.THEN);
         }
         answering.forEach(NetworkBus.Subscription::close);
         answering.clear();

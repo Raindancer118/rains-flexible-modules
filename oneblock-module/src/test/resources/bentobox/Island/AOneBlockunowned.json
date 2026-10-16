@@ -1,0 +1,11 @@
+{
+  "deleted": false,
+  "uniqueId": "AOneBlockunowned",
+  "center": ["oneblock_world", 0.0, 80.0, 1600.0, 0.0, 0.0],
+  "range": 400,
+  "protectionRange": 50,
+  "maxEverProtectionRange": 50,
+  "world": "oneblock_world",
+  "gameMode": "AOneBlock",
+  "members": {}
+}

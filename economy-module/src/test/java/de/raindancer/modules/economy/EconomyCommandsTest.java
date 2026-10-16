@@ -56,7 +56,7 @@ class EconomyCommandsTest {
         when(bank.keepsIt()).thenReturn(!elsewhere);
         when(bank.bankName()).thenReturn("Survival");
         when(source.getSender()).thenReturn(sender);
-        EconomyCommands.readyClient(new EconomyClient(null, null, messages, null, bank, startedAsClient));
+        EconomyCommands.readyClient(new EconomyClient(null, null, messages, null, bank, startedAsClient, java.util.Optional.empty(), null));
     }
 
     private ModuleCommand declared(String name) {

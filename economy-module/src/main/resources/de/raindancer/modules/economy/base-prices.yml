@@ -52,6 +52,7 @@ dark_oak_log: 20
 mangrove_log: 20
 cherry_log: 20
 pale_oak_log: 20
+poplar_log: 20
 crimson_stem: 25
 warped_stem: 25
 bamboo: 3
@@ -63,10 +64,24 @@ acacia_sapling: 10
 dark_oak_sapling: 10
 cherry_sapling: 10
 pale_oak_sapling: 10
+poplar_sapling: 10
 mangrove_propagule: 10
+# Every kind of leaves (TreePricesTest keeps it so): the plain ones like oak's, the rarer trees' a little dearer,
+# azalea's dearest — they grow on no tree the player plants from a sapling of the same name.
 oak_leaves: 5
 spruce_leaves: 5
 birch_leaves: 5
+jungle_leaves: 5
+acacia_leaves: 5
+dark_oak_leaves: 5
+mangrove_leaves: 6
+cherry_leaves: 8
+pale_oak_leaves: 8
+red_poplar_leaves: 8
+orange_poplar_leaves: 8
+yellow_poplar_leaves: 8
+azalea_leaves: 10
+flowering_azalea_leaves: 15
 
 # ---- minerals
 coal: 30

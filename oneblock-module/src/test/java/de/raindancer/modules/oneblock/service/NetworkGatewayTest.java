@@ -44,7 +44,8 @@ class NetworkGatewayTest {
                 Runnable::run, System::currentTimeMillis, OneBlockSettings.DEFAULTS);
         // Ada and Bo play on the hub.
         IslandEndpoint endpoint = new IslandEndpoint(service, List.of(), Optional.of(calls),
-                (player, server) -> server.equals(player.equals(bo) || player.equals(ada.id()) ? "hub" : "smp"));
+                (player, server) -> server.equals(player.equals(bo) || player.equals(ada.id()) ? "hub" : "smp"),
+                (player, arguments) -> { });
         endpoint.listen();
         open.add(endpoint::stop);
         return endpoint;

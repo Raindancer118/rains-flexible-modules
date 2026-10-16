@@ -2,6 +2,7 @@ package de.raindancer.modules.oneblock.service;
 
 import de.raindancer.core.platform.link.LinkDirectory;
 import de.raindancer.modules.oneblock.OneBlockSettings;
+import de.raindancer.modules.oneblock.model.EconomyMode;
 import de.raindancer.modules.oneblock.model.Invite;
 import de.raindancer.modules.oneblock.model.InviteKind;
 import de.raindancer.modules.oneblock.model.IslandFacts;
@@ -24,8 +25,7 @@ import java.util.function.Supplier;
  * The island server's side of invites, wherever on the network they were typed: deciding, remembering, telling both
  * players, and finishing the job when the invited player arrives.
  *
- * <p>Joining a team is BentoBox's own accept command, run for the player once they are here — its confirmation and
- * its handling of an island they already own stay BentoBox's.
+ * <p>Joining a team and visiting are the {@link IslandHost}'s, run for the player once they are here.
  */
 public final class InviteService implements IOneBlockService {
 
@@ -99,8 +99,7 @@ public final class InviteService implements IOneBlockService {
         if (kind == InviteKind.TEAM) {
             host.offerTeam(invite);
         }
-        delivery.tell(to.name(), kind == InviteKind.TEAM ? "oneblock.invite.received-team" : "oneblock.invite.received-guest",
-                "player", from.name(), "minutes", minutes);
+        delivery.tell(to.name(), receivedKey(kind, island.get().mode()), "player", from.name(), "minutes", minutes);
         return Reply.ok(kind == InviteKind.TEAM ? "oneblock.invite.sent-team" : "oneblock.invite.sent-guest",
                 "player", to.name(), "minutes", minutes);
     }
@@ -154,7 +153,7 @@ public final class InviteService implements IOneBlockService {
             return true;
         }
         if (host.ready() && !host.inGameWorld(player)) {
-            host.home(player);
+            host.arrived(player);
         }
         return false;
     }
@@ -165,6 +164,19 @@ public final class InviteService implements IOneBlockService {
         } else {
             host.visit(invite.to().id(), invite.islandId());
         }
+    }
+
+    /**
+     * One wording per money rather than a word put in: the line may be said on another server, and every server has
+     * the same wording, so the badge keeps its colours there.
+     */
+    static String receivedKey(InviteKind kind, EconomyMode mode) {
+        boolean team = kind == InviteKind.TEAM;
+        return switch (mode) {
+            case PURE -> team ? "oneblock.invite.received-team.pure" : "oneblock.invite.received-guest.pure";
+            case SMP -> team ? "oneblock.invite.received-team.smp" : "oneblock.invite.received-guest.smp";
+            case UNDECIDED -> team ? "oneblock.invite.received-team.undecided" : "oneblock.invite.received-guest.undecided";
+        };
     }
 
     /** Runs out what nobody answered. Server thread. */

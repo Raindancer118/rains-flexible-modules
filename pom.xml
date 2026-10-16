@@ -65,7 +65,7 @@
         <invsnap-module.version>1.9.0</invsnap-module.version>
         <xpbottle-module.version>1.4.0</xpbottle-module.version>
         <sends-module.version>0.3.0</sends-module.version>
-        <oneblock-module.version>0.3.1</oneblock-module.version>
+        <oneblock-module.version>0.4.0</oneblock-module.version>
         <twitch-module.version>0.4.1</twitch-module.version>
         <!-- 0.x until duels, mob waves, stakes, own gear and the gladiators are all in. -->
         <arena-api.version>0.6.0</arena-api.version>
@@ -75,7 +75,7 @@
         <healthbars-module.version>0.1.1</healthbars-module.version>
         <enchants-module.version>0.6.0</enchants-module.version>
         <performance-module.version>0.2.0</performance-module.version>
-        <economy-module.version>0.41.0</economy-module.version>
+        <economy-module.version>0.42.1</economy-module.version>
         <roles-module.version>0.8.0</roles-module.version>
         <ranks-module.version>0.5.0</ranks-module.version>
         <jobs-module.version>0.9.1</jobs-module.version>

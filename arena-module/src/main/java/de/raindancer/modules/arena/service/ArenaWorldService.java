@@ -1,5 +1,6 @@
 package de.raindancer.modules.arena.service;
 
+import de.raindancer.core.world.manage.VoidGenerator;
 import de.raindancer.core.platform.log.LogChannel;
 import de.raindancer.core.platform.util.Scheduling;
 import de.raindancer.core.world.build.Schematic;
@@ -83,7 +84,7 @@ public final class ArenaWorldService implements IArenaService {
         try {
             // The generator has to be given again on every load, not only the first: without it the server
             // generates ordinary terrain for every chunk the map did not reach.
-            return new WorldCreator(name).generator(new VoidGenerator()).type(WorldType.FLAT)
+            return new WorldCreator(name).generator(VoidGenerator.empty()).type(WorldType.FLAT)
                     .generateStructures(false).environment(World.Environment.NORMAL).createWorld();
         } catch (RuntimeException failure) {
             log.error(failure, "The server refused to make the arena world '{}'.", name);
