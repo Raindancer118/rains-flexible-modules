@@ -21,7 +21,9 @@ class CommandWordsScenarioTest {
     /** Any of the ways a player is told no: the module's own refusals, or the server's for a command they cannot see. */
     private static final List<String> REFUSALS = List.of("is for staff", "may not use", "not yours to do",
             "Only staff can start", "Unknown or incomplete command", "command.unknown.command", "do not have permission",
-            "changing who is on the whitelist is for admins");
+            "changing who is on the whitelist is for admins",
+            // Core (2.0) answering a command the player may not see as one that does not exist.
+            "is not a thing here");
 
     private static void refused(Bot player, String command, String id) {
         player.answer(() -> player.run(command), answer -> REFUSALS.stream().anyMatch(answer::says));

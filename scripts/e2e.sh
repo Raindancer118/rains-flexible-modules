@@ -37,8 +37,10 @@ if [ "$BUILD" = 1 ]; then
   echo "[e2e] building the plugin, the harness and the scenarios …"
   # clean install, not verify: the standalone jar shades the module out of the local repository, and
   # its own test (StandaloneJarTest#theJarIsNotStale) is what proves the jar is this build's.
-  "${MVN[@]}" -q clean install -pl speedrun-module -am -DskipTests
-  "${MVN[@]}" -q clean install -pl speedrun-standalone
+  # Everything both standalone jars need, so a cold local repository works too. RainsEconomy is there
+  # for EntryFeeScenarioTest, which puts economy-standalone/target's jar beside RainsSpeedrun.
+  "${MVN[@]}" -q clean install -pl speedrun-standalone,economy-standalone -am -DskipTests
+  "${MVN[@]}" -q install -pl speedrun-standalone
   "${MVN[@]}" -q clean install -pl e2e-harness -DskipTests
 fi
 
