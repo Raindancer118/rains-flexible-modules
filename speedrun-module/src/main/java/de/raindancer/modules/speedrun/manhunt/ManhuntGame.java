@@ -116,9 +116,10 @@ public final class ManhuntGame {
         Eliminations eliminations = new Eliminations(context.plugin());
         // The few people a clear never sweeps up and a close always lets in — kept on disk beside the
         // module's own settings, because a list of players is not a settings field. See WhitelistVips.
+        java.util.concurrent.Executor disk = task -> de.raindancer.core.platform.util.Scheduling.async(context.plugin(), task);
         ManhuntWhitelistService whitelist = new ManhuntWhitelistService(server,
-                new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml")),
-                context.dataFolder().resolve("whitelist-state.yml"));
+                new WhitelistVips(context.dataFolder().resolve("whitelist-vips.yml"), disk),
+                context.dataFolder().resolve("whitelist-state.yml"), disk);
         // No hunt survives a restart, so a door a hunt shut — and never got to open, because the
         // server stopped or crashed under it — is opened now.
         if (whitelist.reopenAfterHunt()) {

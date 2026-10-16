@@ -99,4 +99,19 @@ class WhitelistVipsTest {
     void missingFileIsEmpty() {
         assertThat(vips().ids()).isEmpty();
     }
+
+    @Test
+    @DisplayName("a VIP counts at once, and is on disk once the write behind it has run")
+    void writtenBehind() {
+        java.util.List<Runnable> pending = new java.util.ArrayList<>();
+        WhitelistVips vips = new WhitelistVips(directory.resolve("whitelist-vips.yml"), pending::add);
+        UUID ada = UUID.randomUUID();
+
+        vips.add(ada, "Ada");
+        assertThat(vips.isVip(ada)).isTrue();
+        assertThat(vips().isVip(ada)).as("not written yet").isFalse();
+
+        pending.forEach(Runnable::run);
+        assertThat(vips().isVip(ada)).isTrue();
+    }
 }

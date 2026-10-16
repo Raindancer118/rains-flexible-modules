@@ -93,6 +93,22 @@ class ManhuntWhitelistServiceTest {
         }
 
         @Test
+        @DisplayName("a hunt's end decides from memory, not from the store: the write behind it may not have landed yet")
+        void endOfHuntReadsNothing() {
+            java.util.List<Runnable> pending = new java.util.ArrayList<>();
+            ManhuntWhitelistService later = new ManhuntWhitelistService(gateway, vips,
+                    directory.resolve("whitelist-state.yml"), pending::add);
+
+            assertThat(later.closeForHunt()).isTrue();
+            assertThat(later.reopenAfterHunt()).isTrue();
+            assertThat(gateway.enabled).isFalse();
+
+            pending.forEach(Runnable::run);
+            assertThat(new ManhuntWhitelistService(gateway, vips, directory.resolve("whitelist-state.yml"))
+                    .reopenAfterHunt()).as("the last write says the hunt's door is open again").isFalse();
+        }
+
+        @Test
         @DisplayName("a door that was already shut is never opened by a hunt ending")
         void neverSomebodyElsesDoor() {
             gateway.enabled = true;

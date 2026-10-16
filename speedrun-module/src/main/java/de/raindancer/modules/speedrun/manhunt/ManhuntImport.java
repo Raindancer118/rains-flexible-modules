@@ -61,7 +61,8 @@ public final class ManhuntImport {
         }
         Path stats = folder.resolve("stats.yml");
         if (Files.isRegularFile(stats)) {
-            YamlStore store = new YamlStore(stats);
+            // Plain files, never documents: Core's store would set them aside before a failed import could retry.
+            YamlStore store = new YamlStore(stats, null, de.raindancer.core.data.store.Documents.Scope.SERVER);
             YamlConfiguration yaml = store.read();
             if (!store.problems().isEmpty()) {
                 log.warn("Manhunt's old {} could not be read ({}); it is left as it is.", stats,
@@ -89,7 +90,7 @@ public final class ManhuntImport {
         }
         Path hunts = folder.resolve("hunts.yml");
         if (Files.isRegularFile(hunts)) {
-            YamlStore store = new YamlStore(hunts);
+            YamlStore store = new YamlStore(hunts, null, de.raindancer.core.data.store.Documents.Scope.SERVER);
             YamlConfiguration yaml = store.read();
             if (!store.problems().isEmpty()) {
                 log.warn("Manhunt's old {} could not be read ({}); it is left as it is.", hunts,

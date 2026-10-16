@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 /**
  * "Open" and "close" for the server's real whitelist — {@code Bukkit.setWhitelist}, not a match-local
@@ -38,16 +39,28 @@ public final class ManhuntWhitelistService {
      * would otherwise leave a server whitelisted for good with nothing remembering why.
      */
     private final YamlStore state;
+    /**
+     * The store's flag, read once when the module starts: a hunt ends on the server thread, and the store
+     * is a database row since Core 2.0. Written behind, by {@link #writer}.
+     */
+    private volatile boolean closedByHunt;
+    private final Executor writer;
 
-    public ManhuntWhitelistService(Server server, WhitelistVips vips, Path stateFile) {
-        this(new BukkitWhitelistGateway(Objects.requireNonNull(server, "server")), vips, stateFile);
+    public ManhuntWhitelistService(Server server, WhitelistVips vips, Path stateFile, Executor writer) {
+        this(new BukkitWhitelistGateway(Objects.requireNonNull(server, "server")), vips, stateFile, writer);
     }
 
-    /** For tests: a fake gateway that never touches a live server. */
+    /** For tests: a fake gateway that never touches a live server, writing at once. */
     ManhuntWhitelistService(WhitelistGateway gateway, WhitelistVips vips, Path stateFile) {
+        this(gateway, vips, stateFile, Runnable::run);
+    }
+
+    ManhuntWhitelistService(WhitelistGateway gateway, WhitelistVips vips, Path stateFile, Executor writer) {
         this.gateway = Objects.requireNonNull(gateway, "gateway");
         this.vips = Objects.requireNonNull(vips, "vips");
         this.state = new YamlStore(Objects.requireNonNull(stateFile, "stateFile"));
+        this.writer = Objects.requireNonNull(writer, "writer");
+        this.closedByHunt = state.exists() && state.read().getBoolean(CLOSED_BY_HUNT, false);
     }
 
     /** The people every one of these operations spares — see {@link WhitelistVips}. */
@@ -98,7 +111,7 @@ public final class ManhuntWhitelistService {
      * @return whether this opened it
      */
     public boolean reopenAfterHunt() {
-        if (!state.read().getBoolean(CLOSED_BY_HUNT, false)) {
+        if (!closedByHunt) {
             return false;
         }
         rememberClosedByHunt(false);
@@ -118,9 +131,12 @@ public final class ManhuntWhitelistService {
     }
 
     private void rememberClosedByHunt(boolean closed) {
-        if (closed || state.exists()) {
-            state.write(yaml -> yaml.set(CLOSED_BY_HUNT, closed));
+        if (closedByHunt == closed) {
+            return;
         }
+        closedByHunt = closed;
+        // The value at the time of writing, not of asking: writes that overtake each other still end on the last.
+        writer.execute(() -> state.write(yaml -> yaml.set(CLOSED_BY_HUNT, closedByHunt)));
     }
 
     private int shut() {

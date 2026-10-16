@@ -275,4 +275,70 @@ class SpeedrunHistoryMigrationTest {
         assertThat(SpeedrunHistoryMigration.migrate(folder, history())).isEqualTo(SpeedrunHistoryMigration.Result.NOTHING);
         assertThat(history().all()).hasSize(2);
     }
+
+    /** On a server running Core 2.0, where every {@code YamlStore} under the plugins folder lives in the database. */
+    @org.junit.jupiter.api.Nested
+    class WithCoresDocuments {
+
+        private Database documentsDatabase;
+        private Path plugins;
+
+        @BeforeEach
+        void install() throws Exception {
+            plugins = folder.resolve("plugins");
+            Files.createDirectories(plugins.resolve("RainsSpeedrun"));
+            documentsDatabase = Database.open(folder.resolve("documents.db"),
+                    de.raindancer.core.data.store.Documents.SCHEMA, () -> false);
+            de.raindancer.core.data.store.Documents.install(new de.raindancer.core.data.store.Documents(
+                    documentsDatabase, null, plugins, "", System::currentTimeMillis));
+        }
+
+        @AfterEach
+        void uninstall() {
+            de.raindancer.core.data.store.Documents.uninstall();
+            documentsDatabase.close();
+        }
+
+        private Path data() {
+            return plugins.resolve("RainsSpeedrun");
+        }
+
+        @Test
+        @DisplayName("the old file is read as a file: shown first, then moved and backed up — not swallowed as a document")
+        void readsTheFileItself() throws Exception {
+            Files.writeString(data().resolve("history.yml"), OLD_FILE);
+            SpeedrunHistory history = history();
+
+            SpeedrunHistoryMigration.show(data(), history);
+            assertThat(SpeedrunHistoryMigration.migrate(data(), history)).isEqualTo(SpeedrunHistoryMigration.Result.MOVED);
+
+            assertThat(history().all()).extracting(SpeedrunRunRecord::id).containsExactly("run-one", "run-two");
+            assertThat(Files.readString(data().resolve("backup/history.yml"))).isEqualTo(OLD_FILE);
+        }
+
+        @Test
+        @DisplayName("a file Core already took in as a document, never moved, is moved from what Core kept of it")
+        void recoversWhatCoreTookIn() throws Exception {
+            Files.writeString(data().resolve("history.yml.imported-2.0.0"), OLD_FILE);
+            SpeedrunHistory history = history();
+
+            assertThat(SpeedrunHistoryMigration.migrate(data(), history)).isEqualTo(SpeedrunHistoryMigration.Result.MOVED);
+
+            assertThat(history().all()).extracting(SpeedrunRunRecord::id).containsExactly("run-one", "run-two");
+            assertThat(Files.readString(data().resolve("backup/history.yml"))).isEqualTo(OLD_FILE);
+            assertThat(SpeedrunHistoryMigration.migrate(data(), history()))
+                    .as("moved once").isEqualTo(SpeedrunHistoryMigration.Result.NOTHING);
+        }
+
+        @Test
+        @DisplayName("what an earlier move set aside is not moved again")
+        void setAsideStaysAside() throws Exception {
+            Files.writeString(data().resolve("history.yml.imported-2.0.0"), OLD_FILE);
+            Files.createDirectories(data().resolve("backup"));
+            Files.writeString(data().resolve("backup/history.yml"), OLD_FILE);
+
+            assertThat(SpeedrunHistoryMigration.migrate(data(), history())).isEqualTo(SpeedrunHistoryMigration.Result.NOTHING);
+            assertThat(history().all()).isEmpty();
+        }
+    }
 }

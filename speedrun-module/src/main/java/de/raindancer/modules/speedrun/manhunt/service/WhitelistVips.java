@@ -44,8 +44,16 @@ public final class WhitelistVips {
     /** id → last known name. Thread-safe: a command and a hunt ending may both reach this. */
     private final Map<UUID, String> vips = new ConcurrentHashMap<>();
 
+    /** Writes the list behind, off the caller's thread: a VIP is made by a command on the server thread. */
+    private final java.util.concurrent.Executor writer;
+
     public WhitelistVips(Path file) {
+        this(file, Runnable::run);
+    }
+
+    public WhitelistVips(Path file, java.util.concurrent.Executor writer) {
         this.store = new YamlStore(file);
+        this.writer = java.util.Objects.requireNonNull(writer, "writer");
         load();
     }
 
@@ -68,7 +76,11 @@ public final class WhitelistVips {
     }
 
     private void save() {
-        Map<UUID, String> snapshot = new LinkedHashMap<>(vips);
+        // The list as it is when the write runs, so writes that overtake each other still end on the last.
+        writer.execute(() -> write(new LinkedHashMap<>(vips)));
+    }
+
+    private void write(Map<UUID, String> snapshot) {
         store.write(yaml -> {
             yaml.set(SECTION, null);
             for (Map.Entry<UUID, String> vip : snapshot.entrySet()) {

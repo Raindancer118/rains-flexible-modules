@@ -1,5 +1,6 @@
 package de.raindancer.modules.speedrun;
 
+import de.raindancer.core.data.store.Documents;
 import de.raindancer.core.data.store.YamlStore;
 import de.raindancer.core.platform.log.Log;
 import de.raindancer.core.platform.log.LogChannel;
@@ -40,6 +41,7 @@ public final class SpeedrunHistoryMigration {
 
     static final String FILE = "history.yml";
     static final String BACKUP_FOLDER = "backup";
+    private static final String IMPORTED = ".imported-2.0.0";
 
     /** What one try came to. */
     public enum Result {
@@ -62,16 +64,45 @@ public final class SpeedrunHistoryMigration {
 
     /** Shows the old file's runs in {@code history} until they are moved — changes nothing on disk. */
     public static void show(Path folder, SpeedrunHistory history) {
-        read(folder).ifPresent(legacy -> history.remember(legacy.runs()));
+        source(folder).flatMap(SpeedrunHistoryMigration::read).ifPresent(legacy -> history.remember(legacy.runs()));
+    }
+
+    /**
+     * The old file to move: {@code history.yml} — or, with no backup made yet, the {@code *.imported-2.0.0} that
+     * Core 2.0 left when this migration still read the file through a database-backed store, which took it in
+     * as a document and set it aside before it could be moved.
+     */
+    static Optional<Path> source(Path folder) {
+        Path file = folder.resolve(FILE);
+        if (Files.exists(file)) {
+            return Optional.of(file);
+        }
+        Path setAside = folder.resolve(FILE + IMPORTED);
+        return Files.exists(setAside) && !backedUp(folder) ? Optional.of(setAside) : Optional.empty();
+    }
+
+    private static boolean backedUp(Path folder) {
+        Path backups = folder.resolve(BACKUP_FOLDER);
+        if (!Files.isDirectory(backups)) {
+            return false;
+        }
+        try (var kept = Files.list(backups)) {
+            return kept.map(path -> path.getFileName().toString())
+                    .anyMatch(name -> name.startsWith("history") && name.endsWith(".yml"));
+        } catch (IOException unreadable) {
+            // Unsure means it may have been moved already: moving twice is what must never happen.
+            return true;
+        }
     }
 
     /** One try at moving it. Touches files and Core's database: off the server's threads. */
     public static Result migrate(Path folder, SpeedrunHistory history) {
-        Path file = folder.resolve(FILE);
-        if (!Files.exists(file)) {
+        Optional<Path> source = source(folder);
+        if (source.isEmpty()) {
             return Result.NOTHING;
         }
-        Optional<Legacy> read = read(folder);
+        Path file = source.get();
+        Optional<Legacy> read = read(file);
         if (read.isEmpty()) {
             return Result.LEFT_ALONE;
         }
@@ -97,7 +128,10 @@ public final class SpeedrunHistoryMigration {
                 log.warn("The backup {} of the old speedrun history does not match it; the original is kept.", backup);
                 return Result.WAITING;
             }
-            Files.move(file, file.resolveSibling(FILE + ".imported-2.0.0"), StandardCopyOption.REPLACE_EXISTING);
+            Path setAside = folder.resolve(FILE + IMPORTED);
+            if (!file.equals(setAside)) {
+                Files.move(file, setAside, StandardCopyOption.REPLACE_EXISTING);
+            }
             log.info("Moved {} run(s) of the old speedrun history into Core's history; the old file is backed "
                     + "up as {}.", moved, backup);
             history.rerank();
@@ -124,19 +158,20 @@ public final class SpeedrunHistoryMigration {
     }
 
     /** The old file's runs and standings; empty when there is none, or it cannot be read. */
-    static Optional<Legacy> read(Path folder) {
-        YamlStore store = new YamlStore(folder.resolve(FILE));
+    static Optional<Legacy> read(Path file) {
+        // A plain file, never a document: Core's own store would take it into the database and set it aside.
+        YamlStore store = new YamlStore(file, null, Documents.Scope.SERVER);
         if (!store.exists()) {
             return Optional.empty();
         }
-        YamlConfiguration file = store.read();
+        YamlConfiguration yaml = store.read();
         if (!store.problems().isEmpty()) {
             log.warn("The old speedrun history {} cannot be read ({}); it is left exactly as it is.",
                     store.file(), String.join("; ", store.problems()));
             return Optional.empty();
         }
         List<SpeedrunRunRecord> runs = new ArrayList<>();
-        ConfigurationSection all = file.getConfigurationSection("runs");
+        ConfigurationSection all = yaml.getConfigurationSection("runs");
         if (all != null) {
             for (String id : all.getKeys(false)) {
                 SpeedrunRunRecord.readFrom(id, all.getConfigurationSection(id)).ifPresentOrElse(runs::add,
@@ -144,7 +179,7 @@ public final class SpeedrunHistoryMigration {
             }
         }
         Map<String, Map<UUID, PlayerStats>> standings = new LinkedHashMap<>();
-        ConfigurationSection kept = file.getConfigurationSection("standings");
+        ConfigurationSection kept = yaml.getConfigurationSection("standings");
         if (kept != null) {
             for (String mode : kept.getKeys(false)) {
                 standings.put(mode, SpeedrunHistory.readStandings(kept.getConfigurationSection(mode)));
