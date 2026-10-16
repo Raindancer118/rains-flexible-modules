@@ -126,14 +126,6 @@ public record SupplySettings(
         @Describe("Days.")
         @Key("earn.active-days") int activeDays,
 
-        @In("supply/earning") @Title("Limit selling XP a day")
-        @Describe("The bank buys at most the amount below of experience from one player a day.")
-        @Key("xp.sell-daily-limit") boolean xpDailyLimit,
-
-        @In("supply/earning") @Title("Selling XP, at most a day")
-        @Describe("What one player may be paid for experience in a day. 0 is no limit.")
-        @Key("xp.sell-daily-most") String xpSellDailyMost,
-
         @In("supply/earning") @Title("Daily shop budgets")
         @Describe("The shop buys at most the amounts below a day, from one player and from everybody.")
         @Key("shop.sell-budgets") boolean sellBudgets,
@@ -295,7 +287,7 @@ public record SupplySettings(
             // stabiliser
             false, 1.0, 0.5, 5, 50,
             // earning
-            false, 0, 60, false, "0", 14, false, "0", false, "0", "0", false, 0,
+            false, 0, 60, false, "0", 14, false, "0", "0", false, 0,
             // taxes
             false, List.of(), false, List.of(), false, 0, false, 0, 50,
             // sinks

@@ -32,17 +32,7 @@ public final class ExperienceService implements IEconomyService {
     private final ExperienceRule rule = new ExperienceRule();
     private volatile EconomySettings settings;
 
-    private volatile SupplyService supply;
     static final String XP_SOURCE = de.raindancer.modules.economy.model.Sources.XP;
-
-    /** The money supply's settings; the shipped ones, which change nothing, until wired. */
-    public void supply(SupplyService service) {
-        this.supply = service;
-    }
-
-    private de.raindancer.modules.economy.SupplySettings supplied() {
-        return SupplyService.settingsOf(supply);
-    }
 
     public ExperienceService(RainEconomy economy, Messages messages, Effects effects, EconomySettings settings) {
         this.economy = economy;
@@ -114,16 +104,6 @@ public final class ExperienceService implements IEconomyService {
         if (!pay.isPositive()) {
             refuse(player, "economy.xp.worthless");
             return false;
-        }
-        Money most = supplied().xpDailyLimit()
-                ? de.raindancer.modules.economy.SupplySettings.money(supplied().xpSellDailyMost(), currency) : Money.ZERO;
-        if (most.isPositive()) {
-            Money left = most.minus(economy.book().today(player.getUniqueId(), XP_SOURCE)).max(Money.ZERO);
-            if (pay.isMoreThan(left)) {
-                refuse(player, "economy.xp.daily-limit", "amount", currency.render(most),
-                        "left", currency.render(left));
-                return false;
-            }
         }
         economy.open(player.getUniqueId(), player.getName());
         // Taken first, paid second, and given back if the bank would not take the money.

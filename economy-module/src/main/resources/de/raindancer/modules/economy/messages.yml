@@ -369,7 +369,6 @@ economy:
     percent: "<red>The wealth tax is a percentage above 0 and at most 100, like 2 or 0.5."
 
   xp:
-    daily-limit: "<red>The bank buys at most <amount><red> of experience from you a day. <left><red> left today."
     off: "<red>Buying and selling experience is switched off on this server."
     bought: "<green>You bought <levels> level(s) for <amount><green>. You are level <level> now."
     sold: "<green>You sold <levels> level(s) for <amount><green>. You are level <level> now."

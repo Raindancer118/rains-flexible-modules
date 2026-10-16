@@ -87,7 +87,7 @@ import java.util.UUID;
  */
 public final class EconomyModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.42.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("economy", "Economy", "0.43.0")
             .describedAs("A bank, paying and hiring, coins you can carry, a creative-style shop priced from recipes, "
                     + "passive income, live auctions and raffles, and a casino with sounds and animations — every part switchable.")
             .by("Raindancer118");
@@ -257,7 +257,6 @@ public final class EconomyModule implements FlexModule {
         offTheServerThread(() -> supply.supply(supplyStore.current()));
         supplyStore.onChange(updated -> Scheduling.async(context.plugin(), () -> supply.supply(updated)));
         economy.supply(supply);
-        experience.supply(supply);
         shop.supply(supply);
         payments.supply(supply);
         bills.supply(supply);
