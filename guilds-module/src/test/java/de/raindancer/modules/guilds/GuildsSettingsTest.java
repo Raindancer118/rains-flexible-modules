@@ -19,8 +19,16 @@ class GuildsSettingsTest {
         assertThat(defaults.bankEnabled()).isTrue();
         assertThat(defaults.bankMost()).isEmpty();
         assertThat(defaults.disbandShare()).isEqualTo(ShareRule.Mode.CONTRIBUTION);
-        assertThat(defaults.officerLimit()).isEqualTo("1000");
-        assertThat(defaults.memberLimit()).isEqualTo("100");
+    }
+
+    @Test
+    @DisplayName("daily bank limits by default: officers 10000, members 1000 — under new keys, so old files move too")
+    void bankLimits() throws NoSuchMethodException {
+        assertThat(defaults.officerLimit()).isEqualTo("10000");
+        assertThat(defaults.memberLimit()).isEqualTo("1000");
+        assertThat(GuildsSettings.class.getRecordComponents()).filteredOn(each -> each.getName().endsWith("Limit"))
+                .extracting(each -> each.getAnnotation(de.raindancer.core.data.settings.Key.class).value())
+                .containsExactlyInAnyOrder("bank.officer-daily-limit", "bank.member-daily-limit");
     }
 
     @Test

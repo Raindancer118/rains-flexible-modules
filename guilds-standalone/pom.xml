@@ -41,7 +41,8 @@
         <!-- 0.13.0: /guild pay <player> <amount> — the guild pays anybody from its bank, any sum it holds, no daily limit; a new rank permission (Pay from the bank), the leader's alone by default. -->
         <!-- 0.14.0: daily bank limits per member on top of the rank's (/guild bank limit, member page); /guild bank available|pay in|pay out; the bank page takes out any amount up to the limit (shares, all, typed in an anvil). -->
         <!-- 0.14.1: an own limit never lets its holder raise a whole rank past their rank's limit; the setter's limit re-checked under the lock. -->
-        <plugin.version>0.14.1</plugin.version>
+        <!-- 0.15.0: higher daily bank limits by default — officers 10000, members 1000 (new keys bank.officer-daily-limit / bank.member-daily-limit); ranks of existing guilds still on the old 1000/100 are raised once. -->
+        <plugin.version>0.15.0</plugin.version>
     </properties>
 
     <dependencies>

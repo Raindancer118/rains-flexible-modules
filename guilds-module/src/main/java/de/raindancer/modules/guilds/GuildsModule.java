@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class GuildsModule implements FlexModule {
 
-    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.14.1")
+    private static final ModuleInfo INFO = ModuleInfo.of("guilds", "Guilds", "0.15.0")
             .describedAs("Guilds founded by players: a ladder of ranks with their own permissions, a bank with daily "
                     + "limits, levels earned by playing that unlock members, allies and a guild home, alliances and "
                     + "rivals, guild, officer and ally chat, and the guild's tag in front of every member's name")
@@ -108,7 +108,21 @@ public final class GuildsModule implements FlexModule {
         }
         book = new GuildBook(database, problem -> context.log().warn("guilds: {}", problem));
         GuildBook loading = book;
-        offTheServerThread("load", loading::load);
+        GuildsSettings limits = settings.current();
+        offTheServerThread("load", () -> {
+            // Only with the server's currency known: a rank's limit is in its minor units.
+            if (de.raindancer.core.social.economy.Economies.current().isPresent()) {
+                int raised = de.raindancer.modules.guilds.store.LimitMigration.run(database,
+                        new de.raindancer.modules.guilds.store.LimitMigration.Limits(
+                                Fees.amount("1000").minor(), Fees.amount(limits.officerLimit()).minor(),
+                                Fees.amount("100").minor(), Fees.amount(limits.memberLimit()).minor()),
+                        System::currentTimeMillis);
+                if (raised > 0) {
+                    context.log().info("{} guild rank(s) still on the old daily bank limits now have the new ones.", raised);
+                }
+            }
+            loading.load();
+        });
         context.closeWith(book.connect(context.core().bus()));
         if (!book.readable()) {
             context.log().error("The guilds database could not be read. Every guild is held as it is and no change is "

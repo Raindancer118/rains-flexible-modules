@@ -128,10 +128,12 @@ public record GuildsSettings(
 
         @In("guilds/bank") @Title("Daily limit for officers")
         @Describe("What a new guild's officers may take out a day. Each guild changes its own afterwards.")
-        @Key("bank.officer-limit") String officerLimit,
+        // New keys in 0.15.0, deliberately without the old ones: a running server had 1000/100 written into its
+        // file by the save that writes every default, and kept it however the defaults moved.
+        @Key("bank.officer-daily-limit") String officerLimit,
 
         @In("guilds/bank") @Title("Daily limit for members")
-        @Key("bank.member-limit") String memberLimit,
+        @Key("bank.member-daily-limit") String memberLimit,
 
         @In("guilds/home") @Title("Warm-up (seconds)") @Range(min = 0, max = 60)
         @Key("home.warmup") int homeWarmup,
@@ -156,6 +158,6 @@ public record GuildsSettings(
     public static final GuildsSettings DEFAULTS = new GuildsSettings(
             "0", 3, 24, 2, 5, List.of(), 8, 48, 7, 30, true, true,
             1000, 1.6, 25, 8, 2, 50, 1, 5, 3, 600, 0.35, 2, 250, 25, 1,
-            true, "", ShareRule.Mode.CONTRIBUTION, "1000", "100",
+            true, "", ShareRule.Mode.CONTRIBUTION, "10000", "1000",
             5, 60, 2, true, 100);
 }
