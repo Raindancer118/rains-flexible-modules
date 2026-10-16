@@ -104,11 +104,6 @@ public record EnchantsSettings(
         @Key("shard-drop-percent")
         int shardDropPercent,
 
-        @In("enchants/shards") @Title("Shards per player per hour") @Range(min = 0, max = 10000)
-        @Describe("The most shards one player can find in any hour, so a farm in the eternal night cannot print them. 0 for no limit.")
-        @Key("shards-per-hour")
-        int shardsPerHour,
-
         @In("enchants/shards") @Title("Thunderstorms, percent of the time") @Range(min = 0, max = 100)
         @Describe("How much of the time the shard world lies under a thunderstorm; rolled anew every five minutes.")
         @Key("shard-world-thunder-percent")
@@ -131,5 +126,5 @@ public record EnchantsSettings(
         int autopilotCooldownSeconds) {
 
     public static final EnchantsSettings DEFAULTS = new EnchantsSettings(30, 30, 8, 100, 90, 150, 200, 600, 50,
-            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 150, 70, 12, 2, 60);
+            true, "shardlands", 2500, 140, Material.AMETHYST_SHARD, 100, 70, 12, 2, 60);
 }

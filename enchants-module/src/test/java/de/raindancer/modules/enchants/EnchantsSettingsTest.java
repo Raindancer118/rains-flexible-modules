@@ -30,7 +30,13 @@ class EnchantsSettingsTest {
         assertThat(defaults.shardDropPercent()).isEqualTo(100);
         assertThat(defaults.crystalWardenPerMille()).isEqualTo(2);
         assertThat(defaults.autopilotCooldownSeconds()).isEqualTo(60);
-        assertThat(defaults.shardsPerHour()).isEqualTo(150);
+    }
+
+    @Test
+    @DisplayName("no hourly shard limit: neither a setting nor a cap behind it")
+    void noShardCap() {
+        assertThat(EnchantsSettings.class.getRecordComponents())
+                .extracting(java.lang.reflect.RecordComponent::getName).doesNotContain("shardsPerHour");
     }
 
     @Test

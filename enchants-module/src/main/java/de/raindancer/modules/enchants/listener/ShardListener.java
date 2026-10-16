@@ -15,13 +15,11 @@ import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
-import java.util.UUID;
 
 /** Opening and using shard portals, and the shards monsters drop. Drops at LOW, before Auto Sell and Telekinesis. */
 public final class ShardListener implements IEnchantsListener {
@@ -133,15 +131,5 @@ public final class ShardListener implements IEnchantsListener {
         if (killer != null && !(event instanceof PlayerDeathEvent)) {
             drops.died(event.getEntity(), killer, event.getDrops());
         }
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent event) {
-        forget(event.getPlayer().getUniqueId());
-    }
-
-    @Override
-    public void forget(UUID player) {
-        drops.forget(player);
     }
 }

@@ -50,7 +50,8 @@
         <!-- 0.25.0: Autopilot's cinematic cameras — chase, side, front, overhead, first person — switched in flight with A and D (a spectator's number keys never reach the server). -->
         <!-- 0.26.0: Launch III has no cooldown. -->
         <!-- 0.27.0: Autopilot follows the land — low over it, climbing early before mountains, never through it, landing on the roof above a covered place — and its orbit camera circles the flier and is turned with the mouse. -->
-        <plugin.version>0.27.0</plugin.version>
+        <!-- 0.28.0: no hourly shard limit any more (setting shards-per-hour removed): every shard a creature drops is found. -->
+        <plugin.version>0.28.0</plugin.version>
     </properties>
 
     <dependencies>
