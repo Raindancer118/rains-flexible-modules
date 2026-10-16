@@ -334,6 +334,23 @@ class ServicesTest {
         }
 
         @Test
+        @DisplayName("an own limit the leader gave one officer is theirs alone: it never lets them raise a whole rank past their rank's")
+        void ownLimitDoesNotWidenRanks() {
+            Guild elves = found(ALICE, "Elves", "ELF");
+            join(elves, BOB);
+            guilds.setRank(ALICE, BOB, Rank.OFFICER);
+            guilds.toggle(ALICE, Rank.OFFICER, GuildPermission.MANAGE_RANKS);
+            long officerLimit = guild(ALICE).rank(Rank.OFFICER).orElseThrow().dailyLimit();
+            assertThat(guilds.limitMember(ALICE, BOB, 20 * officerLimit)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.limitRank(BOB, Rank.MEMBER, 20 * officerLimit)).isEqualTo(GuildOutcome.OUTRANKED);
+            assertThat(guilds.limitRank(BOB, Rank.MEMBER, -1)).isEqualTo(GuildOutcome.OUTRANKED);
+            assertThat(guilds.limitRank(BOB, Rank.MEMBER, officerLimit)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.limitMember(ALICE, BOB, officerLimit / 2)).isEqualTo(GuildOutcome.SUCCESS);
+            assertThat(guilds.limitRank(BOB, Rank.MEMBER, officerLimit)).as("a lower own limit binds too")
+                    .isEqualTo(GuildOutcome.OUTRANKED);
+        }
+
+        @Test
         @DisplayName("a member's own limit replaces the rank's — higher or lower — set only by someone who outranks them, never above the setter's own, and it survives a restart")
         void ownLimits() {
             Guild elves = found(ALICE, "Elves", "ELF");

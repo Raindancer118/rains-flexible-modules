@@ -677,21 +677,35 @@ public final class GuildService implements IGuildsService {
      * ranks could open the bank to a friend by raising the rank below and promoting them into it.
      */
     public GuildOutcome limitRank(UUID actor, String rankId, long minor) {
-        if (own(actor).filter(guild -> above(guild, actor, minor)).isPresent()) {
+        if (own(actor).filter(guild -> above(guild, actor, minor, true)).isPresent()) {
             return GuildOutcome.OUTRANKED;
         }
         return editRank(actor, rankId, each -> each.withDailyLimit(minor), "daily limit " + minor);
     }
 
-    /** Whether {@code minor} (negative for none) is more than {@code actor}'s own daily limit allows them to hand out. */
     private boolean above(Guild guild, UUID actor, long minor) {
+        return above(guild, actor, minor, false);
+    }
+
+    /**
+     * Whether {@code minor} (negative for none) is more than {@code actor} may hand out: their own daily limit — and,
+     * for a whole rank, their rank's as well. An own limit the leader gave one officer is trust in that officer, not
+     * in every member of a rank they manage.
+     */
+    private boolean above(Guild guild, UUID actor, long minor, boolean forRank) {
         Optional<Rank> rank = guild.rankOf(actor);
         Optional<Member> member = guild.member(actor);
         if (rank.isEmpty() || member.isEmpty()) {
             return true;
         }
-        long mine = withdrawals.limit(rank.get(), member.get());
-        return mine >= 0 && (minor < 0 || minor > mine);
+        if (exceeds(minor, withdrawals.limit(rank.get(), member.get()))) {
+            return true;
+        }
+        return forRank && !rank.get().isLeader() && exceeds(minor, rank.get().dailyLimit());
+    }
+
+    private static boolean exceeds(long minor, long cap) {
+        return cap >= 0 && (minor < 0 || minor > cap);
     }
 
     /**
@@ -717,6 +731,11 @@ public final class GuildService implements IGuildsService {
             GuildOutcome still = ranks.mayActOn(now, actor, target, GuildPermission.MANAGE_RANKS);
             if (!still.isSuccess()) {
                 refused.set(still);
+                return now;
+            }
+            // Again under the lock: the setter's own limit may have been lowered since the check above.
+            if (minor != Member.RANK_LIMIT && above(now, actor, minor)) {
+                refused.set(GuildOutcome.OUTRANKED);
                 return now;
             }
             return now.withMember(now.member(target).orElseThrow().withOwnLimit(minor));
